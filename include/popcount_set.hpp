@@ -28,9 +28,9 @@ namespace jrmwng
                 else if constexpr (uPOPCOUNT == std::numeric_limits<Tuint>::digits)
                     return ~i0; // either 0 or ~0
                 else if constexpr (uPOPCOUNT == 1)
-                    return i0 ? (i0 << 1) : INITIAL;
+                    return (i0 << 1);
                 else if constexpr (uPOPCOUNT + 1u == std::numeric_limits<Tuint>::digits)
-                    return (~i0) ? ~((~i0) >> 1) : INITIAL;
+                    return ~((~i0) >> 1);
                 else
                 {
                     // Gosper's hack: https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
@@ -40,11 +40,11 @@ namespace jrmwng
                     return ((r1 ^ i1) >> 2) | (r1 << cnt);
                 }
             }
-            inline constexpr static Tuint INITIAL = uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~((~Tuint{}) << uPOPCOUNT);
-            static_assert(GospersHack(~complementary_set::GospersHack(~INITIAL)) == (uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~((~Tuint{}) << uPOPCOUNT)));
+            inline constexpr static Tuint INITIAL = (Tuint)(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) << uPOPCOUNT));
+            // static_assert(GospersHack(~complementary_set::GospersHack(~INITIAL)) == (Tuint)(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) << uPOPCOUNT)));
 
-            inline constexpr static Tuint SENTINEL = GospersHack(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~((~Tuint{}) >> uPOPCOUNT));
-            static_assert(~complementary_set::GospersHack(~SENTINEL) == (uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~((~Tuint{}) >> uPOPCOUNT)));
+            inline constexpr static Tuint SENTINEL = GospersHack(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) >> uPOPCOUNT));
+            // static_assert((Tuint)(~complementary_set::GospersHack(~SENTINEL)) == (Tuint)(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) >> uPOPCOUNT)));
 
             constexpr static std::ptrdiff_t rank(Tuint value)
             {
@@ -84,7 +84,7 @@ namespace jrmwng
                 friend class reverse_iterator;
                 Tuint m_value;
             public:
-                using iterator_category = std::bidirectional_iterator_tag;
+                using iterator_category = std::forward_iterator_tag;
                 using value_type = Tuint;
                 using difference_type = std::ptrdiff_t;
                 using reference = value_type const &;
@@ -115,24 +115,13 @@ namespace jrmwng
                     m_value = GospersHack(m_value);
                     return it;
                 }
-                iterator& operator--()
-                {
-                    m_value = ~complementary_set::GospersHack(~m_value);
-                    return *this;
-                }
-                iterator operator-- (int)
-                {
-                    iterator it{m_value};
-                    m_value = ~complementary_set::GospersHack(~m_value);
-                    return it;
-                }
             };
             class reverse_iterator
             {
                 friend class iterator;
                 Tuint m_value;
             public:
-                using iterator_category = std::bidirectional_iterator_tag;
+                using iterator_category = std::forward_iterator_tag;
                 using value_type = Tuint;
                 using difference_type = std::ptrdiff_t;
                 using reference = value_type const &;
@@ -145,7 +134,11 @@ namespace jrmwng
                 reverse_iterator(reverse_iterator &&) = default;
                 reverse_iterator& operator=(reverse_iterator &&) = default;
 
-                explicit constexpr reverse_iterator(iterator const& it) : m_value(~complementary_set::GospersHack(~(it.m_value))) {}
+                explicit constexpr reverse_iterator(iterator const& it)
+                    : m_value(it.m_value == SENTINEL
+                        ? ~complementary_set::INITIAL // end() -> rbegin()
+                        : ~complementary_set::GospersHack(~(it.m_value)))
+                {}
 
                 reference operator*() const { return m_value; }
 
@@ -163,17 +156,6 @@ namespace jrmwng
                     m_value = ~complementary_set::GospersHack(~m_value);
                     return it;
                 }
-                reverse_iterator& operator--()
-                {
-                    m_value = GospersHack(m_value);
-                    return *this;
-                }
-                reverse_iterator operator-- (int)
-                {
-                    reverse_iterator it{m_value};
-                    m_value = GospersHack(m_value);
-                    return it;
-                }
             };
             
             iterator begin() const { return {m_first}; }
@@ -183,6 +165,10 @@ namespace jrmwng
             reverse_iterator rend() const { return reverse_iterator(begin()); }
         };
         template <auto uPOPCOUNT>
-        constexpr popcount_set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it) : m_value(GospersHack(it.m_value)) {}
+        constexpr popcount_set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it)
+            : m_value(it.m_value == (Tuint)~complementary_set::SENTINEL
+                ? INITIAL // rend() -> begin()
+                : GospersHack(it.m_value))
+        {}
     }
 }
