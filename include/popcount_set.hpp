@@ -30,7 +30,7 @@ namespace jrmwng
                 else if constexpr (uPOPCOUNT == 1)
                     return (i0 << 1);
                 else if constexpr (uPOPCOUNT + 1u == std::numeric_limits<Tuint>::digits)
-                    return ~((~i0) >> 1);
+                    return ~(static_cast<Tuint>(~i0) >> 1);
                 else
                 {
                     // Gosper's hack: https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
