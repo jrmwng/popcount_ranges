@@ -112,8 +112,8 @@ bool check_uint16_edge_cases()
 
 bool check_uint32_edge_cases()
 {
-    // if (!check_exact_prefix<std::uint32_t, std::uint32_t{30}>({0x3fffffffU, 0x5fffffffU, 0x6fffffffU, 0x9fffffffU, 0xafffffffU, 0xbfffffffU, 0xdfffffffU, 0xefffffffU}))
-    //     return false;
+    if (!check_exact_prefix<std::uint32_t, std::uint32_t{30}>({0x3fffffffU, 0x5fffffffU, 0x6fffffffU, 0x77ffffffU, 0x7bffffffU, 0x7dffffffU, 0x7effffffU, 0x7f7fffffU, 0x7fbfffffU, 0x7fdfffffU, 0x7fefffffU, 0x7ff7ffffU, 0x7ffbffffU, 0x7ffdffffU, 0x7ffeffffU, 0x7fff7fffU, 0x7fffbfffU, 0x7fffdfffU, 0x7fffefffU, 0x7ffff7ffU, 0x7ffffbffU, 0x7ffffdffU, 0x7ffffeffU, 0x7fffff7fU, 0x7fffffbfU, 0x7fffffdfU, 0x7fffffefU, 0x7ffffff7U, 0x7ffffffbU, 0x7ffffffdU, 0x7ffffffeU, 0x9fffffffU}))
+        return false;
     if (!check_exact_prefix<std::uint32_t, std::uint32_t{31}>({0x7fffffffU, 0xbfffffffU, 0xdfffffffU, 0xefffffffU, 0xf7ffffffU, 0xfbffffffU, 0xfdffffffU, 0xfeffffffU}))
         return false;
     if (!check_single_value<std::uint32_t, std::uint32_t{32}>(std::uint32_t{0xffffffffU}))
@@ -123,8 +123,8 @@ bool check_uint32_edge_cases()
 
 bool check_uint64_edge_cases()
 {
-    // if (!check_exact_prefix<std::uint64_t, std::uint64_t{62}>({0x3fffffffffffffffULL, 0x5fffffffffffffffULL, 0x6fffffffffffffffULL, 0x9fffffffffffffffULL, 0xafffffffffffffffULL, 0xbfffffffffffffffULL, 0xdfffffffffffffffULL, 0xefffffffffffffffULL}))
-    //     return false;
+    if (!check_exact_prefix<std::uint64_t, std::uint64_t{62}>({0x3fffffffffffffffULL, 0x5fffffffffffffffULL, 0x6fffffffffffffffULL, 0x77ffffffffffffffULL, 0x7bffffffffffffffULL, 0x7dffffffffffffffULL, 0x7effffffffffffffULL, 0x7f7fffffffffffffULL}))
+        return false;
     if (!check_exact_prefix<std::uint64_t, std::uint64_t{63}>({0x7fffffffffffffffULL, 0xbfffffffffffffffULL, 0xdfffffffffffffffULL, 0xefffffffffffffffULL, 0xf7ffffffffffffffULL, 0xfbffffffffffffffULL, 0xfdffffffffffffffULL, 0xfeffffffffffffffULL}))
         return false;
     if (!check_single_value<std::uint64_t, std::uint64_t{64}>(std::uint64_t{0xffffffffffffffffULL}))
