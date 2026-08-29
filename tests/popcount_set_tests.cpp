@@ -1,4 +1,4 @@
-#include <popcount_ranges/popcount_set.hpp>
+#include <popcount_ranges/set.hpp>
 
 #include <bit>
 #include <cstdint>
@@ -10,7 +10,7 @@ namespace
 template <typename T, T Popcount>
 bool check_exhaustive_set(std::size_t expected_size)
 {
-    using Set = jrmwng::popcount_ranges::popcount_set<Popcount>;
+    using Set = jrmwng::popcount_ranges::set<Popcount>;
     Set set;
     std::size_t size = 0;
     T previous = 0;
@@ -248,6 +248,6 @@ int main()
         return 4;
     }
 
-    std::cout << "expanded popcount_set tests passed\n";
+    std::cout << "expanded set tests passed\n";
     return 0;
 }

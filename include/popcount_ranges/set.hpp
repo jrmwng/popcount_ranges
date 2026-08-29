@@ -117,13 +117,13 @@ namespace jrmwng
 
         // A set of unsigned integers having the same `std::popcount` result.
         template <auto uPOPCOUNT>
-        class popcount_set
+        class set
         {
             using Tuint = decltype(uPOPCOUNT);
-            static_assert(std::is_unsigned_v<Tuint>, "popcount_set: Tuint must be an unsigned integer type");
-            static_assert(uPOPCOUNT <= std::numeric_limits<Tuint>::digits, "popcount_set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
+            static_assert(std::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
+            static_assert(uPOPCOUNT <= std::numeric_limits<Tuint>::digits, "set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
 
-            using complementary_set = popcount_set<Tuint{std::numeric_limits<Tuint>::digits - uPOPCOUNT}>;
+            using complementary_set = set<Tuint{std::numeric_limits<Tuint>::digits - uPOPCOUNT}>;
             friend complementary_set;
 
             constexpr static Tuint GospersHack(Tuint i0)
@@ -204,22 +204,22 @@ namespace jrmwng
             Tuint m_first{INITIAL};
             Tuint m_last{SENTINEL};
         public:
-            popcount_set() = default;
-            popcount_set(Tuint first, Tuint last) : m_first(first), m_last(last)
+            set() = default;
+            set(Tuint first, Tuint last) : m_first(first), m_last(last)
             {
                 if (first != SENTINEL)
                 {
                     if (std::popcount(first) != static_cast<int>(uPOPCOUNT))
-                        throw std::invalid_argument("popcount_set: first does not have the required popcount");
+                        throw std::invalid_argument("set: first does not have the required popcount");
                 }
                 if (last != SENTINEL)
                 {
                     if (std::popcount(last) != static_cast<int>(uPOPCOUNT))
-                        throw std::invalid_argument("popcount_set: last does not have the required popcount");
+                        throw std::invalid_argument("set: last does not have the required popcount");
                     if (first == SENTINEL)
-                        throw std::invalid_argument("popcount_set: last is not sentinel but first is");
+                        throw std::invalid_argument("set: last is not sentinel but first is");
                     if (first > last)
-                        throw std::invalid_argument("popcount_set: first is greater than last");
+                        throw std::invalid_argument("set: first is greater than last");
                 }
             }
 
@@ -321,7 +321,7 @@ namespace jrmwng
             reverse_iterator rend() const { return reverse_iterator(begin()); }
         };
         template <auto uPOPCOUNT>
-        constexpr popcount_set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it)
+        constexpr set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it)
             : m_value(it.m_value == (Tuint)~complementary_set::SENTINEL
                 ? INITIAL // rend() -> begin()
                 : GospersHack(it.m_value)) // ..., rbegin() -> end()
