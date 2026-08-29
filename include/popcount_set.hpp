@@ -285,8 +285,8 @@ namespace jrmwng
 
                 explicit constexpr reverse_iterator(iterator const& it)
                     : m_value(it.m_value == SENTINEL
-                        ? ~complementary_set::INITIAL // end() -> rbegin()
-                        : ~complementary_set::GospersHack(~(it.m_value))) // ..., begin() -> rend()
+                        ? static_cast<Tuint>(~complementary_set::INITIAL) // end() -> rbegin()
+                        : static_cast<Tuint>(~complementary_set::GospersHack(~(it.m_value)))) // ..., begin() -> rend()
                 {}
 
                 reference operator*() const { return m_value; }
@@ -296,13 +296,13 @@ namespace jrmwng
 
                 reverse_iterator& operator++()
                 {
-                    m_value = ~complementary_set::GospersHack(~m_value);
+                    m_value = static_cast<Tuint>(~complementary_set::GospersHack(~m_value));
                     return *this;
                 }
                 reverse_iterator operator++ (int)
                 {
                     reverse_iterator it{m_value};
-                    m_value = ~complementary_set::GospersHack(~m_value);
+                    m_value = static_cast<Tuint>(~complementary_set::GospersHack(~m_value));
                     return it;
                 }
 
