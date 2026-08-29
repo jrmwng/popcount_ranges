@@ -189,6 +189,7 @@ namespace jrmwng
                     if (m_value == SENTINEL)
                         throw std::out_of_range("set::iterator: incrementing past end");
                     m_value = GospersHack(m_value);
+                    m_rank++;
                     return *this;
                 }
                 iterator operator++ (int)
@@ -205,6 +206,7 @@ namespace jrmwng
                         m_value = static_cast<Tuint>(~complementary_set::INITIAL);
                     else
                         m_value = ~complementary_set::GospersHack(~m_value);
+                    m_rank--;
                     return *this;
                 }
                 iterator operator-- (int)
@@ -228,7 +230,7 @@ namespace jrmwng
                         return --(*this);
 
                     constexpr auto LAST_RANK = rank(SENTINEL);
-                    const     auto this_rank = rank(m_value);
+                    const     auto this_rank = m_rank;
                     const     auto next_rank = (n < 0 ? this_rank - static_cast<std::uintmax_t>(-n) : this_rank + static_cast<std::uintmax_t>(n));
                     if (n < 0 && static_cast<std::uintmax_t>(-n) > this_rank)
                         throw std::out_of_range("set::iterator: decrementing past begin");
@@ -236,6 +238,7 @@ namespace jrmwng
                         throw std::out_of_range("set::iterator: incrementing past end");
 
                     m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
+                    m_rank = next_rank;
                     return *this;
                 }
                 iterator operator+(difference_type n) const
@@ -254,7 +257,7 @@ namespace jrmwng
                         return ++(*this);
                     
                     constexpr auto LAST_RANK = rank(SENTINEL);
-                    const     auto this_rank = rank(m_value);
+                    const     auto this_rank = m_rank;
                     const     auto next_rank = (n < 0 ? this_rank + static_cast<std::uintmax_t>(-n) : this_rank - static_cast<std::uintmax_t>(n));
                     if (n < 0 && static_cast<std::uintmax_t>(-n) > LAST_RANK - this_rank)
                         throw std::out_of_range("set::iterator: incrementing past end");
@@ -262,6 +265,7 @@ namespace jrmwng
                         throw std::out_of_range("set::iterator: decrementing past begin");
 
                     m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
+                    m_rank = next_rank;
                     return *this;
                 }
                 iterator operator-(difference_type n) const
@@ -331,6 +335,7 @@ namespace jrmwng
             : m_value(it.m_value == (Tuint)~complementary_set::SENTINEL
                 ? INITIAL // rend() -> begin()
                 : GospersHack(it.m_value)) // ..., rbegin() -> end()
+            , m_rank(rank(m_value))
         {}
     }
 }
