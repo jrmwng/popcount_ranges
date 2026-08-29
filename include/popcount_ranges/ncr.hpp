@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <tuple>
 #include <utility>
+#include <algorithm>
 
 namespace jrmwng
 {
@@ -40,11 +41,19 @@ namespace jrmwng
         public:
             constexpr auto & operator[](size_t n) noexcept
             {
-                return m_row[n-(R-1)];
+                return m_row[n - (R-1)];
             }
             constexpr auto operator[](size_t n) const noexcept
             {
-                return m_row[n-(R-1)];
+                return m_row[n - (R-1)];
+            }
+            constexpr size_t search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
+            {
+                auto const itFirst = m_row + first_n - (R-1);
+                auto const itLast = m_row + last_n - (R-1);
+                auto const itUpperBound = std::upper_bound(itFirst, itLast, (value_type)std::min(target, (uintmax_t)std::numeric_limits<value_type>::max()));
+
+                return (first_n - 1u) + std::distance(itFirst, itUpperBound);
             }
         };
         template <size_t MAX_N>
@@ -55,6 +64,10 @@ namespace jrmwng
             {
                 return {};
             }
+            constexpr size_t search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
+            {
+                return (target >= 1u ? last_n : first_n) - 1u;
+            }            
         };
         template <size_t MAX_N>
         class nCr_row<MAX_N, 1>
@@ -63,6 +76,10 @@ namespace jrmwng
             constexpr size_t operator[](size_t n) const noexcept
             {
                 return n;
+            }
+            constexpr size_t search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
+            {
+                return std::clamp(target, first_n - 1u, last_n - 1u);
             }
         };
         template <size_t MAX_N, size_t MAX_R>
@@ -96,6 +113,11 @@ namespace jrmwng
             {
                 return std::get<R>(m_tupleRow)[n];
             }
+            template <size_t R>
+            constexpr size_t search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R> = {}) const noexcept
+            {
+                return std::get<R>(m_tupleRow).search(n_first, n_last, target);
+            }
         };
         template <typename Tuint>
         inline constexpr nCr_table<std::numeric_limits<Tuint>::digits, std::numeric_limits<Tuint>::digits / 2u> nCr_LUT{};
@@ -110,6 +132,19 @@ namespace jrmwng
             else
             {
                 return nCr_LUT<Tuint>(n, std::integral_constant<size_t, R>{});
+            }
+        }
+        template <typename Tuint, size_t R>
+        constexpr size_t nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R>) noexcept
+        {
+            constexpr size_t N = std::numeric_limits<Tuint>::digits;
+            if constexpr (R > N / 2u)
+            {
+                return nCr_LUT<Tuint>.search(n_first, n_last, target, std::integral_constant<size_t, N - R>{});
+            }
+            else
+            {
+                return nCr_LUT<Tuint>.search(n_first, n_last, target, std::integral_constant<size_t, R>{});
             }
         }
     }

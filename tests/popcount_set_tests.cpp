@@ -5,9 +5,122 @@
 #include <cstdint>
 #include <iostream>
 #include <iterator>
+#include <stdexcept>
+#include <vector>
 
 namespace
 {
+template <typename Function>
+bool throws_out_of_range(Function&& function)
+{
+    try
+    {
+        function();
+    }
+    catch (std::out_of_range const&)
+    {
+        return true;
+    }
+    catch (...)
+    {
+    }
+    return false;
+}
+
+template <typename T, T Popcount>
+bool check_iterator_operators()
+{
+    using Set = jrmwng::popcount_ranges::set<Popcount>;
+    using difference_type = typename Set::iterator::difference_type;
+
+    Set set;
+    std::vector<T> expected;
+    std::vector<typename Set::iterator> positions;
+    for (auto iterator = set.begin(); iterator != set.end(); ++iterator)
+    {
+        expected.push_back(*iterator);
+        positions.push_back(iterator);
+    }
+    positions.push_back(set.end());
+
+    auto const size = static_cast<difference_type>(expected.size());
+    auto const fail = [](char const* operation, difference_type index, difference_type offset = 0)
+    {
+        std::cerr << "iterator operator failure: " << operation << ", index=" << index << ", offset=" << offset << "\n";
+        return false;
+    };
+    auto const iterator_at = [&positions](difference_type index)
+    {
+        return positions[static_cast<std::size_t>(index)];
+    };
+
+    for (difference_type index = 1; index < size; ++index)
+    {
+        auto prefix = iterator_at(index);
+        if (*--prefix != expected[static_cast<std::size_t>(index - 1)])
+            return fail("prefix decrement", index);
+
+        auto postfix = iterator_at(index);
+        auto const original = postfix--;
+        if (*original != expected[static_cast<std::size_t>(index)] ||
+            *postfix != expected[static_cast<std::size_t>(index - 1)])
+            return fail("postfix decrement", index);
+    }
+
+    auto from_end = set.end();
+    if (*--from_end != expected.back())
+        return fail("decrement end", size);
+    if (!throws_out_of_range([&set] { --set.begin(); }))
+        return fail("decrement begin", 0);
+
+    for (difference_type index = 0; index <= size; ++index)
+    {
+        auto const iterator = iterator_at(index);
+        for (difference_type offset : {difference_type{0}, difference_type{1}, difference_type{-1}, difference_type{2}, difference_type{-2}})
+        {
+            auto const target = index + offset;
+            auto const is_valid = target >= 0 && target <= size;
+
+            auto plus_assign = iterator;
+            if (is_valid)
+            {
+                plus_assign += offset;
+                if (plus_assign != iterator_at(target))
+                    return fail("plus assign", index, offset);
+            }
+            else if (!throws_out_of_range([&plus_assign, offset] { plus_assign += offset; }))
+                return fail("plus assign bounds", index, offset);
+
+            auto minus_assign = iterator;
+            if (is_valid)
+            {
+                minus_assign -= -offset;
+                if (minus_assign != iterator_at(target))
+                    return fail("minus assign", index, offset);
+            }
+            else if (!throws_out_of_range([&minus_assign, offset] { minus_assign -= -offset; }))
+                return fail("minus assign bounds", index, offset);
+
+            if (is_valid)
+            {
+                if (iterator + offset != iterator_at(target) || iterator != iterator_at(index))
+                    return fail("plus", index, offset);
+                if (iterator - -offset != iterator_at(target) || iterator != iterator_at(index))
+                    return fail("minus", index, offset);
+            }
+            else
+            {
+                if (!throws_out_of_range([iterator, offset] { static_cast<void>(iterator + offset); }))
+                    return fail("plus bounds", index, offset);
+                if (!throws_out_of_range([iterator, offset] { static_cast<void>(iterator - -offset); }))
+                    return fail("minus bounds", index, offset);
+            }
+        }
+    }
+
+    return true;
+}
+
 template <typename T, T Popcount>
 bool check_exhaustive_set(std::size_t expected_size)
 {
@@ -128,6 +241,52 @@ bool check_exhaustive_set(std::size_t expected_size)
 
 bool check_uint8_exhaustive_sets()
 {
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{0}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=0\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{1}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=1\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{2}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=2\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{3}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=3\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{4}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=4\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{5}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=5\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{6}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=6\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{7}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=7\n";
+        return false;
+    }
+    if (!check_iterator_operators<std::uint8_t, std::uint8_t{8}>())
+    {
+        std::cerr << "iterator operators failed for Popcount=8\n";
+        return false;
+    }
+
     if (!check_exhaustive_set<std::uint8_t, std::uint8_t{0}>(1))
         return false;
     if (!check_exhaustive_set<std::uint8_t, std::uint8_t{1}>(8))

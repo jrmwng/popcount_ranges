@@ -14,6 +14,9 @@ namespace jrmwng
         template <typename Tuint, size_t R>
         constexpr auto nCr(size_t n, std::integral_constant<size_t, R>) noexcept;
 
+        template <typename Tuint, size_t R>
+        constexpr size_t nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R> = {}) noexcept;
+
         // A set of unsigned integers having the same `std::popcount` result.
         template <auto uPOPCOUNT>
         class set
@@ -47,7 +50,7 @@ namespace jrmwng
             inline constexpr static Tuint INITIAL = (Tuint)(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) << uPOPCOUNT));
             inline constexpr static Tuint SENTINEL = GospersHack(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) >> uPOPCOUNT));
 
-            constexpr static std::uintmax_t rank(Tuint value)
+            constexpr static std::uintmax_t rank(Tuint value) noexcept
             {
                 if (value == SENTINEL)
                     return nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
@@ -77,7 +80,7 @@ namespace jrmwng
                     }(0u, value, std::make_index_sequence<uPOPCOUNT>{});
                 }
             }
-            constexpr static std::ptrdiff_t distance(Tuint first, Tuint last)
+            constexpr static std::ptrdiff_t distance(Tuint first, Tuint last) noexcept
             {
                 if (first == SENTINEL || last == SENTINEL)
                     return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
@@ -97,6 +100,39 @@ namespace jrmwng
                                  v1 &= v1 - Tuint(1)), ...),
                                (r1 >= r0 ? static_cast<std::ptrdiff_t>(r1 - r0) : -static_cast<std::ptrdiff_t>(r0 - r1));
                     }(0u, 0u, first, last, std::make_index_sequence<uPOPCOUNT>{});
+                }
+            }
+
+            constexpr static Tuint unrank(std::uintmax_t rank) noexcept
+            {
+                if constexpr (uPOPCOUNT == 0)
+                    return 0;
+                else if constexpr (uPOPCOUNT == std::numeric_limits<Tuint>::digits)
+                    return ~Tuint{};
+                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                {
+                    constexpr auto TOTAL = nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+
+                    return static_cast<Tuint>(~complementary_set::unrank(TOTAL - 1 - rank));
+                }
+                else
+                {
+                    Tuint result = 0;
+                    std::uintmax_t remaining = rank;
+                    size_t n = std::numeric_limits<Tuint>::digits + 1u;
+
+                    [&]<size_t... Is>(std::index_sequence<Is...>) {
+                        (([&]() {
+                            constexpr std::integral_constant<size_t, uPOPCOUNT - Is> R{}; // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
+
+                            n = nCr_search<Tuint>(R, n, remaining, R);
+
+                            remaining -= nCr<Tuint>(n, R);
+                            result |= static_cast<Tuint>(Tuint(1) << n);
+                        })(), ...);
+                    }(std::make_index_sequence<uPOPCOUNT>{});
+
+                    return result;
                 }
             }
 
@@ -128,7 +164,7 @@ namespace jrmwng
                 friend class reverse_iterator;
                 Tuint m_value;
             public:
-                using iterator_category = std::forward_iterator_tag;
+                using iterator_category = std::random_access_iterator_tag;
                 using value_type = Tuint;
                 using difference_type = std::ptrdiff_t;
                 using reference = value_type const &;
@@ -150,18 +186,89 @@ namespace jrmwng
                 
                 iterator& operator++()
                 {
+                    if (m_value == SENTINEL)
+                        throw std::out_of_range("set::iterator: incrementing past end");
                     m_value = GospersHack(m_value);
                     return *this;
                 }
                 iterator operator++ (int)
                 {
                     iterator it{m_value};
-                    m_value = GospersHack(m_value);
+                    ++(*this);
+                    return it;
+                }
+                iterator& operator--()
+                {
+                    if (m_value == INITIAL)
+                        throw std::out_of_range("set::iterator: decrementing past begin");
+                    if (m_value == SENTINEL)
+                        m_value = static_cast<Tuint>(~complementary_set::INITIAL);
+                    else
+                        m_value = ~complementary_set::GospersHack(~m_value);
+                    return *this;
+                }
+                iterator operator-- (int)
+                {
+                    iterator it{m_value};
+                    --(*this);
                     return it;
                 }
                 difference_type operator-(iterator const& other) const
                 {
                     return distance(other.m_value, m_value);
+                }
+
+                iterator& operator+=(difference_type n)
+                {
+                    if (n == 0)
+                        return *this;
+                    if (n == 1)
+                        return ++(*this);
+                    if (n == -1)
+                        return --(*this);
+
+                    constexpr auto LAST_RANK = rank(SENTINEL);
+                    const     auto this_rank = rank(m_value);
+                    const     auto next_rank = (n < 0 ? this_rank - static_cast<std::uintmax_t>(-n) : this_rank + static_cast<std::uintmax_t>(n));
+                    if (n < 0 && static_cast<std::uintmax_t>(-n) > this_rank)
+                        throw std::out_of_range("set::iterator: decrementing past begin");
+                    if (n > 0 && static_cast<std::uintmax_t>(n) > LAST_RANK - this_rank)
+                        throw std::out_of_range("set::iterator: incrementing past end");
+
+                    m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
+                    return *this;
+                }
+                iterator operator+(difference_type n) const
+                {
+                    iterator it{*this};
+                    it += n;
+                    return it;
+                }
+                iterator& operator-=(difference_type n)
+                {
+                    if (n == 0)
+                        return *this;
+                    if (n == 1)
+                        return --(*this);
+                    if (n == -1)
+                        return ++(*this);
+                    
+                    constexpr auto LAST_RANK = rank(SENTINEL);
+                    const     auto this_rank = rank(m_value);
+                    const     auto next_rank = (n < 0 ? this_rank + static_cast<std::uintmax_t>(-n) : this_rank - static_cast<std::uintmax_t>(n));
+                    if (n < 0 && static_cast<std::uintmax_t>(-n) > LAST_RANK - this_rank)
+                        throw std::out_of_range("set::iterator: incrementing past end");
+                    if (n > 0 && static_cast<std::uintmax_t>(n) > this_rank)
+                        throw std::out_of_range("set::iterator: decrementing past begin");
+
+                    m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
+                    return *this;
+                }
+                iterator operator-(difference_type n) const
+                {
+                    iterator it{*this};
+                    it -= n;
+                    return it;
                 }
             };
             class reverse_iterator
