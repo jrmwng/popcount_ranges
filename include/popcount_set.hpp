@@ -302,7 +302,7 @@ namespace jrmwng
                 {
                     // `~m_value` could be `complementary_set::SENTINEL` but `SENTINEL`,
                     // therefore `complementary_set::distance` will handle that case correctly.
-                    return complementary_set::distance(~m_value, ~other.m_value);
+                    return complementary_set::distance(~other.m_value, ~m_value);
                 }
             };
             
