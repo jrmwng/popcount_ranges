@@ -52,18 +52,17 @@ namespace jrmwng
 
             constexpr static std::uintmax_t rank(Tuint value) noexcept
             {
+                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+
                 if (value == SENTINEL)
-                    return nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                    return TOTAL;
+                else if (value == INITIAL)
+                    return 0;
                 else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     // Use the complementary set to compute the rank of the complement.
-                    return nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{})
-                        - 1u - complementary_set::rank(~value);
+                    return TOTAL - 1u - complementary_set::rank(~value);
                 }
-                else if constexpr (uPOPCOUNT == 0)
-                    return 0;
-                else if constexpr (uPOPCOUNT == std::numeric_limits<Tuint>::digits)
-                    return 0;
                 else
                 {
                     // Fold evaluates left-to-right via comma operator, so side effects
@@ -82,7 +81,7 @@ namespace jrmwng
             }
             constexpr static std::ptrdiff_t distance(Tuint first, Tuint last) noexcept
             {
-                if (first == SENTINEL || last == SENTINEL)
+                if (first == SENTINEL || last == SENTINEL || first == INITIAL || last == INITIAL)
                     return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
                 else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
@@ -105,14 +104,14 @@ namespace jrmwng
 
             constexpr static Tuint unrank(std::uintmax_t rank) noexcept
             {
-                if constexpr (uPOPCOUNT == 0)
-                    return 0;
-                else if constexpr (uPOPCOUNT == std::numeric_limits<Tuint>::digits)
-                    return ~Tuint{};
-                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
-                {
-                    constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
 
+                if (rank == 0)
+                    return INITIAL;
+                else if (rank == TOTAL)
+                    return SENTINEL;
+                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)    
+                {
                     return static_cast<Tuint>(~complementary_set::unrank(TOTAL - 1 - rank));
                 }
                 else
@@ -163,13 +162,14 @@ namespace jrmwng
             {
                 friend class reverse_iterator;
                 Tuint m_value;
+                size_t m_rank;
             public:
                 using iterator_category = std::random_access_iterator_tag;
                 using value_type = Tuint;
                 using difference_type = std::ptrdiff_t;
                 using reference = value_type const &;
                 
-                constexpr iterator(Tuint value) : m_value(value) {}
+                constexpr iterator(Tuint value) : m_value(value), m_rank(rank(value)) {}
 
                 iterator() = default;
                 iterator(iterator const&) = default;
