@@ -150,14 +150,14 @@ namespace jrmwng
 
             constexpr static std::uintmax_t rank(Tuint value)
             {
-                if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                if (value == SENTINEL)
+                    return nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     // Use the complementary set to compute the rank of the complement.
                     return nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{})
                         - 1u - complementary_set::rank(~value);
                 }
-                else if (value == SENTINEL)
-                    return nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
                 else if constexpr (uPOPCOUNT == 0)
                     return 0;
                 else if constexpr (uPOPCOUNT == std::numeric_limits<Tuint>::digits)
@@ -180,15 +180,15 @@ namespace jrmwng
             }
             constexpr static std::ptrdiff_t distance(Tuint first, Tuint last)
             {
-                if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                if (first == SENTINEL || last == SENTINEL)
+                    return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
+                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     // Use the complementary set to compute the distance of the complement.
                     return static_cast<std::ptrdiff_t>(complementary_set::distance(~last, ~first));
                 }
                 else if (first == last)
                     return 0;
-                else if (first == SENTINEL || last == SENTINEL)
-                    return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
                 else
                 {
                     return []<size_t... Js>(std::uintmax_t r0, std::uintmax_t r1, Tuint v0, Tuint v1, std::index_sequence<Js...>) {
