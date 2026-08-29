@@ -6,6 +6,7 @@
 #include <tuple>
 #include <utility>
 #include <algorithm>
+#include <iterator>
 
 namespace jrmwng
 {
