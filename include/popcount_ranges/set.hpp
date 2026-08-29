@@ -12,7 +12,7 @@ namespace jrmwng
     namespace popcount_ranges
     {
         template <typename Tuint, size_t R>
-        constexpr auto nCr(size_t n, std::integral_constant<size_t, R>) noexcept;
+        constexpr auto nCr_read(size_t n, std::integral_constant<size_t, R>) noexcept;
 
         template <typename Tuint, size_t R>
         constexpr size_t nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R> = {}) noexcept;
@@ -53,11 +53,11 @@ namespace jrmwng
             constexpr static std::uintmax_t rank(Tuint value) noexcept
             {
                 if (value == SENTINEL)
-                    return nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                    return nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
                 else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     // Use the complementary set to compute the rank of the complement.
-                    return nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{})
+                    return nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{})
                         - 1u - complementary_set::rank(~value);
                 }
                 else if constexpr (uPOPCOUNT == 0)
@@ -74,7 +74,7 @@ namespace jrmwng
                     //          v &= v - 1                 -- clear that bit
                     return []<size_t... Js>(std::uintmax_t result, Tuint v, std::index_sequence<Js...>) {
                         return ((result += 
-                                nCr<Tuint>(std::countr_zero(v), std::integral_constant<size_t, Js + 1>{})
+                                nCr_read<Tuint>(std::countr_zero(v), std::integral_constant<size_t, Js + 1>{})
                             , v &= v - Tuint(1)), ...),
                             result;
                     }(0u, value, std::make_index_sequence<uPOPCOUNT>{});
@@ -94,8 +94,8 @@ namespace jrmwng
                 else
                 {
                     return []<size_t... Js>(std::uintmax_t r0, std::uintmax_t r1, Tuint v0, Tuint v1, std::index_sequence<Js...>) {
-                        return ((r0 += nCr<Tuint>(std::countr_zero(v0), std::integral_constant<size_t, Js + 1>{}),
-                                 r1 += nCr<Tuint>(std::countr_zero(v1), std::integral_constant<size_t, Js + 1>{}),
+                        return ((r0 += nCr_read<Tuint>(std::countr_zero(v0), std::integral_constant<size_t, Js + 1>{}),
+                                 r1 += nCr_read<Tuint>(std::countr_zero(v1), std::integral_constant<size_t, Js + 1>{}),
                                  v0 &= v0 - Tuint(1),
                                  v1 &= v1 - Tuint(1)), ...),
                                (r1 >= r0 ? static_cast<std::ptrdiff_t>(r1 - r0) : -static_cast<std::ptrdiff_t>(r0 - r1));
@@ -111,7 +111,7 @@ namespace jrmwng
                     return ~Tuint{};
                 else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
-                    constexpr auto TOTAL = nCr<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                    constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
 
                     return static_cast<Tuint>(~complementary_set::unrank(TOTAL - 1 - rank));
                 }
@@ -127,7 +127,7 @@ namespace jrmwng
 
                             n = nCr_search<Tuint>(R, n, remaining, R);
 
-                            remaining -= nCr<Tuint>(n, R);
+                            remaining -= nCr_read<Tuint>(n, R);
                             result |= static_cast<Tuint>(Tuint(1) << n);
                         })(), ...);
                     }(std::make_index_sequence<uPOPCOUNT>{});

@@ -121,8 +121,9 @@ namespace jrmwng
         };
         template <typename Tuint>
         inline constexpr nCr_table<std::numeric_limits<Tuint>::digits, std::numeric_limits<Tuint>::digits / 2u> nCr_LUT{};
+
         template <typename Tuint, size_t R>
-        constexpr auto nCr(size_t n, std::integral_constant<size_t, R>) noexcept
+        constexpr auto nCr_read(size_t n, std::integral_constant<size_t, R>) noexcept
         {
             constexpr size_t N = std::numeric_limits<Tuint>::digits;
             if constexpr (R > N / 2u)
