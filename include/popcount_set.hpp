@@ -103,7 +103,15 @@ namespace jrmwng
         template <typename Tuint, size_t R>
         constexpr auto nCr(size_t n, std::integral_constant<size_t, R>) noexcept
         {
-            return nCr_LUT<Tuint>(n, std::integral_constant<size_t, R>{});
+            constexpr size_t N = std::numeric_limits<Tuint>::digits;
+            if constexpr (R > N / 2u)
+            {
+                return nCr_LUT<Tuint>(n, std::integral_constant<size_t, N - R>{});
+            }
+            else
+            {
+                return nCr_LUT<Tuint>(n, std::integral_constant<size_t, R>{});
+            }
         }
 
 
