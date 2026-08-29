@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstdint>
 #include <iostream>
+#include <iterator>
 
 namespace
 {
@@ -16,6 +17,99 @@ bool check_exhaustive_set(std::size_t expected_size)
 
     if (std::popcount(static_cast<T>(*set.end())) == static_cast<int>(Popcount))
         return false;
+
+    auto const expected_dist = static_cast<std::ptrdiff_t>(expected_size);
+
+    // Check full set distance for iterator and reverse_iterator
+    if (std::distance(set.begin(), set.end()) != expected_dist)
+    {
+        std::cerr << "Failed: std::distance(begin, end) != expected_dist for Popcount=" << (int)Popcount << "\n";
+        return false;
+    }
+    if ((set.end() - set.begin()) != expected_dist)
+    {
+        std::cerr << "Failed: (end - begin) != expected_dist for Popcount=" << (int)Popcount << "\n";
+        return false;
+    }
+    if ((set.begin() - set.end()) != -expected_dist)
+    {
+        std::cerr << "Failed: (begin - end) != -expected_dist for Popcount=" << (int)Popcount << "\n";
+        return false;
+    }
+
+    if (std::distance(set.rbegin(), set.rend()) != expected_dist)
+    {
+        std::cerr << "Failed: std::distance(rbegin, rend) != expected_dist for Popcount=" << (int)Popcount << "\n";
+        return false;
+    }
+    if ((set.rend() - set.rbegin()) != expected_dist)
+    {
+        std::cerr << "Failed: (rend - rbegin) != expected_dist for Popcount=" << (int)Popcount << "\n";
+        return false;
+    }
+    if ((set.rbegin() - set.rend()) != -expected_dist)
+    {
+        std::cerr << "Failed: (rbegin - rend) != -expected_dist for Popcount=" << (int)Popcount << "\n";
+        return false;
+    }
+
+    // Check self-distance
+    if (std::distance(set.begin(), set.begin()) != 0 || (set.begin() - set.begin()) != 0)
+        return false;
+    if (std::distance(set.end(), set.end()) != 0 || (set.end() - set.end()) != 0)
+        return false;
+    if (std::distance(set.rbegin(), set.rbegin()) != 0 || (set.rbegin() - set.rbegin()) != 0)
+        return false;
+    if (std::distance(set.rend(), set.rend()) != 0 || (set.rend() - set.rend()) != 0)
+        return false;
+
+    // Check distances during forward iteration
+    {
+        std::size_t idx = 0;
+        for (auto it = set.begin(); it != set.end(); ++it, ++idx)
+        {
+            auto const cur_idx = static_cast<std::ptrdiff_t>(idx);
+            auto const rem_idx = static_cast<std::ptrdiff_t>(expected_size - idx);
+
+            if (std::distance(set.begin(), it) != cur_idx)
+                return false;
+            if ((it - set.begin()) != cur_idx)
+                return false;
+            if ((set.begin() - it) != -cur_idx)
+                return false;
+
+            if (std::distance(it, set.end()) != rem_idx)
+                return false;
+            if ((set.end() - it) != rem_idx)
+                return false;
+            if ((it - set.end()) != -rem_idx)
+                return false;
+        }
+    }
+
+    // Check distances during reverse iteration
+    {
+        std::size_t idx = 0;
+        for (auto rit = set.rbegin(); rit != set.rend(); ++rit, ++idx)
+        {
+            auto const cur_idx = static_cast<std::ptrdiff_t>(idx);
+            auto const rem_idx = static_cast<std::ptrdiff_t>(expected_size - idx);
+
+            if (std::distance(set.rbegin(), rit) != cur_idx)
+                return false;
+            if ((rit - set.rbegin()) != cur_idx)
+                return false;
+            if ((set.rbegin() - rit) != -cur_idx)
+                return false;
+
+            if (std::distance(rit, set.rend()) != rem_idx)
+                return false;
+            if ((set.rend() - rit) != rem_idx)
+                return false;
+            if ((rit - set.rend()) != -rem_idx)
+                return false;
+        }
+    }
 
     for (auto value : set)
     {
