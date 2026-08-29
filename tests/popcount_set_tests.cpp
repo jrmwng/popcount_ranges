@@ -1,4 +1,5 @@
 #include <popcount_ranges/set.hpp>
+#include <popcount_ranges/ncr.hpp>
 
 #include <bit>
 #include <cstdint>
