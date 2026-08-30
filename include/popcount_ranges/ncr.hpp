@@ -9,6 +9,7 @@
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <vector>
 
 namespace jrmwng
 {
@@ -144,14 +145,12 @@ namespace jrmwng
                 if constexpr (sizeof(row_tuple) <= 4096)
                 {
                     ([&, this]<size_t... R2s>(std::index_sequence<R2s...>){ // R2s = 0, 1, ..., MAX_R-2
-                        ([&, this]<size_t R>(std::integral_constant<size_t, R>){ // R = 2, 3, ..., MAX_R
-                            ((std::get<R>(m_tupleRow)[R - 1u] = 0), ...);
-                            ((std::get<R>(m_tupleRow)[R] = 1), ...);
-                            for (size_t n = 3; n <= MAX_N; ++n)
-                            {
-                                (((n >= R + 1) && (std::get<R>(m_tupleRow)[n] = std::get<R-1>(m_tupleRow)[n-1] + std::get<R>(m_tupleRow)[n-1])), ...);
-                            }
-                        }(std::integral_constant<size_t, R2s + 2>{}), ...);
+                        ((std::get<(R2s+2)>(m_tupleRow)[(R2s+2) - 1u] = 0), ...);
+                        ((std::get<(R2s+2)>(m_tupleRow)[(R2s+2)] = 1), ...);
+                        for (size_t n = 3; n <= MAX_N; ++n)
+                        {
+                            (((n >= (R2s+2) + 1) && (std::get<(R2s+2)>(m_tupleRow)[n] = std::get<(R2s+2)-1>(m_tupleRow)[n-1] + std::get<(R2s+2)>(m_tupleRow)[n-1])), ...);
+                        }
                     }(std::make_index_sequence<MAX_R - 1>{}));
                 }
                 else
