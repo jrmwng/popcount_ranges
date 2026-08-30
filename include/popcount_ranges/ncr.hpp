@@ -75,7 +75,7 @@ namespace jrmwng
                         Max <= std::numeric_limits<uint32_t>::max(), uint32_t,
                         uintmax_t>>>;
             using value_type = min_uint_t<nCr(MAX_N, R)>;
-            value_type m_row[MAX_N - R + 2]{};
+            value_type m_row[MAX_N - R + 2];
         public:
             constexpr auto & operator[](size_t n) noexcept
             {
@@ -141,17 +141,32 @@ namespace jrmwng
         public:
             constexpr nCr_table() noexcept
             {
-                ([&, this]<size_t... R2s>(std::index_sequence<R2s...>){
-                    ([&, this]<size_t R>(std::integral_constant<size_t, R>)
-                    {
-                        std::get<R>(m_tupleRow)[R] = 1;
-                        for (size_t n = R + 1; n <= MAX_N; ++n)
-                        {
-                            std::get<R>(m_tupleRow)[n] = std::get<R-1>(m_tupleRow)[n-1] + std::get<R>(m_tupleRow)[n-1];
-                        }
-                    }
-                    (std::integral_constant<size_t, R2s + 2>{}), ...);
-                }(std::make_index_sequence<MAX_R - 1>{}));
+                if constexpr (sizeof(row_tuple) <= 4096)
+                {
+                    ([&, this]<size_t... R2s>(std::index_sequence<R2s...>){ // R2s = 0, 1, ..., MAX_R-2
+                        ([&, this]<size_t R>(std::integral_constant<size_t, R>){ // R = 2, 3, ..., MAX_R
+                            ((std::get<R>(m_tupleRow)[R - 1u] = 0), ...);
+                            ((std::get<R>(m_tupleRow)[R] = 1), ...);
+                            for (size_t n = 3; n <= MAX_N; ++n)
+                            {
+                                (((n >= R + 1) && (std::get<R>(m_tupleRow)[n] = std::get<R-1>(m_tupleRow)[n-1] + std::get<R>(m_tupleRow)[n-1])), ...);
+                            }
+                        }(std::integral_constant<size_t, R2s + 2>{}), ...);
+                    }(std::make_index_sequence<MAX_R - 1>{}));
+                }
+                else
+                {
+                    ([&, this]<size_t... R2s>(std::index_sequence<R2s...>){ // R2s = 0, 1, ..., MAX_R-2
+                        ([&, this]<size_t R>(std::integral_constant<size_t, R>){ // R = 2, 3, ..., MAX_R
+                            std::get<R>(m_tupleRow)[R - 1u] = 0;
+                            std::get<R>(m_tupleRow)[R] = 1;
+                            for (size_t n = R + 1; n <= MAX_N; ++n)
+                            {
+                                std::get<R>(m_tupleRow)[n] = std::get<R-1>(m_tupleRow)[n-1] + std::get<R>(m_tupleRow)[n-1];
+                            }
+                        }(std::integral_constant<size_t, R2s + 2>{}), ...);
+                    }(std::make_index_sequence<MAX_R - 1>{}));
+                }
             }
 
             template <size_t R>
