@@ -52,9 +52,17 @@ namespace jrmwng
             {
                 auto const itFirst = m_row + first_n - (R-1);
                 auto const itLast = m_row + last_n - (R-1);
-                auto const itUpperBound = std::upper_bound(itFirst, itLast, (value_type)std::min(target, (uintmax_t)std::numeric_limits<value_type>::max()));
+                value_type const clamped = static_cast<value_type>(std::min(target, (uintmax_t)std::numeric_limits<value_type>::max()));
 
-                return (first_n - 1u) + std::distance(itFirst, itUpperBound);
+                constexpr size_t CACHE_LINE_SIZE = 64u;
+
+                if (sizeof(value_type) * (last_n - first_n) <= CACHE_LINE_SIZE)
+                {
+                    // modern compilers can vectorize this branch, and it should be faster than std::upper_bound for small ranges
+                    return (first_n - 1u) + std::count_if(itFirst, itLast, [clamped](value_type value) { return !(clamped < value); });
+                }
+                else
+                    return (first_n - 1u) + std::distance(itFirst, std::upper_bound(itFirst, itLast, clamped));
             }
         };
         template <size_t MAX_N>
