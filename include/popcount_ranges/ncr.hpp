@@ -7,19 +7,56 @@
 #include <utility>
 #include <algorithm>
 #include <iterator>
+#include <numeric>
+#include <ranges>
 
 namespace jrmwng
 {
     namespace popcount_ranges
     {
-        constexpr uintmax_t nCr(size_t n, size_t r) noexcept {
-            if (r > n) return 0;
-            if (r == 0 || r == n) return 1;
-            if (r > n - r) r = n - r;
+        constexpr uintmax_t nCr(size_t const N, size_t const R)
+        {
+            if (R > N - R)
+                return nCr(N, N - R);
+
+            if (R == 0 || R == N)
+                return 1;
+            if (R == 1)
+                return N;
+            if (R > N)
+                return 0;
+
+            std::vector<uintmax_t> terms(R);
+            std::iota(terms.begin(), terms.end(), N - R + 1);
+
+            for (uintmax_t denom : std::views::iota(uintmax_t{2}, uintmax_t{R + 1}) | std::views::reverse)
+            {
+                for (auto itNum = terms.begin(); itNum != terms.end(); ++itNum)
+                {
+                    uintmax_t const gcd = std::gcd(*itNum, denom);
+                    if (gcd > 1)
+                    {
+                        *itNum /= gcd;
+                        denom /= gcd;
+
+                        if (denom == 1)
+                            break;
+                        if (*itNum == 1)
+                        {
+                            *itNum = terms.back();
+                            terms.pop_back();
+                            --itNum;
+                        }
+                    }
+                }
+            }
+
             uintmax_t result = 1;
-            for (uintmax_t i = 0; i < r; ++i) {
-                result *= (n - i);
-                result /= (i + 1);
+            for (uintmax_t num : terms)
+            {
+                if (result > std::numeric_limits<uintmax_t>::max() / num)
+                    throw std::overflow_error("nCr overflow");
+                result *= num;
             }
             return result;
         }
