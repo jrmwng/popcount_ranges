@@ -116,30 +116,24 @@ namespace jrmwng
                 }
                 else
                 {
-                    Tuint result = 0;
-                    std::uintmax_t remaining = rank;
-                    size_t n = std::numeric_limits<Tuint>::digits + 1u;
-
-                    [&]<size_t... Is>(std::index_sequence<Is...>) {
-                        (([&]() {
+                    return []<size_t... Is>(std::uintmax_t remaining, size_t n, std::index_sequence<Is...>)->Tuint {
+                        (([&]()->Tuint {
                             constexpr std::integral_constant<size_t, uPOPCOUNT - Is> R{}; // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
 
                             if (remaining == 0)
                             {
                                 // All remaining bits go at the lowest positions
-                                result |= static_cast<Tuint>(Tuint(1) << (R - 1u));
+                                return static_cast<Tuint>(Tuint(1) << (R - 1u));
                             }
                             else
                             {
                                 n = nCr_search<Tuint>(std::max<size_t>(R, std::bit_width(remaining) - 1u), n, remaining, R);
 
                                 remaining -= nCr_read<Tuint>(n, R);
-                                result |= static_cast<Tuint>(Tuint(1) << n);
+                                return static_cast<Tuint>(Tuint(1) << n);
                             }
-                        })(), ...);
-                    }(std::make_index_sequence<uPOPCOUNT>{});
-
-                    return result;
+                        })() | ...);
+                    }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<uPOPCOUNT>{});
                 }
             }
 
