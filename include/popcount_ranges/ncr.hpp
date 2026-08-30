@@ -32,7 +32,7 @@ namespace jrmwng
 
             for (uintmax_t denom : std::views::iota(uintmax_t{2}, uintmax_t{R + 1}) | std::views::reverse)
             {
-                for (auto itNum = terms.begin(); itNum != terms.end(); ++itNum)
+                for (auto itNum = terms.begin(); itNum != terms.end(); )
                 {
                     uintmax_t const gcd = std::gcd(*itNum, denom);
                     if (gcd > 1)
@@ -46,9 +46,10 @@ namespace jrmwng
                         {
                             *itNum = terms.back();
                             terms.pop_back();
-                            --itNum;
+                            continue;
                         }
                     }
+                    ++itNum;
                 }
             }
 
