@@ -124,10 +124,18 @@ namespace jrmwng
                         (([&]() {
                             constexpr std::integral_constant<size_t, uPOPCOUNT - Is> R{}; // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
 
-                            n = nCr_search<Tuint>(R, n, remaining, R);
+                            if (remaining == 0)
+                            {
+                                // All remaining bits go at the lowest positions
+                                result |= static_cast<Tuint>(Tuint(1) << (R - 1u));
+                            }
+                            else
+                            {
+                                n = nCr_search<Tuint>(std::max<size_t>(R, std::bit_width(remaining) - 1u), n, remaining, R);
 
-                            remaining -= nCr_read<Tuint>(n, R);
-                            result |= static_cast<Tuint>(Tuint(1) << n);
+                                remaining -= nCr_read<Tuint>(n, R);
+                                result |= static_cast<Tuint>(Tuint(1) << n);
+                            }
                         })(), ...);
                     }(std::make_index_sequence<uPOPCOUNT>{});
 
