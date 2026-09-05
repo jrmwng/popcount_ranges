@@ -7,6 +7,8 @@
 #include <limits>
 #include <cstdint>
 
+#include "ncr.hpp"
+
 namespace jrmwng
 {
     namespace popcount_ranges
@@ -15,7 +17,7 @@ namespace jrmwng
         constexpr auto nCr_read(size_t n, std::integral_constant<size_t, R>) noexcept;
 
         template <typename Tuint, size_t R>
-        constexpr size_t nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R> = {}) noexcept;
+        constexpr decltype(auto) nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R>) noexcept;
 
         // A set of unsigned integers having the same `std::popcount` result.
         template <auto uPOPCOUNT>
@@ -117,22 +119,18 @@ namespace jrmwng
                 else
                 {
                     return []<size_t... Is>(std::uintmax_t remaining, size_t n, std::index_sequence<Is...>)->Tuint {
-                        (([&]()->Tuint {
-                            constexpr std::integral_constant<size_t, uPOPCOUNT - Is> R{}; // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
+                        if constexpr (sizeof...(Is) == 0)
+                            return 0;
+                        else
+                            return (([&](auto R)->Tuint {
+                                // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
 
-                            if (remaining == 0)
-                            {
-                                // All remaining bits go at the lowest positions
-                                return static_cast<Tuint>(Tuint(1) << (R - 1u));
+                                auto const [bit_pos, digit] = nCr_search<Tuint>(R, n, remaining, R);
+                                n = bit_pos;
+                                remaining -= digit;
+                                return static_cast<Tuint>(Tuint(1) << bit_pos);
                             }
-                            else
-                            {
-                                n = nCr_search<Tuint>(std::max<size_t>(R, std::bit_width(remaining) - 1u), n, remaining, R);
-
-                                remaining -= nCr_read<Tuint>(n, R);
-                                return static_cast<Tuint>(Tuint(1) << n);
-                            }
-                        })() | ...);
+                            (std::integral_constant<size_t, uPOPCOUNT - Is>{})) | ...);
                     }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<uPOPCOUNT>{});
                 }
             }

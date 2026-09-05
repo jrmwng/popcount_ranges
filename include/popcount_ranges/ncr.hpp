@@ -11,6 +11,8 @@
 #include <ranges>
 #include <vector>
 
+#include "lower_bound.hpp"
+
 namespace jrmwng
 {
     namespace popcount_ranges
@@ -79,55 +81,59 @@ namespace jrmwng
             using value_type = min_uint_t<nCr(MAX_N, R)>;
             value_type m_row[MAX_N - R + 2];
         public:
+            constexpr value_type const * begin() const noexcept
+            {
+                return m_row + 0;
+            }
+            constexpr value_type const * end() const noexcept
+            {
+                return m_row + (MAX_N - R + 2);
+            }
             constexpr auto & operator[](size_t n) noexcept
             {
-                return m_row[n - (R-1)];
+                // return m_row[n - (R-1)];
+                return m_row[MAX_N - n]; // reversed order for reverse iteration in search()
             }
-            constexpr auto operator[](size_t n) const noexcept
+            constexpr auto const & operator[](size_t n) const noexcept
             {
-                return m_row[n - (R-1)];
+                // return m_row[n - (R-1)];
+                return m_row[MAX_N - n]; // reversed order for reverse iteration in search()
             }
-            constexpr size_t search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
+            constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
             {
-                auto const itFirst = m_row + first_n - (R-1);
-                auto const itLast = m_row + last_n - (R-1);
-                value_type const clamped = static_cast<value_type>(std::min(target, (uintmax_t)std::numeric_limits<value_type>::max()));
-
-                constexpr size_t CACHE_LINE_SIZE = 64u;
-
-                if (sizeof(value_type) * (last_n - first_n) <= CACHE_LINE_SIZE)
-                {
-                    // modern compilers can vectorize this branch, and it should be faster than std::upper_bound for small ranges
-                    return (first_n - 1u) + std::count_if(itFirst, itLast, [clamped](value_type value) { return !(clamped < value); });
-                }
-                else
-                    return (first_n - 1u) + std::distance(itFirst, std::upper_bound(itFirst, itLast, clamped));
+                auto itFound = lower_bound(begin() + (MAX_N - (n_last - 1u)), end() - 1, target, std::greater<>{});
+                return {MAX_N - std::distance(begin(), itFound), *itFound};
             }
         };
         template <size_t MAX_N>
         class nCr_row<MAX_N, 0>
         {
         public:
-            constexpr std::integral_constant<size_t, 1> operator[](size_t) const noexcept
+            using value_type = std::integral_constant<size_t, 1>;
+            constexpr value_type operator[](size_t) const noexcept
             {
                 return {};
             }
-            constexpr size_t search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
+            constexpr std::tuple<size_t, value_type> search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
             {
-                return (target >= 1u ? last_n : first_n) - 1u;
-            }            
+                return {(target >= 1u ? last_n : first_n) - 1u, value_type{}};
+            }
         };
         template <size_t MAX_N>
         class nCr_row<MAX_N, 1>
         {
         public:
-            constexpr size_t operator[](size_t n) const noexcept
+            using value_type = size_t;
+            constexpr auto begin() const noexcept { return std::views::iota(size_t{1}, size_t{MAX_N + 1}).begin(); }
+            constexpr auto end() const noexcept { return std::views::iota(size_t{1}, size_t{MAX_N + 1}).end(); }
+            constexpr value_type operator[](size_t n) const noexcept
             {
                 return n;
             }
-            constexpr size_t search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
+            constexpr std::tuple<size_t, value_type> search(size_t first_n, size_t last_n, uintmax_t target) const noexcept
             {
-                return std::clamp(target, first_n - 1u, last_n - 1u);
+                size_t const value = static_cast<size_t>(std::clamp(target, first_n - 1u, last_n - 1u));
+                return {value, value};
             }
         };
         template <size_t MAX_N, size_t MAX_R>
@@ -175,7 +181,7 @@ namespace jrmwng
                 return std::get<R>(m_tupleRow)[n];
             }
             template <size_t R>
-            constexpr size_t search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R> = {}) const noexcept
+            constexpr decltype(auto) search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R> = {}) const noexcept
             {
                 return std::get<R>(m_tupleRow).search(n_first, n_last, target);
             }
@@ -197,7 +203,7 @@ namespace jrmwng
             }
         }
         template <typename Tuint, size_t R>
-        constexpr size_t nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R>) noexcept
+        constexpr decltype(auto) nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R>) noexcept
         {
             constexpr size_t N = std::numeric_limits<Tuint>::digits;
             if constexpr (R > N / 2u)
