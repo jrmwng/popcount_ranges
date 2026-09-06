@@ -10,6 +10,7 @@
 
 namespace
 {
+#ifdef _DEBUG
 template <typename Function>
 bool throws_out_of_range(Function&& function)
 {
@@ -26,6 +27,106 @@ bool throws_out_of_range(Function&& function)
     }
     return false;
 }
+
+template <typename Function>
+bool throws_invalid_argument(Function&& function)
+{
+    try
+    {
+        function();
+    }
+    catch (std::invalid_argument const&)
+    {
+        return true;
+    }
+    catch (...)
+    {
+    }
+    return false;
+}
+
+bool check_constructor_exceptions()
+{
+    using Set = jrmwng::popcount_ranges::set<std::uint8_t{2}>;
+    auto const sentinel = *Set().end();
+
+    // 1. first does not have required popcount
+    if (!throws_invalid_argument([] { Set s(static_cast<std::uint8_t>(0), static_cast<std::uint8_t>(3)); }))
+    {
+        std::cerr << "constructor exception check failed: invalid first popcount\n";
+        return false;
+    }
+
+    // 2. last does not have required popcount
+    if (!throws_invalid_argument([] { Set s(static_cast<std::uint8_t>(3), static_cast<std::uint8_t>(0)); }))
+    {
+        std::cerr << "constructor exception check failed: invalid last popcount\n";
+        return false;
+    }
+
+    // 3. first is sentinel but last is not
+    if (!throws_invalid_argument([sentinel] { Set s(sentinel, static_cast<std::uint8_t>(3)); }))
+    {
+        std::cerr << "constructor exception check failed: first is sentinel but last is not\n";
+        return false;
+    }
+
+    // 4. first > last
+    if (!throws_invalid_argument([] { Set s(static_cast<std::uint8_t>(5), static_cast<std::uint8_t>(3)); }))
+    {
+        std::cerr << "constructor exception check failed: first > last\n";
+        return false;
+    }
+
+    return true;
+}
+
+bool check_iterator_exception_bounds()
+{
+    using Set = jrmwng::popcount_ranges::set<std::uint8_t{2}>;
+    Set set;
+
+    // 1. Incrementing past end
+    auto end_it = set.end();
+    if (!throws_out_of_range([&end_it] { ++end_it; }))
+    {
+        std::cerr << "iterator exception check failed: ++end\n";
+        return false;
+    }
+    end_it = set.end();
+    if (!throws_out_of_range([&end_it] { end_it++; }))
+    {
+        std::cerr << "iterator exception check failed: end++\n";
+        return false;
+    }
+
+    // 2. Decrementing past begin
+    auto begin_it = set.begin();
+    if (!throws_out_of_range([&begin_it] { --begin_it; }))
+    {
+        std::cerr << "iterator exception check failed: --begin\n";
+        return false;
+    }
+    begin_it = set.begin();
+    if (!throws_out_of_range([&begin_it] { begin_it--; }))
+    {
+        std::cerr << "iterator exception check failed: begin--\n";
+        return false;
+    }
+
+    // 3. Out-of-bounds += / -= / + / -
+    if (!throws_out_of_range([&set] { auto it = set.begin(); it += -1; }))
+        return false;
+    if (!throws_out_of_range([&set] { auto it = set.end(); it += 1; }))
+        return false;
+    if (!throws_out_of_range([&set] { auto it = set.begin(); it -= 1; }))
+        return false;
+    if (!throws_out_of_range([&set] { auto it = set.end(); it -= -1; }))
+        return false;
+
+    return true;
+}
+#endif
 
 template <typename T, T Popcount>
 bool check_iterator_operators()
@@ -70,8 +171,10 @@ bool check_iterator_operators()
     auto from_end = set.end();
     if (*--from_end != expected.back())
         return fail("decrement end", size);
+#ifdef _DEBUG
     if (!throws_out_of_range([&set] { --set.begin(); }))
         return fail("decrement begin", 0);
+#endif
 
     for (difference_type index = 0; index <= size; ++index)
     {
@@ -88,8 +191,10 @@ bool check_iterator_operators()
                 if (plus_assign != iterator_at(target))
                     return fail("plus assign", index, offset);
             }
+#ifdef _DEBUG
             else if (!throws_out_of_range([&plus_assign, offset] { plus_assign += offset; }))
                 return fail("plus assign bounds", index, offset);
+#endif
 
             auto minus_assign = iterator;
             if (is_valid)
@@ -98,8 +203,10 @@ bool check_iterator_operators()
                 if (minus_assign != iterator_at(target))
                     return fail("minus assign", index, offset);
             }
+#ifdef _DEBUG
             else if (!throws_out_of_range([&minus_assign, offset] { minus_assign -= -offset; }))
                 return fail("minus assign bounds", index, offset);
+#endif
 
             if (is_valid)
             {
@@ -108,6 +215,7 @@ bool check_iterator_operators()
                 if (iterator - -offset != iterator_at(target) || iterator != iterator_at(index))
                     return fail("minus", index, offset);
             }
+#ifdef _DEBUG
             else
             {
                 if (!throws_out_of_range([iterator, offset] { static_cast<void>(iterator + offset); }))
@@ -115,6 +223,7 @@ bool check_iterator_operators()
                 if (!throws_out_of_range([iterator, offset] { static_cast<void>(iterator - -offset); }))
                     return fail("minus bounds", index, offset);
             }
+#endif
         }
     }
 
@@ -239,51 +348,34 @@ bool check_exhaustive_set(std::size_t expected_size)
     return size == expected_size;
 }
 
-bool check_uint8_exhaustive_sets()
+bool check_uint8_iterator_operators()
 {
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{0}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=0\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{1}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=1\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{2}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=2\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{3}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=3\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{4}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=4\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{5}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=5\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{6}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=6\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{7}>())
-    {
-        std::cerr << "iterator operators failed for Popcount=7\n";
         return false;
-    }
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{8}>())
+        return false;
+    return true;
+}
+
+bool check_uint8_exhaustive_sets()
+{
+    if (!check_uint8_iterator_operators())
     {
-        std::cerr << "iterator operators failed for Popcount=8\n";
+        std::cerr << "iterator operators failed for uint8_t\n";
         return false;
     }
 
@@ -384,6 +476,28 @@ bool check_uint64_exhaustive_sets()
 
 int main()
 {
+#ifdef _DEBUG
+    std::cout << "Running debug exception tests..." << std::endl;
+
+    std::cout << "Testing constructor exceptions..." << std::endl;
+    if (!check_constructor_exceptions())
+    {
+        std::cerr << "constructor exception tests failed\n";
+        return 1;
+    }
+
+    std::cout << "Testing iterator exception bounds..." << std::endl;
+    if (!check_iterator_exception_bounds())
+    {
+        std::cerr << "iterator exception bounds tests failed\n";
+        return 2;
+    }
+
+    std::cout << "debug exception tests passed\n";
+    return 0;
+#else
+    std::cout << "Running release exhaustive set tests..." << std::endl;
+
     if (!check_uint8_exhaustive_sets())
     {
         std::cerr << "uint8_t exhaustive cases failed\n";
@@ -410,4 +524,5 @@ int main()
 
     std::cout << "expanded set tests passed\n";
     return 0;
+#endif
 }
