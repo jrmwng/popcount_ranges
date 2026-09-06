@@ -80,7 +80,7 @@ namespace jrmwng
                         Max <= std::numeric_limits<uint32_t>::max(), uint32_t,
                         uintmax_t>>>;
             using value_type = min_uint_t<nCr(MAX_N, R)>;
-            value_type m_row[MAX_N - R + 2];
+            value_type m_row[MAX_N - R + 2]; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
         public:
             constexpr value_type const * begin() const noexcept
             {
@@ -92,12 +92,10 @@ namespace jrmwng
             }
             constexpr auto & operator[](size_t n) noexcept
             {
-                // return m_row[n - (R-1)];
                 return m_row[MAX_N - n]; // reversed order for reverse iteration in search()
             }
             constexpr auto const & operator[](size_t n) const noexcept
             {
-                // return m_row[n - (R-1)];
                 return m_row[MAX_N - n]; // reversed order for reverse iteration in search()
             }
             constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
