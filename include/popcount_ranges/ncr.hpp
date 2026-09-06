@@ -121,10 +121,11 @@ namespace jrmwng
         template <size_t MAX_N>
         class nCr_row<MAX_N, 1>
         {
+            inline constexpr static auto VIEW = std::views::iota(size_t{1}, size_t{MAX_N + 1});
         public:
             using value_type = size_t;
-            constexpr auto begin() const noexcept { return std::views::iota(size_t{1}, size_t{MAX_N + 1}).begin(); }
-            constexpr auto end() const noexcept { return std::views::iota(size_t{1}, size_t{MAX_N + 1}).end(); }
+            constexpr auto begin() const noexcept { return VIEW.begin(); }
+            constexpr auto end() const noexcept { return VIEW.end(); }
             constexpr value_type operator[](size_t n) const noexcept
             {
                 return n;
