@@ -2,6 +2,7 @@
 #include <popcount_ranges/ncr.hpp>
 
 #include <bit>
+#include <concepts>
 #include <cstdint>
 #include <iostream>
 #include <iterator>
@@ -348,6 +349,81 @@ bool check_exhaustive_set(std::size_t expected_size)
     return size == expected_size;
 }
 
+template <typename T, T Popcount>
+bool check_range_and_jump_operations()
+{
+    using Set = jrmwng::popcount_ranges::set<Popcount>;
+    using difference_type = typename Set::iterator::difference_type;
+
+    static_assert(std::bidirectional_iterator<typename Set::iterator>);
+    static_assert(std::forward_iterator<typename Set::reverse_iterator>);
+
+    Set full;
+    std::vector<T> values;
+    for (auto iterator = full.begin(); iterator != full.end(); ++iterator)
+        values.push_back(*iterator);
+
+    if (values.empty())
+        return false;
+
+    auto const first = values[values.size() / 4];
+    auto const last = values[(values.size() * 3) / 4];
+    Set bounded(first, last);
+    if (*bounded.begin() != first || *bounded.end() != last)
+        return false;
+
+    auto const bounded_size = static_cast<difference_type>(values.size() / 2);
+    if (bounded.end() - bounded.begin() != bounded_size)
+        return false;
+
+    if (typename Set::iterator{bounded.rend()} != bounded.begin() ||
+        typename Set::iterator{bounded.rbegin()} != bounded.end())
+        return false;
+    if (typename Set::reverse_iterator{bounded.begin()} != bounded.rend() ||
+        typename Set::reverse_iterator{bounded.end()} != bounded.rbegin())
+        return false;
+
+    auto const check_offset = [&](difference_type start_rank, difference_type offset)
+    {
+        auto jumped = full.begin() + start_rank;
+        auto advanced = jumped;
+        auto repeated = jumped;
+        auto const steps = offset >= 0 ? offset : -offset;
+        if (offset >= 0)
+        {
+            for (difference_type step = 0; step < steps; ++step)
+                ++repeated;
+        }
+        else
+        {
+            for (difference_type step = 0; step < steps; ++step)
+                --repeated;
+        }
+        jumped += offset;
+        advanced.advance(offset);
+        return jumped == repeated && advanced == repeated;
+    };
+
+    auto const size = static_cast<difference_type>(values.size());
+    for (difference_type start_rank : {difference_type{0}, size / 3, size - 1})
+    {
+        for (difference_type offset : {difference_type{0}, difference_type{1}, difference_type{-1},
+                                      difference_type{2}, difference_type{-2}})
+        {
+            if (start_rank + offset >= 0 && start_rank + offset < size &&
+                !check_offset(start_rank, offset))
+                return false;
+        }
+    }
+
+    auto const singleton_value = values[values.size() / 2];
+    Set singleton(singleton_value, singleton_value);
+    if (singleton.begin() != singleton.end() || singleton.end() - singleton.begin() != 0)
+        return false;
+
+    return true;
+}
+
 bool check_uint8_iterator_operators()
 {
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{0}>())
@@ -373,6 +449,12 @@ bool check_uint8_iterator_operators()
 
 bool check_uint8_exhaustive_sets()
 {
+    if (!check_range_and_jump_operations<std::uint8_t, std::uint8_t{3}>())
+    {
+        std::cerr << "range and jump operations failed for uint8_t\n";
+        return false;
+    }
+
     if (!check_uint8_iterator_operators())
     {
         std::cerr << "iterator operators failed for uint8_t\n";
