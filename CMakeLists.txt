@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CTest)
 
-option(POPCOUNT_RANGES_BUILD_BENCHMARKS "Build lower_bound benchmarks" OFF)
+option(POPCOUNT_RANGES_BUILD_BENCHMARKS "Build benchmarks" OFF)
 
 function(configure_popcount_target target)
     target_include_directories(${target}
@@ -55,4 +55,10 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
     )
 
     configure_popcount_target(lower_bound_benchmark)
+
+    add_executable(popcount_set_benchmark
+        benchmarks/popcount_set_benchmark.cpp
+    )
+
+    configure_popcount_target(popcount_set_benchmark)
 endif()
