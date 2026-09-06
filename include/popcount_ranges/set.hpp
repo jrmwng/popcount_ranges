@@ -248,6 +248,24 @@ namespace jrmwng
                 }
 
                 #ifdef _DEBUG
+                void advance(difference_type n)
+                #else
+                void advance(difference_type n) noexcept
+                #endif
+                {
+                    constexpr auto LAST_RANK = rank(SENTINEL);
+                    const     auto this_rank = m_rank;
+                    const     auto next_rank = this_rank + n;
+
+                    #ifdef _DEBUG
+                    if (next_rank < 0 || next_rank > LAST_RANK)
+                        throw std::out_of_range("set::iterator: advancing past valid range");
+                    #endif
+                    m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
+                    m_rank = next_rank;
+                }
+
+                #ifdef _DEBUG
                 iterator& operator+=(difference_type n) 
                 #else
                 iterator& operator+=(difference_type n) noexcept
@@ -260,19 +278,7 @@ namespace jrmwng
                     if (n == -1)
                         return --(*this);
 
-                    constexpr auto LAST_RANK = rank(SENTINEL);
-                    const     auto this_rank = m_rank;
-                    const     auto next_rank = (n < 0 ? this_rank - static_cast<std::uintmax_t>(-n) : this_rank + static_cast<std::uintmax_t>(n));
-
-                    #ifdef _DEBUG
-                    if (n < 0 && static_cast<std::uintmax_t>(-n) > this_rank)
-                        throw std::out_of_range("set::iterator: decrementing past begin");
-                    if (n > 0 && static_cast<std::uintmax_t>(n) > LAST_RANK - this_rank)
-                        throw std::out_of_range("set::iterator: incrementing past end");
-                    #endif
-
-                    m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
-                    m_rank = next_rank;
+                    advance(n);
                     return *this;
                 }
                 #ifdef _DEBUG
@@ -298,19 +304,7 @@ namespace jrmwng
                     if (n == -1)
                         return ++(*this);
                     
-                    constexpr auto LAST_RANK = rank(SENTINEL);
-                    const     auto this_rank = m_rank;
-                    const     auto next_rank = (n < 0 ? this_rank + static_cast<std::uintmax_t>(-n) : this_rank - static_cast<std::uintmax_t>(n));
-
-                    #ifdef _DEBUG
-                    if (n < 0 && static_cast<std::uintmax_t>(-n) > LAST_RANK - this_rank)
-                        throw std::out_of_range("set::iterator: incrementing past end");
-                    if (n > 0 && static_cast<std::uintmax_t>(n) > this_rank)
-                        throw std::out_of_range("set::iterator: decrementing past begin");
-                    #endif
-
-                    m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
-                    m_rank = next_rank;
+                    advance(-n);
                     return *this;
                 }
                 #ifdef _DEBUG
