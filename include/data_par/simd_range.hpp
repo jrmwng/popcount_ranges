@@ -293,7 +293,7 @@ namespace jrmwng
             using traits = simd_range_traits<T, Tsimd_abi>;
             using bitset_type = typename traits::bitset_type;
 
-            std::tuple<T const *, T const *, bitset_type> m_tuple;
+            std::tuple<T const *, T const *, bitset_type, size_t> m_tuple; // (first, last, mask, length)
 
             static auto prepare(T const *m_first, T const *m_last) noexcept
             {
@@ -306,17 +306,21 @@ namespace jrmwng
                 auto first = m_first;
                 auto last = m_last;
                 typename traits::bitset_type mask{};
+                size_t length{};
                 if (m_first < m_last)
                 {
                     first = (single_vector_case ? aligned_first : m_first);
                     mask = traits::make_bitset(m_first - first, valid_count);
                     last = (single_vector_case ? aligned_first + valid_count : m_last);
+                    length = (m_last - m_first + traits::simd_width - 1u) / traits::simd_width;
                 }
-                return std::tuple{first, last, mask};
+                return std::tuple{first, last, mask, length};
             }
         public:
             using simd_type = typename traits::simd_type;
             using mask_type = typename traits::mask_type;
+
+            using value_type = std::tuple<simd_type, mask_type>;
 
             simd_short_range(T const * first, T const * last) noexcept
                 : m_tuple(prepare(first, last))
@@ -368,6 +372,20 @@ namespace jrmwng
             iterator end() const noexcept
             {
                 return iterator{std::get<1>(m_tuple), bitset_type{}};
+            }
+
+            size_t size() const noexcept
+            {
+                return std::get<3>(m_tuple);
+            }
+            value_type operator[] (size_t index) const noexcept
+            {
+                if (index == 0)
+                    return value_type(unchecked_load<simd_type>(std::get<0>(m_tuple), traits::simd_width, flag_default), traits::make_mask(std::get<2>(m_tuple)));
+                else if (index < size())
+                    return value_type(unchecked_load<simd_type>((std::get<0>(m_tuple) + std::get<2>(m_tuple).count() - traits::simd_width) + index * traits::simd_width, traits::simd_width, flag_default), mask_type(true));
+                else
+                    return value_type(simd_type{}, mask_type(false));
             }
         };
     }
