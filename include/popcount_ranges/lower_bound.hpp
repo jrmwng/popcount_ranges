@@ -37,46 +37,26 @@ namespace jrmwng
 
                     if (!pred(next[-1], target)) [[unlikely]]
                     {
-                        #if 0
-                        for (auto const &[simd_chunk, mask] : data_par::simd_short_range<type>(it, next)) [[likely]]
-                        {
-                            int const count = data_par::popcount(mask & pred(simd_chunk, target));
-                            if (count == 0) [[unlikely]]
-                                break;
-                            it += count;
-                        }
-                        return it;
-                        #else
-                        constexpr auto LAMBDA = [](this auto&& self, auto itSimd, auto itEnd, type target, Tpredicate pred, auto OFFSET)
-                        {
-                            constexpr auto SIMDWIDTH = data_par::simd_range_traits<type>::simd_width;
+                        using traits = data_par::simd_range_traits<type>;
 
-                            if constexpr (OFFSET.value + SIMDWIDTH < LANES)
-                            {
-                                if (itSimd != itEnd) [[likely]]
-                                {
-                                    auto const [chunk, mask] = *itSimd;
-                                    auto const count1 = self(std::move(++itSimd), itEnd, target, pred, std::integral_constant<size_t, OFFSET.value + SIMDWIDTH>{});
-                                    auto const count0 = data_par::popcount(mask & (pred(chunk, target)));
-                                    return count0 + count1;
-                                }
-                                else
-                                    return 0;
-                            }
-                            else
-                            {
-                                if (itSimd != itEnd) [[likely]]
-                                {
-                                    auto const [chunk, mask] = *itSimd;
-                                    return data_par::popcount(mask & (pred(chunk, target)));
-                                }
-                                else
-                                    return 0;
-                            }
-                        };
-                        data_par::simd_short_range<type> simd_rng(it, next);
-                        return it + LAMBDA(simd_rng.begin(), simd_rng.end(), target, pred, std::integral_constant<size_t, 0>{});
-                        #endif
+                        return it + []<size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>)->int {
+
+                            // (chunk0, mask0), (chunk1, mask1), ...
+                            std::tuple tuplePair(simd_rng[Is]...);
+
+                            // (pred(chunk0, target), pred(chunk1, target), ...)
+                            std::tuple tupleCompare(pred(std::get<typename traits::simd_type>(std::get<Is>(tuplePair)), target)...);
+
+                            // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
+                            std::tuple tupleResult((std::get<typename traits::mask_type>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
+                            
+                            // (popcount(mask0 & pred(chunk0, target)), popcount(mask1 & pred(chunk1, target)), ...)
+                            std::tuple tuplePopcount(data_par::popcount(std::get<Is>(tupleResult))...);
+
+                            // (popcount(mask0 & pred(chunk0, target)) + popcount(mask1 & pred(chunk1, target)) + ...)
+                            return (std::get<Is>(tuplePopcount) + ...);
+
+                        }(data_par::simd_short_range<type>(it, next), target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});
                     }
                 }
                 return last;
