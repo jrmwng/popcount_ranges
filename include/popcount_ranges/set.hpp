@@ -125,10 +125,10 @@ namespace jrmwng
                             return (([&](auto R)->Tuint {
                                 // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
 
-                                auto const [bit_pos, digit] = nCr_search<Tuint>(R, n, remaining, R);
-                                n = bit_pos;
-                                remaining -= digit;
-                                return static_cast<Tuint>(Tuint(1) << bit_pos);
+                                auto const [found_n, found_nCr] = nCr_search<Tuint>(R, n, remaining, R);
+                                n = found_n;
+                                remaining -= found_nCr;
+                                return static_cast<Tuint>(Tuint(1) << found_n);
                             }
                             (std::integral_constant<size_t, uPOPCOUNT - Is>{})) | ...);
                     }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<uPOPCOUNT>{});
