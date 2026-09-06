@@ -31,7 +31,7 @@ namespace jrmwng
                 if (!pred(*first, target))
                     return first;
 
-                for (T * it = first; it != last; it += LANES) [[likely]]
+                for (T * it = first; it != last; ) [[likely]]
                 {
                     T * const next = std::min(it + LANES, last);
 
@@ -58,6 +58,8 @@ namespace jrmwng
 
                         }(data_par::simd_short_range<type>(it, next), target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});
                     }
+
+                    it = next;
                 }
                 return last;
             }
