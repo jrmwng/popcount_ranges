@@ -30,7 +30,7 @@ namespace jrmwng
             using complementary_set = set<Tuint{std::numeric_limits<Tuint>::digits - uPOPCOUNT}>;
             friend complementary_set;
 
-            constexpr static Tuint GospersHack(Tuint i0)
+            constexpr static Tuint GospersHack(Tuint i0) noexcept
             {
                 if constexpr (uPOPCOUNT == 0)
                     return ~i0; // either 0 or ~0
@@ -138,9 +138,15 @@ namespace jrmwng
             Tuint m_first{INITIAL};
             Tuint m_last{SENTINEL};
         public:
-            set() = default;
-            set(Tuint first, Tuint last) : m_first(first), m_last(last)
+            set() noexcept = default;
+            #ifdef _DEBUG
+            set(Tuint first, Tuint last)
+            #else
+            set(Tuint first, Tuint last) noexcept
+            #endif
+                : m_first(first), m_last(last)
             {
+                #ifdef _DEBUG
                 if (first != SENTINEL)
                 {
                     if (std::popcount(first) != static_cast<int>(uPOPCOUNT))
@@ -155,6 +161,7 @@ namespace jrmwng
                     if (first > last)
                         throw std::invalid_argument("set: first is greater than last");
                 }
+                #endif
             }
 
             class reverse_iterator;
@@ -169,39 +176,55 @@ namespace jrmwng
                 using difference_type = std::ptrdiff_t;
                 using reference = value_type const &;
                 
-                constexpr iterator(Tuint value) : m_value(value), m_rank(rank(value)) {}
+                constexpr iterator(Tuint value) noexcept : m_value(value), m_rank(rank(value)) {}
 
                 iterator() = default;
-                iterator(iterator const&) = default;
-                iterator& operator=(iterator const&) = default;
-                iterator(iterator &&) = default;
-                iterator& operator=(iterator &&) = default;
+                iterator(iterator const&) noexcept = default;
+                iterator& operator=(iterator const&) noexcept = default;
+                iterator(iterator &&) noexcept = default;
+                iterator& operator=(iterator &&) noexcept = default;
                 
-                explicit constexpr iterator(reverse_iterator const&);
+                explicit constexpr iterator(reverse_iterator const&) noexcept;
                 
-                reference operator*() const { return m_value; }
+                reference operator*() const noexcept { return m_value; }
 
-                bool operator==(iterator const& other) const { return m_value == other.m_value; }
-                bool operator!=(iterator const& other) const { return m_value != other.m_value; }
+                bool operator==(iterator const& other) const noexcept { return m_value == other.m_value; }
+                bool operator!=(iterator const& other) const noexcept { return m_value != other.m_value; }
                 
+                #ifdef _DEBUG
                 iterator& operator++()
+                #else
+                iterator& operator++() noexcept
+                #endif
                 {
+                    #ifdef _DEBUG
                     if (m_value == SENTINEL)
                         throw std::out_of_range("set::iterator: incrementing past end");
+                    #endif
                     m_value = GospersHack(m_value);
                     m_rank++;
                     return *this;
                 }
+                #ifdef _DEBUG
                 iterator operator++ (int)
+                #else
+                iterator operator++ (int) noexcept
+                #endif
                 {
                     iterator it{m_value};
                     ++(*this);
                     return it;
                 }
+                #ifdef _DEBUG
                 iterator& operator--()
+                #else
+                iterator& operator--() noexcept
+                #endif
                 {
+                    #ifdef _DEBUG
                     if (m_value == INITIAL)
                         throw std::out_of_range("set::iterator: decrementing past begin");
+                    #endif
                     if (m_value == SENTINEL)
                         m_value = static_cast<Tuint>(~complementary_set::INITIAL);
                     else
@@ -209,18 +232,26 @@ namespace jrmwng
                     m_rank--;
                     return *this;
                 }
+                #ifdef _DEBUG
                 iterator operator-- (int)
+                #else
+                iterator operator-- (int) noexcept
+                #endif
                 {
                     iterator it{m_value};
                     --(*this);
                     return it;
                 }
-                difference_type operator-(iterator const& other) const
+                difference_type operator-(iterator const& other) const noexcept
                 {
                     return distance(other.m_value, m_value);
                 }
 
-                iterator& operator+=(difference_type n)
+                #ifdef _DEBUG
+                iterator& operator+=(difference_type n) 
+                #else
+                iterator& operator+=(difference_type n) noexcept
+                #endif
                 {
                     if (n == 0)
                         return *this;
@@ -232,22 +263,33 @@ namespace jrmwng
                     constexpr auto LAST_RANK = rank(SENTINEL);
                     const     auto this_rank = m_rank;
                     const     auto next_rank = (n < 0 ? this_rank - static_cast<std::uintmax_t>(-n) : this_rank + static_cast<std::uintmax_t>(n));
+
+                    #ifdef _DEBUG
                     if (n < 0 && static_cast<std::uintmax_t>(-n) > this_rank)
                         throw std::out_of_range("set::iterator: decrementing past begin");
                     if (n > 0 && static_cast<std::uintmax_t>(n) > LAST_RANK - this_rank)
                         throw std::out_of_range("set::iterator: incrementing past end");
+                    #endif
 
                     m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
                     m_rank = next_rank;
                     return *this;
                 }
+                #ifdef _DEBUG
                 iterator operator+(difference_type n) const
+                #else
+                iterator operator+(difference_type n) const noexcept
+                #endif
                 {
                     iterator it{*this};
                     it += n;
                     return it;
                 }
+                #ifdef _DEBUG
                 iterator& operator-=(difference_type n)
+                #else
+                iterator& operator-=(difference_type n) noexcept
+                #endif
                 {
                     if (n == 0)
                         return *this;
@@ -259,16 +301,23 @@ namespace jrmwng
                     constexpr auto LAST_RANK = rank(SENTINEL);
                     const     auto this_rank = m_rank;
                     const     auto next_rank = (n < 0 ? this_rank + static_cast<std::uintmax_t>(-n) : this_rank - static_cast<std::uintmax_t>(n));
+
+                    #ifdef _DEBUG
                     if (n < 0 && static_cast<std::uintmax_t>(-n) > LAST_RANK - this_rank)
                         throw std::out_of_range("set::iterator: incrementing past end");
                     if (n > 0 && static_cast<std::uintmax_t>(n) > this_rank)
                         throw std::out_of_range("set::iterator: decrementing past begin");
+                    #endif
 
                     m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
                     m_rank = next_rank;
                     return *this;
                 }
+                #ifdef _DEBUG
                 iterator operator-(difference_type n) const
+                #else
+                iterator operator-(difference_type n) const noexcept
+                #endif
                 {
                     iterator it{*this};
                     it -= n;
@@ -285,38 +334,38 @@ namespace jrmwng
                 using difference_type = std::ptrdiff_t;
                 using reference = value_type const &;
 
-                constexpr reverse_iterator(Tuint value) : m_value(value) {}
+                constexpr reverse_iterator(Tuint value) noexcept : m_value(value) {}
 
-                reverse_iterator() = default;
-                reverse_iterator(reverse_iterator const&) = default;
-                reverse_iterator& operator=(reverse_iterator const&) = default;
-                reverse_iterator(reverse_iterator &&) = default;
-                reverse_iterator& operator=(reverse_iterator &&) = default;
+                reverse_iterator() noexcept = default;
+                reverse_iterator(reverse_iterator const&) noexcept = default;
+                reverse_iterator& operator=(reverse_iterator const&) noexcept = default;
+                reverse_iterator(reverse_iterator &&) noexcept = default;
+                reverse_iterator& operator=(reverse_iterator &&) noexcept = default;
 
-                explicit constexpr reverse_iterator(iterator const& it)
+                explicit constexpr reverse_iterator(iterator const& it) noexcept
                     : m_value(it.m_value == SENTINEL
                         ? static_cast<Tuint>(~complementary_set::INITIAL) // end() -> rbegin()
                         : static_cast<Tuint>(~complementary_set::GospersHack(~(it.m_value)))) // ..., begin() -> rend()
                 {}
 
-                reference operator*() const { return m_value; }
+                reference operator*() const noexcept { return m_value; }
 
-                bool operator==(reverse_iterator const& other) const { return m_value == other.m_value; }
-                bool operator!=(reverse_iterator const& other) const { return m_value != other.m_value; }
+                bool operator==(reverse_iterator const& other) const noexcept { return m_value == other.m_value; }
+                bool operator!=(reverse_iterator const& other) const noexcept { return m_value != other.m_value; }
 
-                reverse_iterator& operator++()
+                reverse_iterator& operator++() noexcept
                 {
                     m_value = static_cast<Tuint>(~complementary_set::GospersHack(~m_value));
                     return *this;
                 }
-                reverse_iterator operator++ (int)
+                reverse_iterator operator++ (int) noexcept
                 {
                     reverse_iterator it{m_value};
                     m_value = static_cast<Tuint>(~complementary_set::GospersHack(~m_value));
                     return it;
                 }
 
-                difference_type operator-(reverse_iterator const& other) const
+                difference_type operator-(reverse_iterator const& other) const noexcept
                 {
                     // `~m_value` could be `complementary_set::SENTINEL` but `SENTINEL`,
                     // therefore `complementary_set::distance` will handle that case correctly.
@@ -324,14 +373,14 @@ namespace jrmwng
                 }
             };
             
-            iterator begin() const { return {m_first}; }
-            iterator end() const { return {m_last}; }
+            iterator begin() const noexcept { return {m_first}; }
+            iterator end() const noexcept { return {m_last}; }
             
-            reverse_iterator rbegin() const { return reverse_iterator(end()); }
-            reverse_iterator rend() const { return reverse_iterator(begin()); }
+            reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+            reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
         };
         template <auto uPOPCOUNT>
-        constexpr set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it)
+        constexpr set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it) noexcept
             : m_value(it.m_value == (Tuint)~complementary_set::SENTINEL
                 ? INITIAL // rend() -> begin()
                 : GospersHack(it.m_value)) // ..., rbegin() -> end()
