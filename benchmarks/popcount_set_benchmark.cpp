@@ -4,12 +4,23 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <string_view>
 #include <vector>
 
 namespace
 {
 std::uint64_t volatile sink = 0;
+
+template <typename T>
+inline void do_not_optimize(T& value) noexcept
+{
+#if defined(__clang__) || defined(__GNUC__)
+    asm volatile("" : "+m"(value) : : "memory");
+#else
+    static_cast<void>(value);
+#endif
+}
 
 template <typename Set, typename Operation>
 void run_case(std::string_view type_name, std::size_t popcount, std::string_view direction,
@@ -25,6 +36,7 @@ void run_case(std::string_view type_name, std::size_t popcount, std::string_view
     for (std::size_t repetition = 0; repetition < repetitions; ++repetition)
     {
         iterator current = start;
+        do_not_optimize(current);
         operation(current, distance);
         result += static_cast<std::uint64_t>(*current);
     }
@@ -37,17 +49,19 @@ void run_case(std::string_view type_name, std::size_t popcount, std::string_view
               << elapsed / static_cast<double>(repetitions) << ',' << result << '\n';
 }
 
-template <typename T, T Popcount, std::size_t Total>
+template <typename T, T Popcount>
 void benchmark_set(std::string_view type_name, bool quick)
 {
     using Set = jrmwng::popcount_ranges::set<Popcount>;
+    constexpr auto total = static_cast<std::size_t>(jrmwng::popcount_ranges::nCr_read<T>(
+        std::numeric_limits<T>::digits, std::integral_constant<std::size_t, Popcount>{}));
     std::vector<std::size_t> distances{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
     if (quick)
         distances = {1, 2, 4, 16, 64, 256};
 
     for (std::size_t distance : distances)
     {
-        if (distance >= Total)
+        if (distance >= total)
             continue;
         auto const repetitions = quick ? 1000u : 10000u;
         run_case<Set>(type_name, Popcount, "increment", distance, repetitions,
@@ -70,9 +84,17 @@ int main(int argc, char const* argv[])
 {
     bool const quick = argc > 1 && std::string_view(argv[1]) == "--quick";
     std::cout << "type,popcount,direction,distance,implementation,ns_per_operation,checksum\n";
-    benchmark_set<std::uint16_t, std::uint16_t{2}, 120>("uint16", quick);
-    benchmark_set<std::uint16_t, std::uint16_t{8}, 12870>("uint16", quick);
-    benchmark_set<std::uint32_t, std::uint32_t{2}, 496>("uint32", quick);
-    benchmark_set<std::uint32_t, std::uint32_t{16}, 601080390>("uint32", quick);
+    benchmark_set<std::uint8_t, std::uint8_t{1}>("uint8", quick);
+    benchmark_set<std::uint8_t, std::uint8_t{2}>("uint8", quick);
+    benchmark_set<std::uint8_t, std::uint8_t{3}>("uint8", quick);
+    benchmark_set<std::uint8_t, std::uint8_t{4}>("uint8", quick);
+    benchmark_set<std::uint16_t, std::uint16_t{1}>("uint16", quick);
+    benchmark_set<std::uint16_t, std::uint16_t{2}>("uint16", quick);
+    benchmark_set<std::uint16_t, std::uint16_t{3}>("uint16", quick);
+    benchmark_set<std::uint16_t, std::uint16_t{8}>("uint16", quick);
+    benchmark_set<std::uint32_t, std::uint32_t{1}>("uint32", quick);
+    benchmark_set<std::uint32_t, std::uint32_t{2}>("uint32", quick);
+    benchmark_set<std::uint32_t, std::uint32_t{3}>("uint32", quick);
+    benchmark_set<std::uint32_t, std::uint32_t{16}>("uint32", quick);
     std::cerr << "sink=" << sink << '\n';
 }
