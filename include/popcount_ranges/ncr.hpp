@@ -82,14 +82,6 @@ namespace jrmwng
             using value_type = min_uint_t<nCr(MAX_N, R)>;
             value_type m_row[MAX_N - R + 2]; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
         public:
-            constexpr value_type const * begin() const noexcept
-            {
-                return m_row + 0;
-            }
-            constexpr value_type const * end() const noexcept
-            {
-                return m_row + (MAX_N - R + 2);
-            }
             constexpr auto & operator[](size_t n) noexcept
             {
                 return m_row[MAX_N - n]; // reversed order for reverse iteration in search()
@@ -100,8 +92,8 @@ namespace jrmwng
             }
             constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
             {
-                auto itFound = lower_bound(begin() + (MAX_N - (n_last - 1u)), end() - 1, target, std::greater<>{});
-                return {MAX_N - std::distance(begin(), itFound), *itFound};
+                auto itFound = lower_bound(std::begin(m_row) + (MAX_N - (n_last - 1u)), std::end(m_row) - 1, target, std::greater<>{});
+                return {MAX_N - std::distance(std::begin(m_row), itFound), *itFound};
             }
         };
         template <size_t MAX_N>
@@ -124,8 +116,6 @@ namespace jrmwng
             inline constexpr static auto VIEW = std::views::iota(size_t{1}, size_t{MAX_N + 1});
         public:
             using value_type = size_t;
-            constexpr auto begin() const noexcept { return VIEW.begin(); }
-            constexpr auto end() const noexcept { return VIEW.end(); }
             constexpr value_type operator[](size_t n) const noexcept
             {
                 return n;
