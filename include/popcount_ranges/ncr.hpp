@@ -148,11 +148,11 @@ namespace jrmwng
                 {
                     ([&]<size_t... R2s>(std::index_sequence<R2s...>){ // R2s = 0, 1, ..., MAX_R-2
                         [&]<size_t... Rs>(std::index_sequence<Rs...>){
-                            ((std::get<Rs>(m_tupleRow)[(Rs) - 1u] = 0), ...);
-                            ((std::get<Rs>(m_tupleRow)[(Rs)] = 1), ...);
+                            ((std::get<Rs>(m_tupleRow)[Rs - 1u] = 0), ...);
+                            ((std::get<Rs>(m_tupleRow)[Rs] = 1), ...);
                             for (size_t n = 3; n <= MAX_N; ++n)
                             {
-                                (((n >= (Rs) + 1) && (std::get<Rs>(m_tupleRow)[n] = std::get<(Rs)-1>(m_tupleRow)[n-1] + std::get<Rs>(m_tupleRow)[n-1])), ...);
+                                (((n >= Rs + 1) && (std::get<Rs>(m_tupleRow)[n] = std::get<Rs-1>(m_tupleRow)[n-1] + std::get<Rs>(m_tupleRow)[n-1])), ...);
                             }
                         }(std::index_sequence<(R2s + 2)...>{});
                     }(std::make_index_sequence<MAX_R - 1>{}));
