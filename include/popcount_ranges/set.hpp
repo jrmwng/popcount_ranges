@@ -372,6 +372,15 @@ namespace jrmwng
             
             reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
             reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+
+            size_t size() const noexcept
+            {
+                return distance(m_first, m_last);
+            }
+            Tuint operator[] (size_t index) const noexcept
+            {
+                return unrank(index);
+            }
         };
         template <auto uPOPCOUNT>
         constexpr set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it) noexcept
