@@ -17,17 +17,17 @@ namespace jrmwng
 {
     namespace popcount_ranges
     {
-        constexpr uintmax_t nCr(size_t const N, size_t const R)
+        constexpr std::tuple<uintmax_t,bool> nCr(size_t const N, size_t const R) noexcept
         {
             if (R > N - R)
                 return nCr(N, N - R);
 
             if (R == 0 || R == N)
-                return 1;
+                return {1,false};
             if (R == 1)
-                return N;
+                return {N,false};
             if (R > N)
-                return 0;
+                return {0,false};
 
             std::vector<uintmax_t> terms(R);
             std::iota(terms.begin(), terms.end(), N - R + 1);
@@ -56,20 +56,25 @@ namespace jrmwng
                 }
             }
 
+            bool overflowed = false;
             uintmax_t result = 1;
             for (uintmax_t num : terms)
             {
                 if (result > std::numeric_limits<uintmax_t>::max() / num)
-                    throw std::overflow_error("nCr overflow");
+                {
+                    overflowed = true;
+                    break;
+                }
                 result *= num;
             }
-            return result;
+            return {result,overflowed};
         }
 
         template <size_t MAX_N, size_t R>
         class nCr_row
         {
             static_assert(R <= MAX_N, "nCr_row: R must be less than or equal to MAX_N");
+            static_assert(std::get<bool>(nCr(MAX_N, R)) == false, "nCr_row: overflow occurred in nCr(MAX_N, R)");
 
             template <uintmax_t Max>
             using min_uint_t = std::conditional_t<
@@ -79,7 +84,7 @@ namespace jrmwng
                     std::conditional_t<
                         Max <= std::numeric_limits<uint32_t>::max(), uint32_t,
                         uintmax_t>>>;
-            using value_type = min_uint_t<nCr(MAX_N, R)>;
+            using value_type = min_uint_t<std::get<uintmax_t>(nCr(MAX_N, R))>;
             value_type m_row[MAX_N - R + 2]; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
         public:
             constexpr auto & operator[](size_t n) noexcept
