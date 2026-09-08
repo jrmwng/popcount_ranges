@@ -23,12 +23,12 @@ namespace jrmwng
                 return lower_bound(first, last, target, std::less<>{});
             else
             {
-                if (first == last)
+                if (first == last) [[unlikely]]
                     return last;
 
                 constexpr size_t LANES = (sizeof(T) == 1 ? 64u : 128u) / sizeof(T);
 
-                if (!pred(*first, target))
+                if (!pred(*first, target)) [[unlikely]]
                     return first;
 
                 for (T * it = first; it != last; ) [[likely]]
