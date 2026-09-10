@@ -50,10 +50,10 @@ namespace jrmwng
                             // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
                             std::tuple tupleResult((std::get<typename traits::mask_type>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
                             
-                            // (popcount(mask0 & pred(chunk0, target)), popcount(mask1 & pred(chunk1, target)), ...)
-                            std::tuple tuplePopcount(data_par::popcount(std::get<Is>(tupleResult))...);
+                            // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
+                            std::tuple tuplePopcount(data_par::reduce_count(std::get<Is>(tupleResult))...);
 
-                            // (popcount(mask0 & pred(chunk0, target)) + popcount(mask1 & pred(chunk1, target)) + ...)
+                            // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
                             return (std::get<Is>(tuplePopcount) + ...);
 
                         }(data_par::simd_short_range<type>(it, next), target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});

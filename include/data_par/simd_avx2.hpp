@@ -330,7 +330,7 @@ namespace jrmwng
 
         // Helper template to provide mask operations
         template <size_t Bytes, typename T>
-        class alignas(32) basic_simd_mask<Bytes, simd_abi_avx2<T>>
+        class alignas(32) basic_mask<Bytes, simd_abi_avx2<T>>
         {
             static_assert(Bytes == sizeof(T), "Size mismatch between Bytes and type T");
 
@@ -389,17 +389,17 @@ namespace jrmwng
             }
 
             template <typename Tgenerator, size_t... Is>
-            static basic_simd_mask mask_from_generator(Tgenerator&& gen, std::index_sequence<Is...>) noexcept
+            static basic_mask mask_from_generator(Tgenerator&& gen, std::index_sequence<Is...>) noexcept
             {
-                if constexpr (std::is_invocable_r_v<basic_simd_mask, Tgenerator, basic_simd<T, simd_abi_avx2<T>>>)
+                if constexpr (std::is_invocable_r_v<basic_mask, Tgenerator, basic_vec<T, simd_abi_avx2<T>>>)
                 {
                     alignas(32) constexpr static T const atIOTA[ size ]{ static_cast<T>(Is)... };
 
-                    return gen(unchecked_load<basic_simd<T, simd_abi_avx2<T>>>(atIOTA, size, flag_aligned));
+                    return gen(unchecked_load<basic_vec<T, simd_abi_avx2<T>>>(atIOTA, size, flag_aligned));
                 }
                 else
                 {
-                    return basic_simd_mask
+                    return basic_mask
                     (
                         [&]<size_t... Js>(std::index_sequence<Js...>)
                         {
@@ -424,6 +424,8 @@ namespace jrmwng
 
             tuple_type m_tupleValue;
         public:
+            using value_type = bool;
+            using abi_type = simd_abi_avx2<T>;
             static constexpr std::integral_constant<size_t, simd_abi_avx2<T>::lanes> size{};
 
             template <typename U>
@@ -432,24 +434,24 @@ namespace jrmwng
                 return std::get<U>(m_tupleValue);
             }
 
-            basic_simd_mask() = default;
+            basic_mask() = default;
 
-            basic_simd_mask(const basic_simd_mask&) = default;
-            basic_simd_mask& operator=(const basic_simd_mask&) = default;
+            basic_mask(const basic_mask&) = default;
+            basic_mask& operator=(const basic_mask&) = default;
 
-            basic_simd_mask(basic_simd_mask&&) = default;
-            basic_simd_mask& operator=(basic_simd_mask&&) = default;
+            basic_mask(basic_mask&&) = default;
+            basic_mask& operator=(basic_mask&&) = default;
 
-            basic_simd_mask(tuple_type value) noexcept : m_tupleValue(std::move(value)) {}
-            basic_simd_mask(vector_type vec, int32_t mask) noexcept
+            basic_mask(tuple_type value) noexcept : m_tupleValue(std::move(value)) {}
+            basic_mask(vector_type vec, int32_t mask) noexcept
                 : m_tupleValue(mask, vec)
             {}
 
-            explicit basic_simd_mask(vector_type vec) noexcept
+            explicit basic_mask(vector_type vec) noexcept
                 : m_tupleValue(simd_abi_avx2<T>::movemask(vec), vec)
             {}
 
-            explicit basic_simd_mask(bool value) noexcept
+            explicit basic_mask(bool value) noexcept
                 : m_tupleValue
                 (
                     value ? nMASK : 0,
@@ -468,7 +470,7 @@ namespace jrmwng
             {}
 
             template <size_t N>
-            explicit basic_simd_mask(std::bitset<N> const & bs) noexcept
+            explicit basic_mask(std::bitset<N> const & bs) noexcept
                 : m_tupleValue
                 (
                     static_cast<int32_t>((bs.to_ulong()) & nMASK),
@@ -552,67 +554,80 @@ namespace jrmwng
             template <typename Tgenerator>
             requires
                 std::is_invocable_r_v<bool, Tgenerator, std::integral_constant<size_t, 0>> or
-                std::is_invocable_r_v<basic_simd_mask, Tgenerator, basic_simd<T, simd_abi_avx2<T>>>
-            explicit basic_simd_mask(Tgenerator&& gen) noexcept
+                std::is_invocable_r_v<basic_mask, Tgenerator, basic_vec<T, simd_abi_avx2<T>>>
+            explicit basic_mask(Tgenerator&& gen) noexcept
                 : m_tupleValue(mask_from_generator(std::forward<Tgenerator>(gen), std::make_index_sequence<size>{}).m_tupleValue)
             {}
 
 
             bool operator[](std::size_t i) const { return ((std::get<int32_t>(m_tupleValue) >> i) & 1) != 0; }
 
-            friend basic_simd_mask operator!(const basic_simd_mask& a) {
-                return basic_simd_mask(mask_not(std::get<vector_type>(a.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ nMASK);
+            friend basic_mask operator!(const basic_mask& a) {
+                return basic_mask(mask_not(std::get<vector_type>(a.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ nMASK);
             }
-            friend basic_simd_mask operator&(const basic_simd_mask& a, const basic_simd_mask& b) {
-                return basic_simd_mask(mask_and(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) & std::get<int32_t>(b.m_tupleValue));
+            friend basic_mask operator&(const basic_mask& a, const basic_mask& b) {
+                return basic_mask(mask_and(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) & std::get<int32_t>(b.m_tupleValue));
             }
-            friend basic_simd_mask operator|(const basic_simd_mask& a, const basic_simd_mask& b) {
-                return basic_simd_mask(mask_or(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) | std::get<int32_t>(b.m_tupleValue));
+            friend basic_mask operator|(const basic_mask& a, const basic_mask& b) {
+                return basic_mask(mask_or(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) | std::get<int32_t>(b.m_tupleValue));
             }
-            friend basic_simd_mask operator^(const basic_simd_mask& a, const basic_simd_mask& b) {
-                return basic_simd_mask(mask_xor(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ std::get<int32_t>(b.m_tupleValue));
+            friend basic_mask operator^(const basic_mask& a, const basic_mask& b) {
+                return basic_mask(mask_xor(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ std::get<int32_t>(b.m_tupleValue));
             }
 
-            basic_simd_mask& operator&=(const basic_simd_mask& other) {
+            basic_mask& operator&=(const basic_mask& other) {
                 std::get<vector_type>(m_tupleValue) = mask_and(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
                 std::get<int32_t>(m_tupleValue) &= std::get<int32_t>(other.m_tupleValue);
                 return *this;
             }
-            basic_simd_mask& operator|=(const basic_simd_mask& other) {
+            basic_mask& operator|=(const basic_mask& other) {
                 std::get<vector_type>(m_tupleValue) = mask_or(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
                 std::get<int32_t>(m_tupleValue) |= std::get<int32_t>(other.m_tupleValue);
                 return *this;
             }
-            basic_simd_mask& operator^=(const basic_simd_mask& other) {
+            basic_mask& operator^=(const basic_mask& other) {
                 std::get<vector_type>(m_tupleValue) = mask_xor(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
                 std::get<int32_t>(m_tupleValue) ^= std::get<int32_t>(other.m_tupleValue);
                 return *this;
             }
         };
         template <size_t Bytes, typename T>
-        int popcount(const basic_simd_mask<Bytes, simd_abi_avx2<T>>& mask) noexcept {
+        int reduce_count(const basic_mask<Bytes, simd_abi_avx2<T>>& mask) noexcept {
             return std::popcount(static_cast<uint32_t>(mask.template get<int32_t>()));
         }
 
         // ========== Generic SIMD implementation ==========
 
         template <typename T>
-        class basic_simd<T, simd_abi_avx2<T>>
+        class basic_vec<T, simd_abi_avx2<T>>
         {
-            using mask_type = basic_simd_mask<sizeof(T), simd_abi_avx2<T>>;
             using traits = simd_abi_avx2<T>;
             using vector_type = typename traits::vector_type;
+
+            template <typename G, size_t... Indices>
+            static vector_type generate(G&& generator, std::index_sequence<Indices...>)
+            {
+                alignas(32) T values[traits::lanes]{static_cast<T>(generator(std::integral_constant<size_t, Indices>{}))...};
+                return traits::load_aligned(values);
+            }
 
             vector_type m_value;
         public:
             using value_type = T;
+            using mask_type = basic_mask<sizeof(T), simd_abi_avx2<T>>;
             using abi_type = simd_abi_avx2<T>;
 
             static constexpr std::integral_constant<size_t, traits::lanes> const size{};
 
-            basic_simd() = default;
-            basic_simd(vector_type value) : m_value(value) {}
-            basic_simd(T value) : m_value(traits::set1(value)) {}
+            basic_vec() = default;
+            basic_vec(vector_type value) : m_value(value) {}
+            basic_vec(T value) : m_value(traits::set1(value)) {}
+
+            template <typename G>
+            requires std::invocable<G, std::integral_constant<size_t, 0>>
+            explicit basic_vec(G&& generator)
+                : m_value(generate(std::forward<G>(generator), std::make_index_sequence<traits::lanes>{}))
+            {}
 
             template <typename... Flags>
             void copy_from(const T* mem, flags<Flags...>) {
@@ -638,27 +653,27 @@ namespace jrmwng
                 return tmp[i];
             }
 
-            friend basic_simd operator+(const basic_simd& a, const basic_simd& b) {
-                return basic_simd(traits::add(a.m_value, b.m_value));
+            friend basic_vec operator+(const basic_vec& a, const basic_vec& b) {
+                return basic_vec(traits::add(a.m_value, b.m_value));
             }
 
-            friend basic_simd operator-(const basic_simd& a, const basic_simd& b) {
-                return basic_simd(traits::sub(a.m_value, b.m_value));
+            friend basic_vec operator-(const basic_vec& a, const basic_vec& b) {
+                return basic_vec(traits::sub(a.m_value, b.m_value));
             }
 
-            friend basic_simd operator*(const basic_simd& a, const basic_simd& b)
+            friend basic_vec operator*(const basic_vec& a, const basic_vec& b)
             requires requires { traits::mul(a.m_value, b.m_value); }
             {
-                return basic_simd(traits::mul(a.m_value, b.m_value));
+                return basic_vec(traits::mul(a.m_value, b.m_value));
             }
 
-            friend basic_simd operator/(const basic_simd& a, const basic_simd& b)
+            friend basic_vec operator/(const basic_vec& a, const basic_vec& b)
             requires requires { traits::div(a.m_value, b.m_value); }
             {
-                return basic_simd(traits::div(a.m_value, b.m_value));
+                return basic_vec(traits::div(a.m_value, b.m_value));
             }
 
-            friend mask_type operator<(const basic_simd& a, const basic_simd& b) {
+            friend mask_type operator<(const basic_vec& a, const basic_vec& b) {
                 if constexpr (requires { traits::cmplt(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmplt(a.m_value, b.m_value));
                 } else {
@@ -666,11 +681,11 @@ namespace jrmwng
                 }
             }
 
-            friend mask_type operator>(const basic_simd& a, const basic_simd& b) {
+            friend mask_type operator>(const basic_vec& a, const basic_vec& b) {
                 return mask_type(traits::cmpgt(a.m_value, b.m_value));
             }
 
-            friend mask_type operator<=(const basic_simd& a, const basic_simd& b) {
+            friend mask_type operator<=(const basic_vec& a, const basic_vec& b) {
                 if constexpr (requires { traits::cmple(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmple(a.m_value, b.m_value));
                 } else {
@@ -678,7 +693,7 @@ namespace jrmwng
                 }
             }
 
-            friend mask_type operator>=(const basic_simd& a, const basic_simd& b) {
+            friend mask_type operator>=(const basic_vec& a, const basic_vec& b) {
                 if constexpr (requires { traits::cmpge(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmpge(a.m_value, b.m_value));
                 } else {
@@ -686,11 +701,11 @@ namespace jrmwng
                 }
             }
 
-            friend mask_type operator==(const basic_simd& a, const basic_simd& b) {
+            friend mask_type operator==(const basic_vec& a, const basic_vec& b) {
                 return mask_type(traits::cmpeq(a.m_value, b.m_value));
             }
 
-            friend mask_type operator!=(const basic_simd& a, const basic_simd& b) {
+            friend mask_type operator!=(const basic_vec& a, const basic_vec& b) {
                 if constexpr (requires { traits::cmpneq(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmpneq(a.m_value, b.m_value));
                 } else {
@@ -699,20 +714,20 @@ namespace jrmwng
             }
         };
 
-        // ========== popcount implementations ==========
+        // ========== reduce_count implementations ==========
 
         // Define native_simd aliases if no higher-priority implementation has claimed them
         #if !defined(JRMWNG_NATIVE_SIMD_DEFINED)
 
             // Use AVX2 as native if compiler supports it
             template <typename T, typename Tabi = simd_abi_avx2<T>>
-            class basic_simd;
+            class basic_vec;
 
             template <size_t Bytes, typename Tabi>
-            class basic_simd_mask;
+            class basic_mask;
 
             template <typename T, size_t N = simd_abi_avx2<T>::lanes>
-            using simd = basic_simd<
+            using vec = basic_vec<
                 T,
                 std::conditional_t<
                     (N <= simd_abi_avx2<T>::lanes),
@@ -725,6 +740,9 @@ namespace jrmwng
                         >{})
                     )>
                 >;
+
+            template <typename T, size_t N = vec<T>::size()>
+            using mask = typename vec<T, N>::mask_type;
             #define JRMWNG_NATIVE_SIMD_DEFINED
         #endif
 

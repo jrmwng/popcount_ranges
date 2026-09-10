@@ -47,6 +47,15 @@ if(BUILD_TESTING)
 
     add_test(NAME lower_bound_tests
              COMMAND $<TARGET_FILE:lower_bound_tests>)
+
+    add_executable(data_par_simd_tests
+        tests/data_par_simd_tests.cpp
+    )
+
+    configure_popcount_target(data_par_simd_tests)
+
+    add_test(NAME data_par_simd_tests
+             COMMAND $<TARGET_FILE:data_par_simd_tests>)
 endif()
 
 if(POPCOUNT_RANGES_BUILD_BENCHMARKS)

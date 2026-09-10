@@ -30,7 +30,7 @@ void run_case(std::string_view type_name, std::string_view direction, std::size_
         {
             auto const first = values.data();
             auto const last = first + values.size();
-            if (implementation == "simd")
+            if (implementation == "vec")
                 result += static_cast<std::size_t>(jrmwng::popcount_ranges::lower_bound(first, last, query, predicate) - first);
             else if (implementation == "std")
                 result += static_cast<std::size_t>(std::lower_bound(values.begin(), values.end(), query, predicate) - values.begin());
@@ -77,7 +77,7 @@ void benchmark_type(std::string_view type_name, bool quick)
             auto run_direction = [&](auto predicate, std::string_view direction)
             {
                 std::size_t const repetitions = quick ? 20 : 1000;
-                for (std::string_view implementation : {"simd", "std", "linear", "count_if"})
+                for (std::string_view implementation : {"vec", "std", "linear", "count_if"})
                     run_case(type_name, direction, size, values, queries, predicate, implementation, repetitions);
             };
 

@@ -51,17 +51,17 @@ bool check_constructor_exceptions()
     using Set = jrmwng::popcount_ranges::set<std::uint8_t{2}>;
     auto const sentinel = *Set().end();
 
-    // 1. first does not have required popcount
+    // 1. first does not have required reduce_count
     if (!throws_invalid_argument([] { Set s(static_cast<std::uint8_t>(0), static_cast<std::uint8_t>(3)); }))
     {
-        std::cerr << "constructor exception check failed: invalid first popcount\n";
+        std::cerr << "constructor exception check failed: invalid first reduce_count\n";
         return false;
     }
 
-    // 2. last does not have required popcount
+    // 2. last does not have required reduce_count
     if (!throws_invalid_argument([] { Set s(static_cast<std::uint8_t>(3), static_cast<std::uint8_t>(0)); }))
     {
-        std::cerr << "constructor exception check failed: invalid last popcount\n";
+        std::cerr << "constructor exception check failed: invalid last reduce_count\n";
         return false;
     }
 

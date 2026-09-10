@@ -9,56 +9,56 @@ namespace jrmwng
     namespace data_par
     {
         // Forward declarations
-        template <typename T, typename Abi> class basic_simd;
-        template <size_t Bytes, typename Abi> class basic_simd_mask;
+        template <typename T, typename Abi> class basic_vec;
+        template <size_t Bytes, typename Abi> class basic_mask;
 
-        // Forward declarations for basic_simd operators
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator+=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator-=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator*=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator/=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator%=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator&=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator|=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator^=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator<<=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator>>=(basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator<<=(basic_simd<T, Abi>&, int);
-        template <typename T, typename Abi> basic_simd<T, Abi>& operator>>=(basic_simd<T, Abi>&, int);
+        // Forward declarations for basic_vec operators
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator+=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator-=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator*=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator/=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator%=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator&=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator|=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator^=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator<<=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator>>=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator<<=(basic_vec<T, Abi>&, int);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator>>=(basic_vec<T, Abi>&, int);
 
-        template <typename T, typename Abi> basic_simd<T, Abi> operator+(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator-(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator*(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator/(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator%(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator&(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator|(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator^(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator<<(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator>>(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator<<(const basic_simd<T, Abi>&, int);
-        template <typename T, typename Abi> basic_simd<T, Abi> operator>>(const basic_simd<T, Abi>&, int);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator+(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator-(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator*(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator/(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator%(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator&(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator|(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator^(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator<<(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator>>(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator<<(const basic_vec<T, Abi>&, int);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator>>(const basic_vec<T, Abi>&, int);
 
-        template <typename T, typename Abi> basic_simd_mask<sizeof(T), Abi> operator==(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd_mask<sizeof(T), Abi> operator!=(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd_mask<sizeof(T), Abi> operator<(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd_mask<sizeof(T), Abi> operator<=(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd_mask<sizeof(T), Abi> operator>(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
-        template <typename T, typename Abi> basic_simd_mask<sizeof(T), Abi> operator>=(const basic_simd<T, Abi>&, const basic_simd<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator==(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator!=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator<(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator<=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator>(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator>=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
 
-        // Forward declarations for basic_simd_mask operators
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi>& operator&=(basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi>& operator|=(basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi>& operator^=(basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
+        // Forward declarations for basic_mask operators
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator&=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator|=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator^=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
 
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator&&(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator||(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator&(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator|(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator^(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator&&(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator||(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator&(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator|(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator^(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
 
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator==(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_simd_mask<Bytes, Abi> operator!=(const basic_simd_mask<Bytes, Abi>&, const basic_simd_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator==(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator!=(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
 
         // ABI tag types
         template <typename T>
@@ -67,6 +67,7 @@ namespace jrmwng
         };
 
         // Memory alignment flags for load/store operations
+        struct convert_tag {};
         struct aligned_tag {};
         template <std::size_t N>
         struct overaligned_tag { inline constexpr static std::size_t alignment = N; };
@@ -74,6 +75,7 @@ namespace jrmwng
         template <class... Flags> struct flags {};
         
         inline constexpr flags<> flag_default{};
+        inline constexpr flags<convert_tag> flag_convert{};
         inline constexpr flags<aligned_tag> flag_aligned{};
 
         template <std::size_t N>
@@ -103,7 +105,47 @@ namespace jrmwng
 
         // Reductions
         template <size_t Bytes, typename Abi>
-        int popcount(const basic_simd_mask<Bytes, Abi>& mask) noexcept;
+        int reduce_count(const basic_mask<Bytes, Abi>& mask) noexcept;
+
+        template <size_t Bytes, typename Abi>
+        bool all_of(const basic_mask<Bytes, Abi>& mask) noexcept
+        {
+            return reduce_count(mask) == basic_mask<Bytes, Abi>::size();
+        }
+
+        template <size_t Bytes, typename Abi>
+        bool any_of(const basic_mask<Bytes, Abi>& mask) noexcept
+        {
+            return reduce_count(mask) != 0;
+        }
+
+        template <size_t Bytes, typename Abi>
+        bool none_of(const basic_mask<Bytes, Abi>& mask) noexcept
+        {
+            return !any_of(mask);
+        }
+
+        template <size_t Bytes, typename Abi>
+        std::ptrdiff_t reduce_min_index(const basic_mask<Bytes, Abi>& mask) noexcept
+        {
+            for (std::size_t index = 0; index < basic_mask<Bytes, Abi>::size(); ++index)
+            {
+                if (mask[index])
+                    return static_cast<std::ptrdiff_t>(index);
+            }
+            return static_cast<std::ptrdiff_t>(basic_mask<Bytes, Abi>::size());
+        }
+
+        template <size_t Bytes, typename Abi>
+        std::ptrdiff_t reduce_max_index(const basic_mask<Bytes, Abi>& mask) noexcept
+        {
+            for (std::size_t index = basic_mask<Bytes, Abi>::size(); index != 0; --index)
+            {
+                if (mask[index - 1])
+                    return static_cast<std::ptrdiff_t>(index - 1);
+            }
+            return static_cast<std::ptrdiff_t>(basic_mask<Bytes, Abi>::size());
+        }
 
     }
 }

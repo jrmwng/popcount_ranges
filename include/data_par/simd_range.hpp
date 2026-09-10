@@ -8,11 +8,11 @@ namespace jrmwng
 {
     namespace data_par
     {
-        template <typename T, typename Tsimd_abi = typename simd<T>::abi_type>
+        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type>
         struct simd_range_traits
         {
-            using simd_type = basic_simd<T, Tsimd_abi>;
-            using mask_type = basic_simd_mask<sizeof(T), Tsimd_abi>;
+            using simd_type = basic_vec<T, Tsimd_abi>;
+            using mask_type = basic_mask<sizeof(T), Tsimd_abi>;
             inline constexpr static std::size_t simd_width = simd_type::size();
 
             using bitset_type = std::bitset<simd_width>;
@@ -116,13 +116,13 @@ namespace jrmwng
         // 
         // 2. Single aligned load: Range fits within one SIMD-width aligned chunk (PREFERRED for small ranges)
         //    - Combines head_mask & tail_mask to exclude elements before start AND after end
-        //    - Load size: popcount(combined_mask) - only loads valid elements to avoid reading beyond range
+        //    - Load size: reduce_count(combined_mask) - only loads valid elements to avoid reading beyond range
         //    - This is prioritized over unaligned loads to prevent page boundary violations
         //    - Triggered when: align_floor(begin) + simd_width == align_ceil(end)
         // 
         // 3. Single unaligned load: Small range that spans alignment boundary
         //    - Loads directly from range start (unaligned) with size-based mask
-        //    - Load size: popcount(size_mask) - limited to range size to minimize unaligned access
+        //    - Load size: reduce_count(size_mask) - limited to range size to minimize unaligned access
         //    - Only used when: size < simd_width AND range doesn't fit in single aligned chunk
         //    - Example: 3 elements starting at offset 7 with simd_width=8 (crosses to next chunk)
         // 
@@ -140,8 +140,8 @@ namespace jrmwng
         // - combined_mask: For single aligned load, head_mask & tail_mask
         //   Masks out elements both before start AND after end
         //   Example: offset 2, end 6, width=8 → bits 2-5 set (0b00111100) = 4 valid elements
-        //   Load uses popcount(combined_mask) = 4, not full simd_width
-        template <typename T, typename Tsimd_abi = typename simd<T>::abi_type>
+        //   Load uses reduce_count(combined_mask) = 4, not full simd_width
+        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type>
             requires std::is_arithmetic_v<T>
         class simd_range
         {
@@ -192,7 +192,7 @@ namespace jrmwng
                         //   - current = align_floor(begin)
                         //   - tail_mask = combined mask excluding padding before start AND after end
                         //   - IMPORTANT: Loads full simd_width, mask filters invalid elements
-                        //   - This is why we use simd_width, not popcount(tail_mask)!
+                        //   - This is why we use simd_width, not reduce_count(tail_mask)!
                         //
                         // Case 3: Single unaligned load (for small cross-alignment ranges)
                         //   - current = actual range start (unaligned)
@@ -259,7 +259,7 @@ namespace jrmwng
                 }
                 // Priority 2: Single unaligned load for small ranges that don't fit in single aligned chunk
                 // This handles ranges where size < simd_width AND the range spans across alignment boundary
-                // The unaligned load is necessary but limited to popcount() elements to minimize risk
+                // The unaligned load is necessary but limited to reduce_count() elements to minimize risk
                 else if (0 < std::ranges::size(data) && std::ranges::size(data) < traits::simd_width)
                 {
                     std::get<0>(m_tupleIterator) = std::ranges::data(data);
@@ -286,7 +286,7 @@ namespace jrmwng
 
         // For long range, we use `simd_range` to perform vector-aligned loads
         // For short range, we use `simd_short_range` to perform element-wise aligned loads
-        template <typename T, typename Tsimd_abi = typename simd<T>::abi_type>
+        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type>
             requires std::is_arithmetic_v<T>
         class simd_short_range
         {
@@ -347,7 +347,7 @@ namespace jrmwng
                 // Advance to the next SIMD vector for continuous memory reading
                 iterator& operator++() noexcept
                 {
-                    // `popcount(m_mask)` is used here for friendliness of compiler optimization.
+                    // `reduce_count(m_mask)` is used here for friendliness of compiler optimization.
                     // It requires both `begin()` method and `end()` method to handle this properly.
                     m_current += m_mask.count();
 

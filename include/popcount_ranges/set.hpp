@@ -150,12 +150,12 @@ namespace jrmwng
                 if (first != SENTINEL)
                 {
                     if (std::popcount(first) != static_cast<int>(uPOPCOUNT))
-                        throw std::invalid_argument("set: first does not have the required popcount");
+                        throw std::invalid_argument("set: first does not have the required reduce_count");
                 }
                 if (last != SENTINEL)
                 {
                     if (std::popcount(last) != static_cast<int>(uPOPCOUNT))
-                        throw std::invalid_argument("set: last does not have the required popcount");
+                        throw std::invalid_argument("set: last does not have the required reduce_count");
                     if (first == SENTINEL)
                         throw std::invalid_argument("set: last is not sentinel but first is");
                     if (first > last)

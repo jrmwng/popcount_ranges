@@ -23,7 +23,7 @@ inline void do_not_optimize(T& value) noexcept
 }
 
 template <typename Set, typename Operation>
-void run_case(std::string_view type_name, std::size_t popcount, std::string_view direction,
+void run_case(std::string_view type_name, std::size_t reduce_count, std::string_view direction,
               std::size_t distance, std::size_t repetitions, Operation operation,
               std::string_view implementation)
 {
@@ -44,7 +44,7 @@ void run_case(std::string_view type_name, std::size_t popcount, std::string_view
         std::chrono::steady_clock::now() - started).count();
     sink += result;
 
-    std::cout << type_name << ',' << popcount << ',' << direction << ',' << distance << ','
+    std::cout << type_name << ',' << reduce_count << ',' << direction << ',' << distance << ','
               << implementation << ',' << std::fixed << std::setprecision(2)
               << elapsed / static_cast<double>(repetitions) << ',' << result << '\n';
 }
@@ -83,7 +83,7 @@ void benchmark_set(std::string_view type_name, bool quick)
 int main(int argc, char const* argv[])
 {
     bool const quick = argc > 1 && std::string_view(argv[1]) == "--quick";
-    std::cout << "type,popcount,direction,distance,implementation,ns_per_operation,checksum\n";
+    std::cout << "type,reduce_count,direction,distance,implementation,ns_per_operation,checksum\n";
     benchmark_set<std::uint8_t, std::uint8_t{1}>("uint8", quick);
     benchmark_set<std::uint8_t, std::uint8_t{2}>("uint8", quick);
     benchmark_set<std::uint8_t, std::uint8_t{3}>("uint8", quick);
