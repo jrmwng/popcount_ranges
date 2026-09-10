@@ -13,52 +13,52 @@ namespace jrmwng
         template <size_t Bytes, typename Abi> class basic_mask;
 
         // Forward declarations for basic_vec operators
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator+=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator-=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator*=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator/=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator%=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator&=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator|=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator^=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator<<=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator>>=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator<<=(basic_vec<T, Abi>&, int);
-        template <typename T, typename Abi> basic_vec<T, Abi>& operator>>=(basic_vec<T, Abi>&, int);
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator+=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator-=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator*=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator/=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator%=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator&=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator|=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator^=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator<<=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator>>=(basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator<<=(basic_vec<T, Abi>&, int) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi>& operator>>=(basic_vec<T, Abi>&, int) noexcept;
 
-        template <typename T, typename Abi> basic_vec<T, Abi> operator+(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator-(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator*(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator/(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator%(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator&(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator|(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator^(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator<<(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator>>(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator<<(const basic_vec<T, Abi>&, int);
-        template <typename T, typename Abi> basic_vec<T, Abi> operator>>(const basic_vec<T, Abi>&, int);
+        template <typename T, typename Abi> basic_vec<T, Abi> operator+(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator-(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator*(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator/(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator%(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator&(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator|(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator^(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator<<(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator>>(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator<<(const basic_vec<T, Abi>&, int) noexcept;
+        template <typename T, typename Abi> basic_vec<T, Abi> operator>>(const basic_vec<T, Abi>&, int) noexcept;
 
-        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator==(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator!=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator<(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator<=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator>(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
-        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator>=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&);
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator==(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator!=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator<(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator<=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator>(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
+        template <typename T, typename Abi> basic_mask<sizeof(T), Abi> operator>=(const basic_vec<T, Abi>&, const basic_vec<T, Abi>&) noexcept;
 
         // Forward declarations for basic_mask operators
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator&=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator|=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator^=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator&=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator|=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi>& operator^=(basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
 
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator&&(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator||(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator&(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator|(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator^(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator&&(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator||(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator&(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator|(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator^(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
 
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator==(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
-        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator!=(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&);
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator==(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
+        template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator!=(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
 
         // ABI tag types
         template <typename T>
@@ -82,7 +82,7 @@ namespace jrmwng
         inline constexpr flags<overaligned_tag<N>> flag_overaligned{};
 
         template <class V, std::contiguous_iterator I, class... Flags>
-        V unchecked_load(I first, std::iter_difference_t<I> n, flags<Flags...> f = {})
+        V unchecked_load(I first, std::iter_difference_t<I> n, flags<Flags...> f = {}) noexcept(noexcept(std::declval<V&>().copy_from(std::to_address(first), f)))
         {
             V v;
             if (n >= V::size())

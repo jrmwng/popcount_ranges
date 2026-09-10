@@ -29,80 +29,80 @@ namespace jrmwng
             static constexpr std::integral_constant<size_t, 1> size{};
 
             // Constructors
-            basic_vec() = default;
-            basic_vec(T val) : value(val) {}
+            basic_vec() noexcept = default;
+            basic_vec(T val) noexcept : value(val) {}
 
             // Broadcast constructor
             template <typename U>
             requires std::convertible_to<U, T> && (!std::invocable<U, std::integral_constant<std::size_t, 0>>)
-            explicit basic_vec(U&& x) : value(static_cast<T>(std::forward<U>(x))) {}
+            explicit basic_vec(U&& x) noexcept(noexcept(static_cast<T>(std::forward<U>(x)))) : value(static_cast<T>(std::forward<U>(x))) {}
 
             // Generator constructor
             template <typename G>
             requires std::invocable<G, std::integral_constant<std::size_t, 0>>
-            explicit basic_vec(G&& gen) : value(gen(std::integral_constant<std::size_t, 0>{})) {}
+            explicit basic_vec(G&& gen) noexcept(noexcept(static_cast<T>(std::forward<G>(gen)(std::integral_constant<std::size_t, 0>{})))) : value(std::forward<G>(gen)(std::integral_constant<std::size_t, 0>{})) {}
 
             // Load from memory
             template <typename U, typename Flags>
-            void copy_from(const U* mem, Flags) { value = static_cast<T>(*mem); }
+            void copy_from(const U* mem, Flags) noexcept(noexcept(static_cast<T>(*mem))) { value = static_cast<T>(*mem); }
 
             // Store to memory
             template <typename U, typename Flags>
-            void copy_to(U* mem, Flags) const { *mem = static_cast<U>(value); }
+            void copy_to(U* mem, Flags) const noexcept(noexcept(*mem = static_cast<U>(value))) { *mem = static_cast<U>(value); }
 
             // Element access
-            T operator[](std::size_t i) const { return value; }
-            reference operator[](std::size_t i) { return value; }
+            T operator[](std::size_t i) const noexcept { return value; }
+            reference operator[](std::size_t i) noexcept { return value; }
 
             // Unary operators
-            basic_vec operator+() const { return *this; }
-            basic_vec operator-() const { return basic_vec(-value); }
+            basic_vec operator+() const noexcept { return *this; }
+            basic_vec operator-() const noexcept { return basic_vec(-value); }
 
             // Compound assignment operators
-            basic_vec& operator+=(const basic_vec& other) { value += other.value; return *this; }
-            basic_vec& operator-=(const basic_vec& other) { value -= other.value; return *this; }
-            basic_vec& operator*=(const basic_vec& other) { value *= other.value; return *this; }
-            basic_vec& operator/=(const basic_vec& other) { value /= other.value; return *this; }
+            basic_vec& operator+=(const basic_vec& other) noexcept { value += other.value; return *this; }
+            basic_vec& operator-=(const basic_vec& other) noexcept { value -= other.value; return *this; }
+            basic_vec& operator*=(const basic_vec& other) noexcept { value *= other.value; return *this; }
+            basic_vec& operator/=(const basic_vec& other) noexcept { value /= other.value; return *this; }
 
             // Binary arithmetic operators for scalar vec
-            friend basic_vec<T, simd_abi_scalar<T>> operator+(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_vec<T, simd_abi_scalar<T>> operator+(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_vec<T, simd_abi_scalar<T>>(a.value + b.value);
             }
 
-            friend basic_vec<T, simd_abi_scalar<T>> operator-(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_vec<T, simd_abi_scalar<T>> operator-(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_vec<T, simd_abi_scalar<T>>(a.value - b.value);
             }
 
-            friend basic_vec<T, simd_abi_scalar<T>> operator*(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_vec<T, simd_abi_scalar<T>> operator*(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_vec<T, simd_abi_scalar<T>>(a.value * b.value);
             }
 
-            friend basic_vec<T, simd_abi_scalar<T>> operator/(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_vec<T, simd_abi_scalar<T>> operator/(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_vec<T, simd_abi_scalar<T>>(a.value / b.value);
             }
 
             // Comparison operators for scalar vec
-            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator==(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator==(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_mask<sizeof(T), simd_abi_scalar<T>>(a.value == b.value);
             }
 
-            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator!=(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator!=(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_mask<sizeof(T), simd_abi_scalar<T>>(a.value != b.value);
             }
 
-            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator<(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator<(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_mask<sizeof(T), simd_abi_scalar<T>>(a.value < b.value);
             }
 
-            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator<=(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator<=(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_mask<sizeof(T), simd_abi_scalar<T>>(a.value <= b.value);
             }
 
-            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator>(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator>(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_mask<sizeof(T), simd_abi_scalar<T>>(a.value > b.value);
             }
 
-            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator>=(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) {
+            friend basic_mask<sizeof(T), simd_abi_scalar<T>> operator>=(const basic_vec<T, simd_abi_scalar<T>>& a, const basic_vec<T, simd_abi_scalar<T>>& b) noexcept {
                 return basic_mask<sizeof(T), simd_abi_scalar<T>>(a.value >= b.value);
             }
 
@@ -127,32 +127,32 @@ namespace jrmwng
             static constexpr std::integral_constant<size_t, 1> const size{};
 
             // Constructors
-            basic_mask() = default;
-            explicit basic_mask(bool b) : value(b) {}
+            basic_mask() noexcept = default;
+            explicit basic_mask(bool b) noexcept : value(b) {}
 
             template <size_t N>
             explicit basic_mask(const std::bitset<N>& bs) noexcept : value(bs.test(0)) {}
 
             template <typename Tgenerator>
             requires std::is_invocable_r_v<bool, Tgenerator, std::integral_constant<size_t, 0>>
-            explicit basic_mask(Tgenerator&& gen) noexcept : value(gen(std::integral_constant<size_t, 0>{})) {}
+            explicit basic_mask(Tgenerator&& gen) noexcept(noexcept(std::forward<Tgenerator>(gen)(std::integral_constant<size_t, 0>{}))) : value(std::forward<Tgenerator>(gen)(std::integral_constant<size_t, 0>{})) {}
 
             // Element access
-            bool operator[](std::size_t i) const { return value; }
-            reference operator[](std::size_t i) { return value; }
+            bool operator[](std::size_t i) const noexcept { return value; }
+            reference operator[](std::size_t i) noexcept { return value; }
 
             // Logical operators
-            basic_mask operator!() const { return basic_mask(!value); }
-            basic_mask operator&&(const basic_mask& other) const { return basic_mask(value && other.value); }
-            basic_mask operator||(const basic_mask& other) const { return basic_mask(value || other.value); }
+            basic_mask operator!() const noexcept { return basic_mask(!value); }
+            basic_mask operator&&(const basic_mask& other) const noexcept { return basic_mask(value && other.value); }
+            basic_mask operator||(const basic_mask& other) const noexcept { return basic_mask(value || other.value); }
 
-            basic_mask operator&(const basic_mask& other) const { return basic_mask(value & other.value); }
-            basic_mask operator|(const basic_mask& other) const { return basic_mask(value | other.value); }
-            basic_mask operator^(const basic_mask& other) const { return basic_mask(value != other.value); }
+            basic_mask operator&(const basic_mask& other) const noexcept { return basic_mask(value & other.value); }
+            basic_mask operator|(const basic_mask& other) const noexcept { return basic_mask(value | other.value); }
+            basic_mask operator^(const basic_mask& other) const noexcept { return basic_mask(value != other.value); }
 
-            basic_mask& operator&=(const basic_mask& other) { value &= other.value; return *this; }
-            basic_mask& operator|=(const basic_mask& other) { value |= other.value; return *this; }
-            basic_mask& operator^=(const basic_mask& other) { value ^= other.value; return *this; }
+            basic_mask& operator&=(const basic_mask& other) noexcept { value &= other.value; return *this; }
+            basic_mask& operator|=(const basic_mask& other) noexcept { value |= other.value; return *this; }
+            basic_mask& operator^=(const basic_mask& other) noexcept { value ^= other.value; return *this; }
         };
 
         // Reductions for scalar basic_mask

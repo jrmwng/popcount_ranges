@@ -18,7 +18,7 @@ namespace jrmwng
             using bitset_type = std::bitset<simd_width>;
 
             template <typename U = T>
-            constexpr static U * align_floor(U *ptr)
+            constexpr static U * align_floor(U *ptr) noexcept
             {
                 static_assert(std::is_same_v<std::remove_cv_t<U>, T>, "Pointer type must match SIMD element type.");
                 auto addr = reinterpret_cast<std::uintptr_t>(ptr);
@@ -26,7 +26,7 @@ namespace jrmwng
                 return reinterpret_cast<U *>(addr);
             }
             template <typename U = T>
-            constexpr static U * align_ceil(U *ptr)
+            constexpr static U * align_ceil(U *ptr) noexcept
             {
                 static_assert(std::is_same_v<std::remove_cv_t<U>, T>, "Pointer type must match SIMD element type.");
                 auto addr = reinterpret_cast<std::uintptr_t>(ptr);
@@ -35,11 +35,11 @@ namespace jrmwng
                 return reinterpret_cast<U *>(addr);
             }
 
-            static constexpr bitset_type make_bitset(size_t const start, size_t const count)
+            static constexpr bitset_type make_bitset(size_t const start, size_t const count) noexcept
             {
                 return bitset_type{}.set() >> (simd_width - count) << start;
             }
-            static constexpr mask_type make_mask(bitset_type const &bits)
+            static constexpr mask_type make_mask(bitset_type const &bits) noexcept
             {
                 if constexpr (std::constructible_from<mask_type, bitset_type>)
                 {
@@ -56,7 +56,7 @@ namespace jrmwng
             
             // Create a mask with bits set from 'offset' to end (upper bits)
             // Example: offset=3, width=8 → 0b11111000 (bits 3-7 set)
-            static constexpr mask_type make_head_mask(size_t const valid_count)
+            static constexpr mask_type make_head_mask(size_t const valid_count) noexcept
             {
                 // Verify offset is in valid range [0, simd_width)
                 // When uIndex >= offset, bits [offset, simd_width) are set
@@ -72,7 +72,7 @@ namespace jrmwng
                     });
                 }
             }
-            static constexpr mask_type make_head_mask(T const *ptr)
+            static constexpr mask_type make_head_mask(T const *ptr) noexcept
             {
                 return make_head_mask(simd_width - (ptr - align_floor(ptr)));
             }
@@ -80,7 +80,7 @@ namespace jrmwng
             // Create a tail mask where 'valid_count' is the number of valid elements from the start of the SIMD chunk
             // Example: end at offset 3, width=8, count=5 → 0b00000111 (bits 0-2 set, masking 3 valid elements)
             // The mask sets the lower (simd_width - count) bits, excluding the upper 'count' padding elements
-            static constexpr mask_type make_tail_mask(size_t const valid_count)
+            static constexpr mask_type make_tail_mask(size_t const valid_count) noexcept
             {
                 // valid_count = number of valid elements from the start of the SIMD chunk
                 // Padding elements = simd_width - valid_count
@@ -97,7 +97,7 @@ namespace jrmwng
                     });
                 }
             }
-            static constexpr mask_type make_tail_mask(T const *ptr)
+            static constexpr mask_type make_tail_mask(T const *ptr) noexcept
             {
                 return make_tail_mask(simd_width - (align_ceil(ptr) - ptr));
             }
@@ -162,11 +162,11 @@ namespace jrmwng
                 using difference_type = std::ptrdiff_t;
                 using value_type = std::pair<simd_type, mask_type>;
                 
-                iterator(iterator_tuple_type const& tupleIterator)
+                iterator(iterator_tuple_type const& tupleIterator) noexcept
                     : m_tupleIterator(tupleIterator)
                 {}
                 
-                value_type operator*() const
+                value_type operator*() const noexcept
                 {
                     auto const [current, current_mask, end, tail_mask] = m_tupleIterator;
                     auto const next = current + traits::simd_width;
@@ -208,7 +208,7 @@ namespace jrmwng
                     }
                 }
                 
-                iterator& operator++()
+                iterator& operator++() noexcept
                 {
                     auto const [current, current_mask, end, tail_mask] = m_tupleIterator;
                     auto const next = current + traits::simd_width;
@@ -218,19 +218,19 @@ namespace jrmwng
                     return *this;
                 }
                 
-                iterator operator++(int)
+                iterator operator++(int) noexcept
                 {
                     iterator tmp = *this;
                     ++(*this);
                     return tmp;
                 }
                 
-                bool operator==(iterator const& other) const
+                bool operator==(iterator const& other) const noexcept
                 {
                     return std::get<0>(m_tupleIterator) == std::get<0>(other.m_tupleIterator);
                 }
                 
-                bool operator!=(iterator const& other) const
+                bool operator!=(iterator const& other) const noexcept
                 {
                     return !(*this == other);
                 }
@@ -273,12 +273,12 @@ namespace jrmwng
                 // Default: Multiple aligned loads (no special handling needed here)
             }
             
-            iterator begin() const
+            iterator begin() const noexcept
             {
                 return iterator(m_tupleIterator);
             }
             
-            iterator end() const
+            iterator end() const noexcept
             {
                 return iterator(iterator_tuple_type(std::get<2>(m_tupleIterator), mask_type(false), std::get<2>(m_tupleIterator), std::get<3>(m_tupleIterator)));
             }

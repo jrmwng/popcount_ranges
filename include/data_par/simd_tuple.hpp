@@ -27,7 +27,7 @@ namespace jrmwng
             using tuple_type = std::tuple<basic_mask<Bytes, Tabis>...>;
 
             template <size_t I, typename Tuple>
-            static consteval size_t offset_of() {
+            static consteval size_t offset_of() noexcept {
                 return ([]<size_t... Ks>(std::index_sequence<Ks...>) {
                     return (std::tuple_element_t<Ks, Tuple>::size + ... + 0u);
                 })(std::make_index_sequence<I>{});
@@ -39,7 +39,7 @@ namespace jrmwng
             using abi_type = simd_abi_tuple<T, Tabis...>;
             static constexpr std::integral_constant<size_t, (basic_mask<Bytes, Tabis>::size + ...)> size{};
 
-            basic_mask() = default;
+            basic_mask() noexcept = default;
 
             basic_mask(const basic_mask&) = default;
             basic_mask& operator=(const basic_mask&) = default;
@@ -47,8 +47,8 @@ namespace jrmwng
             basic_mask(basic_mask&&) = default;
             basic_mask& operator=(basic_mask&&) = default;
 
-            basic_mask(std::tuple<basic_mask<Bytes, Tabis>...> value) : m_tupleValue(value) {}
-            explicit basic_mask(bool v)
+            basic_mask(std::tuple<basic_mask<Bytes, Tabis>...> value) noexcept : m_tupleValue(value) {}
+            explicit basic_mask(bool v) noexcept
                 : m_tupleValue(std::make_tuple(basic_mask<Bytes, Tabis>(v)...))
             {}
 
@@ -105,7 +105,7 @@ namespace jrmwng
                 )
             {}
 
-            bool operator[](std::size_t i) const {
+            bool operator[](std::size_t i) const noexcept {
                 size_t offset = 0;
                 bool result = false;
                 std::apply([&](auto const&... mask_parts) {
@@ -116,7 +116,7 @@ namespace jrmwng
                 return result;
             }
 
-            friend basic_mask operator!(const basic_mask& m) {
+            friend basic_mask operator!(const basic_mask& m) noexcept {
                 return basic_mask(
                     std::apply([&](auto const&... mask_parts) {
                         return std::make_tuple((!mask_parts)...);
@@ -124,7 +124,7 @@ namespace jrmwng
                 );
             }
 
-            friend basic_mask operator&(const basic_mask& a, const basic_mask& b) {
+            friend basic_mask operator&(const basic_mask& a, const basic_mask& b) noexcept {
                 return basic_mask(
                     std::apply([&](auto const&... a_parts) {
                         return std::apply([&](auto const&... b_parts) {
@@ -134,7 +134,7 @@ namespace jrmwng
                 );
             }
 
-            friend basic_mask operator|(const basic_mask& a, const basic_mask& b) {
+            friend basic_mask operator|(const basic_mask& a, const basic_mask& b) noexcept {
                 return basic_mask(
                     std::apply([&](auto const&... a_parts) {
                         return std::apply([&](auto const&... b_parts) {
@@ -144,7 +144,7 @@ namespace jrmwng
                 );
             }
 
-            friend basic_mask operator^(const basic_mask& a, const basic_mask& b) {
+            friend basic_mask operator^(const basic_mask& a, const basic_mask& b) noexcept {
                 return basic_mask(
                     std::apply([&](auto const&... a_parts) {
                         return std::apply([&](auto const&... b_parts) {
@@ -154,19 +154,19 @@ namespace jrmwng
                 );
             }
 
-            basic_mask& operator&=(const basic_mask& other) {
+            basic_mask& operator&=(const basic_mask& other) noexcept {
                 [&]<size_t... Is>(std::index_sequence<Is...>) {
                     ((std::get<Is>(m_tupleValue) &= std::get<Is>(other.m_tupleValue)), ...);
                 }(std::make_index_sequence<sizeof...(Tabis)>{});
                 return *this;
             }
-            basic_mask& operator|=(const basic_mask& other) {
+            basic_mask& operator|=(const basic_mask& other) noexcept {
                 [&]<size_t... Is>(std::index_sequence<Is...>) {
                     ((std::get<Is>(m_tupleValue) |= std::get<Is>(other.m_tupleValue)), ...);
                 }(std::make_index_sequence<sizeof...(Tabis)>{});
                 return *this;
             }
-            basic_mask& operator^=(const basic_mask& other) {
+            basic_mask& operator^=(const basic_mask& other) noexcept {
                 [&]<size_t... Is>(std::index_sequence<Is...>) {
                     ((std::get<Is>(m_tupleValue) ^= std::get<Is>(other.m_tupleValue)), ...);
                 }(std::make_index_sequence<sizeof...(Tabis)>{});
@@ -194,28 +194,28 @@ namespace jrmwng
 
             static constexpr std::integral_constant<size_t, (basic_vec<T, Tabis>::size + ...)> size{};
 
-            basic_vec() = default;
-            basic_vec(std::tuple<basic_vec<T, Tabis>...> tupleValue) : m_tupleValue(tupleValue) {}
-            explicit basic_vec(T value)
+            basic_vec() noexcept = default;
+            basic_vec(std::tuple<basic_vec<T, Tabis>...> tupleValue) noexcept : m_tupleValue(tupleValue) {}
+            explicit basic_vec(T value) noexcept
                 : m_tupleValue(std::make_tuple(basic_vec<T, Tabis>(value)...))
             {}
 
             template <typename... Flags>
-            void copy_from(const T* mem, flags<Flags...>) {
+            void copy_from(const T* mem, flags<Flags...>) noexcept {
                 T const* ptr = mem;
                 std::apply([&](auto&... simd_parts) {
                     ((simd_parts.copy_from(ptr, flags<Flags...>{}), ptr += std::decay_t<decltype(simd_parts)>::size), ...);
                 }, m_tupleValue);
             }
             template <typename... Flags>
-            void copy_to(T* mem, flags<Flags...>) const {
+            void copy_to(T* mem, flags<Flags...>) const noexcept {
                 T* ptr = mem;
                 std::apply([&](auto const&... simd_parts) {
                     ((simd_parts.copy_to(ptr, flags<Flags...>{}), ptr += std::decay_t<decltype(simd_parts)>::size), ...);
                 }, m_tupleValue);
             }
 
-            T operator[](std::size_t i) const {
+            T operator[](std::size_t i) const noexcept {
                 size_t offset = 0;
                 T result{};
                 std::apply([&](auto const&... simd_parts) {
@@ -226,7 +226,7 @@ namespace jrmwng
                 return result;
             }
 
-            friend basic_vec operator+(const basic_vec& a, const basic_vec& b)
+            friend basic_vec operator+(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return basic_vec(
                     std::apply([&](auto const&... a_parts) {
@@ -236,7 +236,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend basic_vec operator-(const basic_vec& a, const basic_vec& b)
+            friend basic_vec operator-(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return basic_vec(
                     std::apply([&](auto const&... a_parts) {
@@ -246,7 +246,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend basic_vec operator*(const basic_vec& a, const basic_vec& b)
+            friend basic_vec operator*(const basic_vec& a, const basic_vec& b) noexcept
             requires requires { (std::declval<basic_vec<T, Tabis...>>() * std::declval<basic_vec<T, Tabis...>>()); }
             {
                 return basic_vec(
@@ -257,7 +257,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend basic_vec operator/(const basic_vec& a, const basic_vec& b)
+            friend basic_vec operator/(const basic_vec& a, const basic_vec& b) noexcept
             requires requires { (std::declval<basic_vec<T, Tabis...>>() / std::declval<basic_vec<T, Tabis...>>()); }
             {
                 return basic_vec(
@@ -268,7 +268,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend mask_type operator<(const basic_vec& a, const basic_vec& b)
+            friend mask_type operator<(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return mask_type(
                     std::apply([&](auto const&... a_parts) {
@@ -278,7 +278,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend mask_type operator>(const basic_vec& a, const basic_vec& b)
+            friend mask_type operator>(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return mask_type(
                     std::apply([&](auto const&... a_parts) {
@@ -288,7 +288,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend mask_type operator<=(const basic_vec& a, const basic_vec& b)
+            friend mask_type operator<=(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return mask_type(
                     std::apply([&](auto const&... a_parts) {
@@ -298,7 +298,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend mask_type operator>=(const basic_vec& a, const basic_vec& b)
+            friend mask_type operator>=(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return mask_type(
                     std::apply([&](auto const&... a_parts) {
@@ -308,7 +308,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend mask_type operator==(const basic_vec& a, const basic_vec& b)
+            friend mask_type operator==(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return mask_type(
                     std::apply([&](auto const&... a_parts) {
@@ -318,7 +318,7 @@ namespace jrmwng
                     }, a.m_tupleValue)
                 );
             }
-            friend mask_type operator!=(const basic_vec& a, const basic_vec& b)
+            friend mask_type operator!=(const basic_vec& a, const basic_vec& b) noexcept
             {
                 return mask_type(
                     std::apply([&](auto const&... a_parts) {

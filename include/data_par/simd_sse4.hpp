@@ -381,7 +381,7 @@ namespace jrmwng
             }
 
             template <typename Tgenerator, size_t... Is>
-            static basic_mask mask_from_generator(Tgenerator && gen, std::index_sequence<Is...>) noexcept {
+            static basic_mask mask_from_generator(Tgenerator && gen, std::index_sequence<Is...>) {
                 if constexpr (std::is_invocable_r_v<basic_mask, Tgenerator, basic_vec<T, simd_abi_sse4<T>>>)
                 {
                     alignas(16) constexpr static T const atIOTA[size]{T(Is)...};
@@ -554,36 +554,36 @@ namespace jrmwng
             requires
                 std::is_invocable_r_v<bool, Tgenerator, std::integral_constant<size_t, 0>> or
                 std::is_invocable_r_v<basic_mask, Tgenerator, basic_vec<T, simd_abi_sse4<T>>>
-            explicit basic_mask(Tgenerator&& gen) noexcept
+            explicit basic_mask(Tgenerator&& gen)
                 : m_tupleValue(mask_from_generator(std::forward<Tgenerator>(gen), std::make_index_sequence<size>{}).m_tupleValue)
             {}
 
-            bool operator[](std::size_t i) const { return ((std::get<int32_t>(m_tupleValue) >> i) & 1) != 0; }
+            bool operator[](std::size_t i) const noexcept { return ((std::get<int32_t>(m_tupleValue) >> i) & 1) != 0; }
 
-            friend basic_mask operator!(const basic_mask& a) {
+            friend basic_mask operator!(const basic_mask& a) noexcept {
                 return basic_mask(mask_not(std::get<vector_type>(a.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ nMASK);
             }
-            friend basic_mask operator&(const basic_mask& a, const basic_mask& b) {
+            friend basic_mask operator&(const basic_mask& a, const basic_mask& b) noexcept {
                 return basic_mask(mask_and(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) & std::get<int32_t>(b.m_tupleValue));
             }
-            friend basic_mask operator|(const basic_mask& a, const basic_mask& b) {
+            friend basic_mask operator|(const basic_mask& a, const basic_mask& b) noexcept {
                 return basic_mask(mask_or(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) | std::get<int32_t>(b.m_tupleValue));
             }
-            friend basic_mask operator^(const basic_mask& a, const basic_mask& b) {
+            friend basic_mask operator^(const basic_mask& a, const basic_mask& b) noexcept {
                 return basic_mask(mask_xor(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ std::get<int32_t>(b.m_tupleValue));
             }
 
-            basic_mask& operator&=(const basic_mask& other) {
+            basic_mask& operator&=(const basic_mask& other) noexcept {
                 std::get<vector_type>(m_tupleValue) = mask_and(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
                 std::get<int32_t>(m_tupleValue) &= std::get<int32_t>(other.m_tupleValue);
                 return *this;
             }
-            basic_mask& operator|=(const basic_mask& other) {
+            basic_mask& operator|=(const basic_mask& other) noexcept {
                 std::get<vector_type>(m_tupleValue) = mask_or(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
                 std::get<int32_t>(m_tupleValue) |= std::get<int32_t>(other.m_tupleValue);
                 return *this;
             }
-            basic_mask& operator^=(const basic_mask& other) {
+            basic_mask& operator^=(const basic_mask& other) noexcept {
                 std::get<vector_type>(m_tupleValue) = mask_xor(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
                 std::get<int32_t>(m_tupleValue) ^= std::get<int32_t>(other.m_tupleValue);
                 return *this;
@@ -617,9 +617,9 @@ namespace jrmwng
 
             static constexpr std::integral_constant<size_t, traits::lanes> const size{};
 
-            basic_vec() = default;
-            basic_vec(vector_type value) : m_value(value) {}
-            basic_vec(T value) : m_value(traits::set1(value)) {}
+            basic_vec() noexcept = default;
+            basic_vec(vector_type value) noexcept : m_value(value) {}
+            basic_vec(T value) noexcept : m_value(traits::set1(value)) {}
 
             template <typename G>
             requires std::invocable<G, std::integral_constant<size_t, 0>>
@@ -628,7 +628,7 @@ namespace jrmwng
             {}
 
             template <typename... Flags>
-            void copy_from(const T* mem, flags<Flags...>) {
+            void copy_from(const T* mem, flags<Flags...>) noexcept {
                 if constexpr (std::disjunction_v<std::is_same<Flags, aligned_tag>...>) {
                     m_value = traits::load_aligned(mem);
                 } else {
@@ -637,7 +637,7 @@ namespace jrmwng
             }
 
             template <typename... Flags>
-            void copy_to(T* mem, flags<Flags...>) const {
+            void copy_to(T* mem, flags<Flags...>) const noexcept {
                 if constexpr (std::disjunction_v<std::is_same<Flags, aligned_tag>...>) {
                     traits::store_aligned(mem, m_value);
                 } else {
@@ -645,33 +645,33 @@ namespace jrmwng
                 }
             }
 
-            T operator[](std::size_t i) const {
+            T operator[](std::size_t i) const noexcept {
                 alignas(16) T tmp[traits::lanes];
                 traits::store_aligned(tmp, m_value);
                 return tmp[i];
             }
 
-            friend basic_vec operator+(const basic_vec& a, const basic_vec& b) {
+            friend basic_vec operator+(const basic_vec& a, const basic_vec& b) noexcept {
                 return basic_vec(traits::add(a.m_value, b.m_value));
             }
 
-            friend basic_vec operator-(const basic_vec& a, const basic_vec& b) {
+            friend basic_vec operator-(const basic_vec& a, const basic_vec& b) noexcept {
                 return basic_vec(traits::sub(a.m_value, b.m_value));
             }
 
-            friend basic_vec operator*(const basic_vec& a, const basic_vec& b)
+            friend basic_vec operator*(const basic_vec& a, const basic_vec& b) noexcept
             requires requires { traits::mul(a.m_value, b.m_value); }
             {
                 return basic_vec(traits::mul(a.m_value, b.m_value));
             }
 
-            friend basic_vec operator/(const basic_vec& a, const basic_vec& b)
+            friend basic_vec operator/(const basic_vec& a, const basic_vec& b) noexcept
             requires requires { traits::div(a.m_value, b.m_value); }
             {
                 return basic_vec(traits::div(a.m_value, b.m_value));
             }
 
-            friend mask_type operator<(const basic_vec& a, const basic_vec& b) {
+            friend mask_type operator<(const basic_vec& a, const basic_vec& b) noexcept {
                 if constexpr (requires { traits::cmplt(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmplt(a.m_value, b.m_value));
                 } else {
@@ -679,11 +679,11 @@ namespace jrmwng
                 }
             }
 
-            friend mask_type operator>(const basic_vec& a, const basic_vec& b) {
+            friend mask_type operator>(const basic_vec& a, const basic_vec& b) noexcept {
                 return mask_type(traits::cmpgt(a.m_value, b.m_value));
             }
 
-            friend mask_type operator<=(const basic_vec& a, const basic_vec& b) {
+            friend mask_type operator<=(const basic_vec& a, const basic_vec& b) noexcept {
                 if constexpr (requires { traits::cmple(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmple(a.m_value, b.m_value));
                 } else {
@@ -691,7 +691,7 @@ namespace jrmwng
                 }
             }
 
-            friend mask_type operator>=(const basic_vec& a, const basic_vec& b) {
+            friend mask_type operator>=(const basic_vec& a, const basic_vec& b) noexcept {
                 if constexpr (requires { traits::cmpge(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmpge(a.m_value, b.m_value));
                 } else {
@@ -699,11 +699,11 @@ namespace jrmwng
                 }
             }
 
-            friend mask_type operator==(const basic_vec& a, const basic_vec& b) {
+            friend mask_type operator==(const basic_vec& a, const basic_vec& b) noexcept {
                 return mask_type(traits::cmpeq(a.m_value, b.m_value));
             }
 
-            friend mask_type operator!=(const basic_vec& a, const basic_vec& b) {
+            friend mask_type operator!=(const basic_vec& a, const basic_vec& b) noexcept {
                 if constexpr (requires { traits::cmpneq(a.m_value, b.m_value); }) {
                     return mask_type(traits::cmpneq(a.m_value, b.m_value));
                 } else {
