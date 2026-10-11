@@ -7,6 +7,7 @@
 #include <limits>
 #include <random>
 #include <type_traits>
+#include <vector>
 
 namespace
 {
@@ -220,6 +221,63 @@ bool check_uint_operations()
     return true;
 }
 
+template <typename T>
+bool check_native_set_bit_positions()
+{
+    T const value = static_cast<T>((T{1} << 0) | (T{1} << 3) |
+                                   (T{1} << (std::numeric_limits<T>::digits - 1)));
+    std::vector<std::size_t> positions;
+    for (std::size_t position : jrmwng::popcount_ranges::std::set_bit_positions(value))
+        positions.push_back(position);
+
+    std::vector<std::size_t> const expected{0, 3, std::numeric_limits<T>::digits - 1};
+    if (positions != expected)
+    {
+        std::cerr << "native set-bit position iteration failed\n";
+        return false;
+    }
+    return true;
+}
+
+template <std::size_t N>
+bool check_wide_set_bit_positions()
+{
+    using uint_type = wide_uint<N>;
+    uint_type value{};
+    std::vector<std::size_t> const expected{0, 1, 63, 64, N - 2, N - 1};
+    for (std::size_t position : expected)
+        value.data[position / 64] |= std::uint64_t{1} << (position % 64);
+
+    std::vector<std::size_t> positions;
+    for (std::size_t position : jrmwng::popcount_ranges::std::set_bit_positions(value))
+        positions.push_back(position);
+
+    if (positions != expected)
+    {
+        std::cerr << N << "-bit set-bit position iteration failed\n";
+        return false;
+    }
+
+    std::vector<std::size_t> temporary_positions;
+    for (std::size_t position : jrmwng::popcount_ranges::std::set_bit_positions(
+             uint_type{1} | (uint_type{1} << (N - 1))))
+        temporary_positions.push_back(position);
+    if (temporary_positions != std::vector<std::size_t>{0, N - 1})
+    {
+        std::cerr << N << "-bit temporary set-bit position iteration failed\n";
+        return false;
+    }
+
+    uint_type const zero{};
+    auto const empty_positions = jrmwng::popcount_ranges::std::set_bit_positions(zero);
+    if (empty_positions.begin() != empty_positions.end())
+    {
+        std::cerr << N << "-bit empty set-bit position iteration failed\n";
+        return false;
+    }
+    return true;
+}
+
 }
 
 int main()
@@ -255,6 +313,18 @@ int main()
         !check_uint_operations<256>() || !check_uint_operations<320>())
     {
         std::cerr << "uint operation tests failed\n";
+        return 1;
+    }
+    if (!check_native_set_bit_positions<std::uint8_t>() ||
+        !check_native_set_bit_positions<std::uint16_t>() ||
+        !check_native_set_bit_positions<std::uint32_t>() ||
+        !check_native_set_bit_positions<std::uint64_t>() ||
+        !check_wide_set_bit_positions<128>() ||
+        !check_wide_set_bit_positions<192>() ||
+        !check_wide_set_bit_positions<256>() ||
+        !check_wide_set_bit_positions<320>())
+    {
+        std::cerr << "set-bit position iterator tests failed\n";
         return 1;
     }
 

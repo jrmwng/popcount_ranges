@@ -79,4 +79,10 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
     )
 
     configure_popcount_target(popcount_set_benchmark)
+
+    add_executable(sampling_benchmark
+        benchmarks/sampling_benchmark.cpp
+    )
+
+    configure_popcount_target(sampling_benchmark)
 endif()

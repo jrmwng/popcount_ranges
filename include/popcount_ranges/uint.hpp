@@ -277,6 +277,13 @@ namespace jrmwng::popcount_ranges::std
     inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 }
 
+#include <iterator>
+namespace jrmwng::popcount_ranges::std
+{
+    using random_access_iterator_tag = ::std::random_access_iterator_tag;
+    using forward_iterator_tag = ::std::forward_iterator_tag;
+}
+
 #include <bit>
 namespace jrmwng::popcount_ranges::std
 {
@@ -351,13 +358,147 @@ namespace jrmwng::popcount_ranges::std
         auto const width = bit_width(value);
         return width == 0 ? uint<N>{} : uint<N>{1} << (width - 1);
     }
-}
 
-#include <iterator>
-namespace jrmwng::popcount_ranges::std
-{
-    using random_access_iterator_tag = ::std::random_access_iterator_tag;
-    using forward_iterator_tag = ::std::forward_iterator_tag;
+    template <typename T>
+    class set_bit_positions_view
+    {
+        T m_value;
+
+    public:
+        class iterator
+        {
+            T m_remaining;
+
+        public:
+            using iterator_category = ::std::forward_iterator_tag;
+            using value_type = size_t;
+            using difference_type = ptrdiff_t;
+            using reference = value_type;
+
+            constexpr explicit iterator(T remaining) noexcept
+                : m_remaining(remaining)
+            {}
+
+            constexpr reference operator*() const noexcept
+            {
+                return ::std::countr_zero(m_remaining);
+            }
+
+            constexpr iterator& operator++() noexcept
+            {
+                m_remaining &= static_cast<T>(m_remaining - 1u);
+                return *this;
+            }
+
+            constexpr iterator operator++(int) noexcept
+            {
+                iterator result{*this};
+                ++(*this);
+                return result;
+            }
+
+            constexpr bool operator==(iterator const& other) const noexcept = default;
+        };
+
+        constexpr explicit set_bit_positions_view(T value) noexcept
+            : m_value(value)
+        {}
+
+        constexpr iterator begin() const noexcept
+        {
+            return iterator{m_value};
+        }
+
+        constexpr iterator end() const noexcept
+        {
+            return iterator{T{}};
+        }
+    };
+
+    template <size_t N>
+    class set_bit_positions_view<uint<N>>
+    {
+        uint<N> m_value;
+
+    public:
+        class iterator
+        {
+            uint<N> const* m_value{};
+            size_t m_word{uint<N>::M};
+            typename uint<N>::bits_type m_remaining{};
+
+            constexpr void skip_empty_words() noexcept
+            {
+                while (m_word < uint<N>::M && m_remaining == 0)
+                {
+                    ++m_word;
+                    if (m_word < uint<N>::M)
+                        m_remaining = m_value->data[m_word];
+                }
+            }
+
+        public:
+            using iterator_category = ::std::forward_iterator_tag;
+            using value_type = size_t;
+            using difference_type = ptrdiff_t;
+            using reference = value_type;
+
+            constexpr iterator(uint<N> const& value, size_t word) noexcept
+                : m_value(&value)
+                , m_word(word)
+                , m_remaining(word < uint<N>::M ? value.data[word] : 0)
+            {
+                skip_empty_words();
+            }
+
+            constexpr reference operator*() const noexcept
+            {
+                return m_word * uint<N>::B + ::std::countr_zero(m_remaining);
+            }
+
+            constexpr iterator& operator++() noexcept
+            {
+                m_remaining &= m_remaining - 1u;
+                skip_empty_words();
+                return *this;
+            }
+
+            constexpr iterator operator++(int) noexcept
+            {
+                iterator result{*this};
+                ++(*this);
+                return result;
+            }
+
+            constexpr bool operator==(iterator const& other) const noexcept
+            {
+                return m_value == other.m_value &&
+                       m_word == other.m_word &&
+                       m_remaining == other.m_remaining;
+            }
+        };
+
+        constexpr explicit set_bit_positions_view(uint<N> value) noexcept
+            : m_value(value)
+        {}
+
+        constexpr iterator begin() const noexcept
+        {
+            return iterator{m_value, 0};
+        }
+
+        constexpr iterator end() const noexcept
+        {
+            return iterator{m_value, uint<N>::M};
+        }
+    };
+
+    template <typename T>
+        requires is_unsigned_v<T>
+    constexpr auto set_bit_positions(T value) noexcept
+    {
+        return set_bit_positions_view<T>{value};
+    }
 }
 
 #include <utility>
