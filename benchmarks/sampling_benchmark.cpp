@@ -161,12 +161,24 @@ int main(int argc, char const* argv[])
     using uint128 = jrmwng::popcount_ranges::std::uint<128>;
     using uint256 = jrmwng::popcount_ranges::std::uint<256>;
     using uint512 = jrmwng::popcount_ranges::std::uint<512>;
+    using uint1024 = jrmwng::popcount_ranges::std::uint<1024>;
+    using uint2048 = jrmwng::popcount_ranges::std::uint<2048>;
+    using uint4096 = jrmwng::popcount_ranges::std::uint<4096>;
+    using uint8192 = jrmwng::popcount_ranges::std::uint<8192>;
     benchmark_case<uint128, uint128{2}>("uint128", quick);
     benchmark_case<uint128, uint128{8}>("uint128", quick);
     benchmark_case<uint256, uint256{2}>("uint256", quick);
     benchmark_case<uint256, uint256{8}>("uint256", quick);
     benchmark_case<uint512, uint512{2}>("uint512", quick);
     benchmark_case<uint512, uint512{8}>("uint512", quick);
+    benchmark_case<uint1024, uint1024{2}>("uint1024", quick);
+    benchmark_case<uint1024, uint1024{7}>("uint1024", quick);
+    benchmark_case<uint2048, uint2048{2}>("uint2048", quick);
+    benchmark_case<uint2048, uint2048{6}>("uint2048", quick);
+    benchmark_case<uint4096, uint4096{2}>("uint4096", quick);
+    benchmark_case<uint4096, uint4096{5}>("uint4096", quick);
+    benchmark_case<uint8192, uint8192{2}>("uint8192", quick);
+    benchmark_case<uint8192, uint8192{5}>("uint8192", quick);
 
     std::cerr << "sink=" << sink << '\n';
 }
