@@ -82,7 +82,7 @@ namespace jrmwng
         inline constexpr flags<overaligned_tag<N>> flag_overaligned{};
 
         template <class V, std::contiguous_iterator I, class... Flags>
-        V unchecked_load(I first, std::iter_difference_t<I> n, flags<Flags...> f = {}) noexcept(noexcept(std::declval<V&>().copy_from(std::to_address(first), f)))
+        V unchecked_load(I first, std::size_t n, flags<Flags...> f = {}) noexcept(noexcept(std::declval<V&>().copy_from(std::to_address(first), f)))
         {
             V v;
             if (n >= V::size())
@@ -93,7 +93,7 @@ namespace jrmwng
             {
                 using T = typename V::value_type;
                 alignas(alignof(V)) T tmp[V::size()]{}; // Zero-initialize the temporary array
-                for (std::iter_difference_t<I> i = 0; i < n; ++i)
+                for (std::size_t i = 0; i < n; ++i)
                 {
                     tmp[i] = *(first + i);
                 }

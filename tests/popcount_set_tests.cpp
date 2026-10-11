@@ -1,5 +1,6 @@
 #include <popcount_ranges/set.hpp>
 #include <popcount_ranges/ncr.hpp>
+#include <popcount_ranges/uint.hpp>
 
 #include <bit>
 #include <concepts>
@@ -424,6 +425,67 @@ bool check_range_and_jump_operations()
     return true;
 }
 
+template <std::size_t N, std::size_t K>
+bool check_wide_uint_set()
+{
+    using T = jrmwng::popcount_ranges::std::uint<N>;
+    using Set = jrmwng::popcount_ranges::set<T{K}>;
+    constexpr std::size_t r = K < N - K ? K : N - K;
+    constexpr std::size_t expected_size = [] {
+        std::size_t result = 1;
+        for (std::size_t i = 1; i <= r; ++i)
+            result = result * (N - i + 1) / i;
+        return result;
+    }();
+
+    Set values;
+    if (values.size() != expected_size ||
+        values.end() - values.begin() != static_cast<std::ptrdiff_t>(expected_size))
+    {
+        std::cerr << "wide set size failed for N=" << N << ", K=" << K << '\n';
+        return false;
+    }
+
+    std::size_t index = 0;
+    T previous{};
+    for (T value : values)
+    {
+        if (jrmwng::popcount_ranges::std::popcount(value) != static_cast<int>(K) ||
+            (index != 0 && !(previous < value)))
+        {
+            std::cerr << "wide set iteration failed for N=" << N << ", K=" << K
+                      << ", index=" << index << '\n';
+            return false;
+        }
+        previous = value;
+        ++index;
+    }
+    if (index != expected_size)
+        return false;
+
+    for (std::size_t rank : {std::size_t{0}, expected_size / 3, expected_size / 2,
+                             (expected_size * 2) / 3, expected_size - 1})
+    {
+        auto const expected = values[rank];
+        if (*(values.begin() + static_cast<std::ptrdiff_t>(rank)) != expected)
+            return false;
+    }
+
+    if (expected_size > 2)
+    {
+        auto const first_rank = expected_size / 3;
+        auto const last_rank = (expected_size * 2) / 3;
+        auto const first = values[first_rank];
+        auto const last = values[last_rank];
+        Set bounded{first, last};
+        if (*bounded.begin() != first || *bounded.end() != last ||
+            bounded.size() != last_rank - first_rank)
+            return false;
+    }
+
+    return true;
+}
+
 bool check_uint8_iterator_operators()
 {
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{0}>())
@@ -602,6 +664,20 @@ int main()
     {
         std::cerr << "uint64_t exhaustive cases failed\n";
         return 4;
+    }
+
+    if (!check_wide_uint_set<128, 0>() || !check_wide_uint_set<128, 1>() ||
+        !check_wide_uint_set<128, 2>() || !check_wide_uint_set<128, 126>() ||
+        !check_wide_uint_set<128, 127>() || !check_wide_uint_set<128, 128>() ||
+        !check_wide_uint_set<192, 0>() || !check_wide_uint_set<192, 1>() ||
+        !check_wide_uint_set<192, 2>() || !check_wide_uint_set<192, 190>() ||
+        !check_wide_uint_set<192, 191>() || !check_wide_uint_set<192, 192>() ||
+        !check_wide_uint_set<256, 0>() || !check_wide_uint_set<256, 1>() ||
+        !check_wide_uint_set<256, 2>() || !check_wide_uint_set<256, 254>() ||
+        !check_wide_uint_set<256, 255>() || !check_wide_uint_set<256, 256>())
+    {
+        std::cerr << "wide uint set tests failed\n";
+        return 5;
     }
 
     std::cout << "expanded set tests passed\n";

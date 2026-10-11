@@ -70,6 +70,19 @@ namespace jrmwng
             return {result,overflowed};
         }
 
+        constexpr size_t nCr_max_R(size_t N) noexcept
+        {
+            size_t R = 0;
+            for (size_t candidate = 1; candidate <= N / 2u; ++candidate)
+            {
+                auto const [value, overflowed] = nCr(N, candidate);
+                if (overflowed)
+                    break;
+                R = candidate;
+            }
+            return R;
+        }
+
         template <size_t MAX_N, size_t R>
         class nCr_row
         {
@@ -84,9 +97,10 @@ namespace jrmwng
                     std::conditional_t<
                         Max <= std::numeric_limits<uint32_t>::max(), uint32_t,
                         uintmax_t>>>;
-            using value_type = min_uint_t<std::get<uintmax_t>(nCr(MAX_N, R))>;
-            value_type m_row[MAX_N - R + 2]; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
+            using Tvalue = min_uint_t<std::get<uintmax_t>(nCr(MAX_N, R))>;
+            Tvalue m_row[MAX_N - R + 2]; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
         public:
+            using value_type = Tvalue;
             constexpr auto & operator[](size_t n) noexcept
             {
                 return m_row[MAX_N - n]; // reversed order for reverse iteration in search()
@@ -135,6 +149,7 @@ namespace jrmwng
         class nCr_table
         {
             static_assert(MAX_R <= MAX_N, "nCr_table: MAX_R must be less than or equal to MAX_N");
+            static_assert(false == std::get<bool>(nCr(MAX_N, MAX_R)), "nCr_table: nCr value is not representable in uintmax_t");
             using row_tuple = decltype([]<size_t... Is>(std::index_sequence<Is...>)
             {
                 return std::make_tuple(nCr_row<MAX_N, Is>{}...);
@@ -152,7 +167,7 @@ namespace jrmwng
                             ((std::get<Rs>(m_tupleRow)[Rs] = 1), ...);
                             for (size_t n = 3; n <= MAX_N; ++n)
                             {
-                                (((n >= Rs + 1) && (std::get<Rs>(m_tupleRow)[n] = std::get<Rs-1>(m_tupleRow)[n-1] + std::get<Rs>(m_tupleRow)[n-1])), ...);
+                                (((n >= Rs + 1) && (std::get<Rs>(m_tupleRow)[n] = static_cast<nCr_row<MAX_N, Rs>::value_type>(std::get<Rs-1>(m_tupleRow)[n-1] + std::get<Rs>(m_tupleRow)[n-1]))), ...);
                             }
                         }(std::index_sequence<(R2s + 2)...>{});
                     }(std::make_index_sequence<MAX_R - 1>{}));
@@ -165,7 +180,7 @@ namespace jrmwng
                             std::get<R>(m_tupleRow)[R] = 1;
                             for (size_t n = R + 1; n <= MAX_N; ++n)
                             {
-                                std::get<R>(m_tupleRow)[n] = std::get<R-1>(m_tupleRow)[n-1] + std::get<R>(m_tupleRow)[n-1];
+                                std::get<R>(m_tupleRow)[n] = static_cast<nCr_row<MAX_N, R>::value_type>(std::get<R-1>(m_tupleRow)[n-1] + std::get<R>(m_tupleRow)[n-1]);
                             }
                         }(std::integral_constant<size_t, R2s + 2>{}), ...);
                     }(std::make_index_sequence<MAX_R - 1>{}));
@@ -184,12 +199,15 @@ namespace jrmwng
             }
         };
         template <typename Tuint>
-        inline constexpr nCr_table<std::numeric_limits<Tuint>::digits, std::numeric_limits<Tuint>::digits / 2u> nCr_LUT{};
+        inline constexpr nCr_table<std::numeric_limits<Tuint>::digits, std::min<std::size_t>(std::numeric_limits<Tuint>::digits / 2u, nCr_max_R(std::numeric_limits<Tuint>::digits))> nCr_LUT{};
 
         template <typename Tuint, size_t R>
         constexpr auto nCr_read(size_t n, std::integral_constant<size_t, R>) noexcept
         {
             constexpr size_t N = std::numeric_limits<Tuint>::digits;
+            static_assert(R <= N, "nCr_read: R must be less than or equal to N");
+            static_assert(std::min<size_t>(R, N-R) <= nCr_max_R(N), "nCr_read: R is too large");
+            
             if constexpr (R > N / 2u)
             {
                 return nCr_LUT<Tuint>(n, std::integral_constant<size_t, N - R>{});
@@ -203,6 +221,9 @@ namespace jrmwng
         constexpr decltype(auto) nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R>) noexcept
         {
             constexpr size_t N = std::numeric_limits<Tuint>::digits;
+            static_assert(R <= N, "nCr_search: R must be less than or equal to N");
+            static_assert(std::min<size_t>(R, N-R) <= nCr_max_R(N), "nCr_search: R is too large");
+
             if constexpr (R > N / 2u)
             {
                 return nCr_LUT<Tuint>.search(n_first, n_last, target, std::integral_constant<size_t, N - R>{});

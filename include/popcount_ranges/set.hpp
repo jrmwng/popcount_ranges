@@ -8,37 +8,40 @@
 #include <cstdint>
 
 #include "ncr.hpp"
+#include "uint.hpp"
 
 namespace jrmwng
 {
     namespace popcount_ranges
     {
-        template <typename Tuint, size_t R>
-        constexpr auto nCr_read(size_t n, std::integral_constant<size_t, R>) noexcept;
+        template <typename Tuint, std::size_t R>
+        constexpr auto nCr_read(std::size_t n, std::integral_constant<std::size_t, R>) noexcept;
 
-        template <typename Tuint, size_t R>
-        constexpr decltype(auto) nCr_search(size_t n_first, size_t n_last, uintmax_t target, std::integral_constant<size_t, R>) noexcept;
+        template <typename Tuint, std::size_t R>
+        constexpr decltype(auto) nCr_search(std::size_t n_first, std::size_t n_last, uintmax_t target, std::integral_constant<std::size_t, R>) noexcept;
 
         // A set of unsigned integers having the same `std::popcount` result.
         template <auto uPOPCOUNT>
         class set
         {
+            inline constexpr static std::size_t zuPOPCOUNT = uPOPCOUNT;
+
             using Tuint = decltype(uPOPCOUNT);
             static_assert(std::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
-            static_assert(uPOPCOUNT <= std::numeric_limits<Tuint>::digits, "set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
+            static_assert(zuPOPCOUNT <= std::numeric_limits<Tuint>::digits, "set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
 
-            using complementary_set = set<Tuint{std::numeric_limits<Tuint>::digits - uPOPCOUNT}>;
+            using complementary_set = set<Tuint{std::numeric_limits<Tuint>::digits - zuPOPCOUNT}>;
             friend complementary_set;
 
             constexpr static Tuint GospersHack(Tuint i0) noexcept
             {
-                if constexpr (uPOPCOUNT == 0)
+                if constexpr (zuPOPCOUNT == 0u)
                     return ~i0; // either 0 or ~0
-                else if constexpr (uPOPCOUNT == std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT == std::numeric_limits<Tuint>::digits)
                     return ~i0; // either 0 or ~0
-                else if constexpr (uPOPCOUNT == 1)
+                else if constexpr (zuPOPCOUNT == 1u)
                     return (i0 << 1);
-                else if constexpr (uPOPCOUNT + 1u == std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT + 1u == std::numeric_limits<Tuint>::digits)
                     return ~(static_cast<Tuint>(~i0) >> 1);
                 else
                 {
@@ -49,18 +52,32 @@ namespace jrmwng
                     return ((r1 ^ i1) >> 2) | (r1 << cnt);
                 }
             }
-            inline constexpr static Tuint INITIAL = (Tuint)(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) << uPOPCOUNT));
-            inline constexpr static Tuint SENTINEL = GospersHack(uPOPCOUNT == std::numeric_limits<Tuint>::digits ? ~Tuint{} : ~(static_cast<Tuint>(~Tuint{}) >> uPOPCOUNT));
+            inline constexpr static Tuint INITIAL = [] {
+                if constexpr (zuPOPCOUNT == 0u)
+                    return Tuint{};
+                else if constexpr (zuPOPCOUNT == std::numeric_limits<Tuint>::digits)
+                    return static_cast<Tuint>(~Tuint{});
+                else
+                    return static_cast<Tuint>((Tuint{1} << zuPOPCOUNT) - Tuint{1});
+            }();
+            inline constexpr static Tuint SENTINEL = [] {
+                if constexpr (zuPOPCOUNT == 0u)
+                    return static_cast<Tuint>(~Tuint{});
+                else if constexpr (zuPOPCOUNT == std::numeric_limits<Tuint>::digits)
+                    return Tuint{};
+                else
+                    return GospersHack(static_cast<Tuint>(~(static_cast<Tuint>(~Tuint{}) >> zuPOPCOUNT)));
+            }();
 
             constexpr static std::uintmax_t rank(Tuint value) noexcept
             {
-                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<std::size_t, uPOPCOUNT>{});
 
                 if (value == SENTINEL)
                     return TOTAL;
                 else if (value == INITIAL)
                     return 0;
-                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     // Use the complementary set to compute the rank of the complement.
                     return TOTAL - 1u - complementary_set::rank(~value);
@@ -73,19 +90,19 @@ namespace jrmwng
                     // Step j:  pos = countr_zero(v)       -- position of lowest set bit (tzcnt)
                     //          result += C(pos, j+1)      -- combinadic contribution
                     //          v &= v - 1                 -- clear that bit
-                    return []<size_t... Js>(std::uintmax_t result, Tuint v, std::index_sequence<Js...>) {
+                    return []<std::size_t... Js>(std::uintmax_t result, Tuint v, std::index_sequence<Js...>) {
                         return ((result += 
-                                nCr_read<Tuint>(std::countr_zero(v), std::integral_constant<size_t, Js + 1>{})
+                                nCr_read<Tuint>(std::countr_zero(v), std::integral_constant<std::size_t, Js + 1>{})
                             , v &= v - Tuint(1)), ...),
                             result;
-                    }(0u, value, std::make_index_sequence<uPOPCOUNT>{});
+                    }(0u, value, std::make_index_sequence<zuPOPCOUNT>{});
                 }
             }
             constexpr static std::ptrdiff_t distance(Tuint first, Tuint last) noexcept
             {
                 if (first == SENTINEL || last == SENTINEL || first == INITIAL || last == INITIAL)
                     return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
-                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     // Use the complementary set to compute the distance of the complement.
                     return static_cast<std::ptrdiff_t>(complementary_set::distance(~last, ~first));
@@ -94,31 +111,31 @@ namespace jrmwng
                     return 0;
                 else
                 {
-                    return []<size_t... Js>(std::uintmax_t r0, std::uintmax_t r1, Tuint v0, Tuint v1, std::index_sequence<Js...>) {
-                        return ((r0 += nCr_read<Tuint>(std::countr_zero(v0), std::integral_constant<size_t, Js + 1>{}),
-                                 r1 += nCr_read<Tuint>(std::countr_zero(v1), std::integral_constant<size_t, Js + 1>{}),
+                    return []<std::size_t... Js>(std::uintmax_t r0, std::uintmax_t r1, Tuint v0, Tuint v1, std::index_sequence<Js...>) {
+                        return ((r0 += nCr_read<Tuint>(std::countr_zero(v0), std::integral_constant<std::size_t, Js + 1>{}),
+                                 r1 += nCr_read<Tuint>(std::countr_zero(v1), std::integral_constant<std::size_t, Js + 1>{}),
                                  v0 &= v0 - Tuint(1),
                                  v1 &= v1 - Tuint(1)), ...),
                                (r1 >= r0 ? static_cast<std::ptrdiff_t>(r1 - r0) : -static_cast<std::ptrdiff_t>(r0 - r1));
-                    }(0u, 0u, first, last, std::make_index_sequence<uPOPCOUNT>{});
+                    }(0u, 0u, first, last, std::make_index_sequence<zuPOPCOUNT>{});
                 }
             }
 
             constexpr static Tuint unrank(std::uintmax_t rank) noexcept
             {
-                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<size_t, uPOPCOUNT>{});
+                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<std::size_t, zuPOPCOUNT>{});
 
                 if (rank == 0)
                     return INITIAL;
                 else if (rank == TOTAL)
                     return SENTINEL;
-                else if constexpr (uPOPCOUNT + uPOPCOUNT > std::numeric_limits<Tuint>::digits)    
+                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
                     return static_cast<Tuint>(~complementary_set::unrank(TOTAL - 1 - rank));
                 }
                 else
                 {
-                    return []<size_t... Is>(std::uintmax_t remaining, size_t n, std::index_sequence<Is...>)->Tuint {
+                    return []<std::size_t... Is>(std::uintmax_t remaining, std::size_t n, std::index_sequence<Is...>)->Tuint {
                         if constexpr (sizeof...(Is) == 0)
                             return 0;
                         else
@@ -130,8 +147,8 @@ namespace jrmwng
                                 remaining -= found_nCr;
                                 return static_cast<Tuint>(Tuint(1) << found_n);
                             }
-                            (std::integral_constant<size_t, uPOPCOUNT - Is>{})) | ...);
-                    }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<uPOPCOUNT>{});
+                            (std::integral_constant<std::size_t, zuPOPCOUNT - Is>{})) | ...);
+                    }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<zuPOPCOUNT>{});
                 }
             }
 
@@ -169,7 +186,7 @@ namespace jrmwng
             {
                 friend class reverse_iterator;
                 Tuint m_value;
-                size_t m_rank;
+                std::size_t m_rank;
             public:
                 using iterator_category = std::random_access_iterator_tag;
                 using value_type = Tuint;
@@ -373,11 +390,11 @@ namespace jrmwng
             reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
             reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
 
-            size_t size() const noexcept
+            std::size_t size() const noexcept
             {
                 return distance(m_first, m_last);
             }
-            Tuint operator[] (size_t index) const noexcept
+            Tuint operator[] (std::size_t index) const noexcept
             {
                 return unrank(index);
             }

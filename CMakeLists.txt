@@ -30,6 +30,15 @@ add_executable(popcount_ranges
 configure_popcount_target(popcount_ranges)
 
 if(BUILD_TESTING)
+    add_executable(uint_tests
+        tests/uint_tests.cpp
+    )
+
+    configure_popcount_target(uint_tests)
+
+    add_test(NAME uint_tests
+             COMMAND $<TARGET_FILE:uint_tests>)
+
     add_executable(popcount_set_tests
         tests/popcount_set_tests.cpp
     )
