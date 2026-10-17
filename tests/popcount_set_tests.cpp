@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -486,6 +487,81 @@ bool check_wide_uint_set()
     return true;
 }
 
+bool check_wide_index_set()
+{
+    using T = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
+    using Set = jrmwng::popcount_ranges::set<T{}>;
+    constexpr std::size_t expected_size = 8192u * 8191u / 2u;
+
+    static_assert(sizeof(T) < sizeof(jrmwng::popcount_ranges::std::uint<8192>));
+    static_assert(std::numeric_limits<T>::digits == 8192);
+    static_assert(jrmwng::popcount_ranges::std::is_unsigned_v<T>);
+
+    Set values;
+    if (values.size() != expected_size)
+        return false;
+    auto last = values.end();
+    --last;
+    if (values.begin() + static_cast<std::ptrdiff_t>(expected_size) != values.end() ||
+        *last != values[expected_size - 1u] ||
+        *values.rbegin() != values[expected_size - 1u])
+        return false;
+
+    for (std::size_t rank : {std::size_t{0}, std::size_t{1}, std::size_t{2},
+                             expected_size / 3u, expected_size / 2u, expected_size - 2u, expected_size - 1u})
+    {
+        auto const value = values[rank];
+        if (value.is_sentinel ||
+            static_cast<std::size_t>(value.indices[0]) >= static_cast<std::size_t>(value.indices[1]) ||
+            value.indices[1] >= 8192u ||
+            values.begin() + static_cast<std::ptrdiff_t>(rank) != Set::iterator{value} ||
+            Set::iterator{value} - values.begin() != static_cast<std::ptrdiff_t>(rank))
+            return false;
+    }
+
+    auto const first_rank = expected_size / 3u;
+    auto const last_rank = first_rank + 8u;
+    Set bounded{values[first_rank], values[last_rank]};
+    if (bounded.size() != last_rank - first_rank ||
+        *bounded.begin() != values[first_rank] ||
+        *bounded.end() != values[last_rank] ||
+        bounded.rend() - bounded.rbegin() != static_cast<std::ptrdiff_t>(bounded.size()) ||
+        Set::iterator{bounded.rbegin()} != bounded.end() ||
+        Set::iterator{bounded.rend()} != bounded.begin())
+        return false;
+
+    auto forward = bounded.begin();
+    auto reverse = bounded.rbegin();
+    for (std::size_t i = 0; i < bounded.size(); ++i)
+    {
+        if (*forward != values[first_rank + i] ||
+            *reverse != values[last_rank - i - 1u])
+            return false;
+        ++forward;
+        ++reverse;
+    }
+    return forward == bounded.end() && reverse == bounded.rend();
+}
+
+template <std::size_t N, std::size_t R>
+bool check_index_singleton_set()
+{
+    using T = jrmwng::popcount_ranges::std::uint_indices<N, R>;
+    using Set = jrmwng::popcount_ranges::set<T{}>;
+    Set values;
+    if (values.size() != 1u || values.begin() == values.end() ||
+        values[0] != *values.begin() || jrmwng::popcount_ranges::std::popcount(values[0]) != static_cast<int>(R))
+        return false;
+
+    auto last = values.end();
+    --last;
+    auto reverse = values.rbegin();
+    if (*last != *values.begin() || *reverse != *values.begin())
+        return false;
+    ++reverse;
+    return reverse == values.rend();
+}
+
 bool check_uint8_iterator_operators()
 {
     if (!check_iterator_operators<std::uint8_t, std::uint8_t{0}>())
@@ -678,6 +754,17 @@ int main()
     {
         std::cerr << "wide uint set tests failed\n";
         return 5;
+    }
+
+    if (!check_wide_index_set())
+    {
+        std::cerr << "wide index set tests failed\n";
+        return 6;
+    }
+    if (!check_index_singleton_set<8, 0>() || !check_index_singleton_set<8, 8>())
+    {
+        std::cerr << "index singleton set tests failed\n";
+        return 7;
     }
 
     std::cout << "expanded set tests passed\n";

@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 namespace jrmwng::popcount_ranges::std
 {
     using uintmax_t = ::std::uintmax_t;
@@ -11,6 +13,65 @@ namespace jrmwng::popcount_ranges::std
 
 namespace jrmwng::popcount_ranges::std
 {
+    template <size_t N, size_t R>
+    struct uint_indices
+    {
+        static_assert(N > 0, "N must be greater than zero");
+        static_assert(R <= N, "R must be less than or equal to N");
+
+        using index_type = ::std::conditional_t<
+            N - 1u <= ::std::numeric_limits<::std::uint8_t>::max(), ::std::uint8_t,
+            ::std::conditional_t<
+                N - 1u <= ::std::numeric_limits<::std::uint16_t>::max(), ::std::uint16_t,
+                ::std::conditional_t<
+                    N - 1u <= ::std::numeric_limits<::std::uint32_t>::max(), ::std::uint32_t,
+                    size_t>>>;
+
+        ::std::array<index_type, R> indices{};
+        bool is_sentinel{};
+
+        constexpr uint_indices() noexcept
+        {
+            for (size_t i = 0; i < R; ++i)
+                indices[i] = static_cast<index_type>(i);
+        }
+
+        constexpr explicit uint_indices(::std::array<index_type, R> positions) noexcept
+            : indices(positions)
+        {}
+
+        constexpr operator size_t() const noexcept
+        {
+            return R;
+        }
+
+        constexpr bool operator==(uint_indices const& other) const noexcept
+        {
+            if (is_sentinel || other.is_sentinel)
+                return is_sentinel == other.is_sentinel;
+            return indices == other.indices;
+        }
+
+        constexpr bool operator<(uint_indices const& other) const noexcept
+        {
+            if (is_sentinel != other.is_sentinel)
+                return !is_sentinel;
+            if (is_sentinel)
+                return false;
+            for (size_t i = R; i-- > 0;)
+            {
+                if (indices[i] != other.indices[i])
+                    return indices[i] < other.indices[i];
+            }
+            return false;
+        }
+
+        constexpr bool operator!=(uint_indices const& other) const noexcept { return !(*this == other); }
+        constexpr bool operator>(uint_indices const& other) const noexcept { return other < *this; }
+        constexpr bool operator<=(uint_indices const& other) const noexcept { return !(other < *this); }
+        constexpr bool operator>=(uint_indices const& other) const noexcept { return !(*this < other); }
+    };
+
     template <size_t N>
     struct uint
     {
@@ -273,6 +334,22 @@ namespace jrmwng::popcount_ranges::std
     struct is_unsigned<uint<N> const volatile> : is_unsigned<uint<N>>
     {};
 
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_indices<N, R>> : ::std::true_type
+    {};
+
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_indices<N, R> const> : is_unsigned<uint_indices<N, R>>
+    {};
+
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_indices<N, R> volatile> : is_unsigned<uint_indices<N, R>>
+    {};
+
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_indices<N, R> const volatile> : is_unsigned<uint_indices<N, R>>
+    {};
+
     template <typename T>
     inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 }
@@ -296,6 +373,12 @@ namespace jrmwng::popcount_ranges::std
         return count;
     }
 
+    template <size_t N, size_t R>
+    constexpr int popcount(uint_indices<N, R>) noexcept
+    {
+        return static_cast<int>(R);
+    }
+
     template <typename T>
         requires std::is_unsigned_v<T>
     constexpr int popcount(T value) noexcept
@@ -310,6 +393,12 @@ namespace jrmwng::popcount_ranges::std
             if (value.data[i] != 0) [[unlikely]]
                 return static_cast<int>(i * uint<N>::B + ::std::countr_zero(value.data[i]));
         return static_cast<int>(N);
+    }
+
+    template <size_t N, size_t R>
+    constexpr int countr_zero(uint_indices<N, R> value) noexcept
+    {
+        return value.is_sentinel || R == 0 ? static_cast<int>(N) : static_cast<int>(value.indices[0]);
     }
 
     template <typename T>
@@ -531,6 +620,34 @@ namespace jrmwng::popcount_ranges::std
 }
 namespace std
 {
+    template <size_t N, size_t R>
+    struct numeric_limits<jrmwng::popcount_ranges::std::uint_indices<N, R>>
+    {
+        static constexpr bool is_specialized = true;
+        static constexpr bool is_signed = false;
+        static constexpr bool is_integer = true;
+        static constexpr bool is_exact = true;
+        static constexpr bool has_infinity = false;
+        static constexpr bool has_quiet_NaN = false;
+        static constexpr bool has_signaling_NaN = false;
+        static constexpr int max_digits10 = 0;
+        static constexpr bool is_bounded = true;
+        static constexpr bool is_modulo = true;
+        static constexpr int radix = 2;
+        static constexpr int digits = static_cast<int>(N);
+        static constexpr int digits10 = N * 301 / 1000;
+        using value_type = jrmwng::popcount_ranges::std::uint_indices<N, R>;
+        static constexpr value_type min() noexcept { return {}; }
+        static constexpr value_type lowest() noexcept { return {}; }
+        static constexpr value_type max() noexcept
+        {
+            value_type value{};
+            for (size_t i = 0; i < R; ++i)
+                value.indices[i] = static_cast<typename value_type::index_type>(N - R + i);
+            return value;
+        }
+    };
+
     template <size_t N>
     struct numeric_limits<jrmwng::popcount_ranges::std::uint<N>>
     {

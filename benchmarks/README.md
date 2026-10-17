@@ -14,6 +14,18 @@ The `lower_bound` executable prints CSV rows containing element type, sort direc
 
 The `popcount_set` executable prints `type,popcount,direction,distance,implementation,ns_per_operation,checksum`. It compares repeated Gosper-based `++`/`--` with direct `advance()` calls, which use `unrank` for the requested offset. Compare rows with the same type, popcount, direction, and distance; the first distance where `unrank_advance` is faster is the observed break-even point for that case.
 
+For sparse wide sets, `jrmwng::popcount_ranges::std::uint_indices<N, R>` stores
+the positions of the `R` set bits instead of an `N`-bit value. It can be used as
+the value type for `set`, for example:
+
+```cpp
+using sparse_value = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
+using sparse_set = jrmwng::popcount_ranges::set<sparse_value{}>;
+```
+
+Each value exposes its sorted bit positions through `indices`. Use `uint<N>` for
+dense popcounts, where storing the set-bit positions would take more space.
+
 Use `--quick` for a smoke test. Omit it for the wider distance sweep. Use Release or RelWithDebInfo for timing; Debug results are useful only for correctness and diagnostics. Timing results depend on the compiler, CPU, and system load, so capture them locally rather than committing CSV output.
 
 The `sampling` executable compares `std::sample` with sampling a uniformly selected
