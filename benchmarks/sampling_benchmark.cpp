@@ -296,6 +296,28 @@ void benchmark_type(std::string_view type_name, bool quick)
     benchmark_representable_popcounts<T>(
         type_name, quick, std::make_index_sequence<max_r + 1>{});
 }
+
+template <std::size_t N, std::size_t R>
+void benchmark_sparse_case(std::string_view type_name, bool quick)
+{
+    using sparse_type = jrmwng::popcount_ranges::std::uint_indices<N, R>;
+    benchmark_case<sparse_type, sparse_type{}>(type_name, quick);
+}
+
+template <std::size_t N, std::size_t... Rs>
+void benchmark_sparse_representable_popcounts(std::string_view type_name, bool quick,
+                                              std::index_sequence<Rs...>)
+{
+    (benchmark_sparse_case<N, Rs>(type_name, quick), ...);
+}
+
+template <std::size_t N>
+void benchmark_sparse_type(std::string_view type_name, bool quick)
+{
+    constexpr std::size_t max_r = jrmwng::popcount_ranges::nCr_max_R(N);
+    benchmark_sparse_representable_popcounts<N>(
+        type_name, quick, std::make_index_sequence<max_r + 1>{});
+}
 }
 
 int main(int argc, char const* argv[])
@@ -342,11 +364,6 @@ int main(int argc, char const* argv[])
     using uint2048 = jrmwng::popcount_ranges::std::uint<2048>;
     using uint4096 = jrmwng::popcount_ranges::std::uint<4096>;
     using uint8192 = jrmwng::popcount_ranges::std::uint<8192>;
-    using sparse_uint8192_r1 = jrmwng::popcount_ranges::std::uint_indices<8192, 1>;
-    using sparse_uint8192_r2 = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
-    using sparse_uint8192_r3 = jrmwng::popcount_ranges::std::uint_indices<8192, 3>;
-    using sparse_uint8192_r4 = jrmwng::popcount_ranges::std::uint_indices<8192, 4>;
-    using sparse_uint8192_r5 = jrmwng::popcount_ranges::std::uint_indices<8192, 5>;
     benchmark_type<uint128>("uint128", quick);
     benchmark_type<uint256>("uint256", quick);
     benchmark_type<uint512>("uint512", quick);
@@ -354,11 +371,13 @@ int main(int argc, char const* argv[])
     benchmark_type<uint2048>("uint2048", quick);
     benchmark_type<uint4096>("uint4096", quick);
     benchmark_type<uint8192>("uint8192", quick);
-    benchmark_case<sparse_uint8192_r1, sparse_uint8192_r1{}>("sparse_uint8192", quick);
-    benchmark_case<sparse_uint8192_r2, sparse_uint8192_r2{}>("sparse_uint8192", quick);
-    benchmark_case<sparse_uint8192_r3, sparse_uint8192_r3{}>("sparse_uint8192", quick);
-    benchmark_case<sparse_uint8192_r4, sparse_uint8192_r4{}>("sparse_uint8192", quick);
-    benchmark_case<sparse_uint8192_r5, sparse_uint8192_r5{}>("sparse_uint8192", quick);
+    benchmark_sparse_type<128>("sparse_uint128", quick);
+    benchmark_sparse_type<256>("sparse_uint256", quick);
+    benchmark_sparse_type<512>("sparse_uint512", quick);
+    benchmark_sparse_type<1024>("sparse_uint1024", quick);
+    benchmark_sparse_type<2048>("sparse_uint2048", quick);
+    benchmark_sparse_type<4096>("sparse_uint4096", quick);
+    benchmark_sparse_type<8192>("sparse_uint8192", quick);
 
     std::cerr << "sink=" << sink << '\n';
 }
