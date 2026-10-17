@@ -4,14 +4,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
-    using uintmax_t = ::std::uintmax_t;
-    using size_t = ::std::size_t;
-    using ptrdiff_t = ::std::ptrdiff_t;
+    using uintmax_t = std::uintmax_t;
+    using size_t = std::size_t;
+    using ptrdiff_t = std::ptrdiff_t;
 }
 
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
     template <size_t N, size_t R>
     struct uint_indices
@@ -19,15 +19,15 @@ namespace jrmwng::popcount_ranges::std
         static_assert(N > 0, "N must be greater than zero");
         static_assert(R <= N, "R must be less than or equal to N");
 
-        using index_type = ::std::conditional_t<
-            N - 1u <= ::std::numeric_limits<::std::uint8_t>::max(), ::std::uint8_t,
-            ::std::conditional_t<
-                N - 1u <= ::std::numeric_limits<::std::uint16_t>::max(), ::std::uint16_t,
-                ::std::conditional_t<
-                    N - 1u <= ::std::numeric_limits<::std::uint32_t>::max(), ::std::uint32_t,
+        using index_type = std::conditional_t<
+            N - 1u <= std::numeric_limits<std::uint8_t>::max(), std::uint8_t,
+            std::conditional_t<
+                N - 1u <= std::numeric_limits<std::uint16_t>::max(), std::uint16_t,
+                std::conditional_t<
+                    N - 1u <= std::numeric_limits<std::uint32_t>::max(), std::uint32_t,
                     size_t>>>;
 
-        ::std::array<index_type, R> indices{};
+        std::array<index_type, R> indices{};
         bool is_sentinel{};
 
         constexpr uint_indices() noexcept
@@ -36,7 +36,7 @@ namespace jrmwng::popcount_ranges::std
                 indices[i] = static_cast<index_type>(i);
         }
 
-        constexpr explicit uint_indices(::std::array<index_type, R> positions) noexcept
+        constexpr explicit uint_indices(std::array<index_type, R> positions) noexcept
             : indices(positions)
         {}
 
@@ -81,7 +81,7 @@ namespace jrmwng::popcount_ranges::std
         inline constexpr static bool is_complement_index = true;
         using index_type = typename uint_indices<N, R>::index_type;
 
-        ::std::array<index_type, R> indices{};
+        std::array<index_type, R> indices{};
         bool is_sentinel{};
 
         constexpr uint_complement_indices() noexcept
@@ -90,7 +90,7 @@ namespace jrmwng::popcount_ranges::std
                 indices[i] = static_cast<index_type>(N - R + i);
         }
 
-        constexpr explicit uint_complement_indices(::std::array<index_type, R> positions) noexcept
+        constexpr explicit uint_complement_indices(std::array<index_type, R> positions) noexcept
             : indices(positions)
         {}
 
@@ -132,7 +132,7 @@ namespace jrmwng::popcount_ranges::std
         static_assert(N % 64u == 0, "N must be a multiple of 64");
         static_assert(N > 64u, "N must be greater than 64");
 
-        using bits_type = ::std::uint64_t;
+        using bits_type = std::uint64_t;
         inline constexpr static size_t B = sizeof(bits_type) * 8u;
         inline constexpr static size_t M = N / B;
 
@@ -299,7 +299,7 @@ namespace jrmwng::popcount_ranges::std
             return result;
         }
         template <typename T>
-            requires ::std::is_integral_v<T>
+            requires std::is_integral_v<T>
         constexpr uint operator<<(T shift) const noexcept
         {
             return *this << static_cast<size_t>(shift);
@@ -337,7 +337,7 @@ namespace jrmwng::popcount_ranges::std
             return result;
         }
         template <typename T>
-            requires ::std::is_integral_v<T>
+            requires std::is_integral_v<T>
         constexpr uint operator>>(T shift) const noexcept
         {
             return *this >> static_cast<size_t>(shift);
@@ -346,14 +346,14 @@ namespace jrmwng::popcount_ranges::std
 }
 
 #include <type_traits>
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
     template <typename T>
-    struct is_uint : ::std::false_type
+    struct is_uint : std::false_type
     {};
 
     template <size_t N>
-    struct is_uint<uint<N>> : ::std::true_type
+    struct is_uint<uint<N>> : std::true_type
     {};
 
     template <size_t N>
@@ -369,11 +369,11 @@ namespace jrmwng::popcount_ranges::std
     {};
 
     template <typename T>
-    struct is_unsigned : ::std::is_unsigned<T>
+    struct is_unsigned : std::is_unsigned<T>
     {};
 
     template <size_t N>
-    struct is_unsigned<uint<N>> : ::std::true_type
+    struct is_unsigned<uint<N>> : std::true_type
     {};
 
     template <size_t N>
@@ -389,11 +389,11 @@ namespace jrmwng::popcount_ranges::std
     {};
 
     template <size_t N, size_t R>
-    struct is_unsigned<uint_indices<N, R>> : ::std::true_type
+    struct is_unsigned<uint_indices<N, R>> : std::true_type
     {};
 
     template <size_t N, size_t R>
-    struct is_unsigned<uint_complement_indices<N, R>> : ::std::true_type
+    struct is_unsigned<uint_complement_indices<N, R>> : std::true_type
     {};
 
     template <size_t N, size_t R>
@@ -425,21 +425,21 @@ namespace jrmwng::popcount_ranges::std
 }
 
 #include <iterator>
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
-    using random_access_iterator_tag = ::std::random_access_iterator_tag;
-    using forward_iterator_tag = ::std::forward_iterator_tag;
+    using random_access_iterator_tag = std::random_access_iterator_tag;
+    using forward_iterator_tag = std::forward_iterator_tag;
 }
 
 #include <bit>
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
     template <size_t N>
     constexpr int popcount(uint<N> value) noexcept
     {
         int count = 0;
         for (size_t i = 0; i < uint<N>::M; ++i)
-            count += ::std::popcount(value.data[i]);
+            count += std::popcount(value.data[i]);
         return count;
     }
 
@@ -459,7 +459,7 @@ namespace jrmwng::popcount_ranges::std
         requires std::is_unsigned_v<T>
     constexpr int popcount(T value) noexcept
     {
-        return ::std::popcount(value);
+        return std::popcount(value);
     }
 
     template <size_t N>
@@ -467,7 +467,7 @@ namespace jrmwng::popcount_ranges::std
     {
         for (size_t i = 0; i < uint<N>::M; ++i) [[likely]]
             if (value.data[i] != 0) [[unlikely]]
-                return static_cast<int>(i * uint<N>::B + ::std::countr_zero(value.data[i]));
+                return static_cast<int>(i * uint<N>::B + std::countr_zero(value.data[i]));
         return static_cast<int>(N);
     }
 
@@ -493,7 +493,7 @@ namespace jrmwng::popcount_ranges::std
         requires std::is_unsigned_v<T>
     constexpr int countr_zero(T value) noexcept
     {
-        return ::std::countr_zero(value);
+        return std::countr_zero(value);
     }
 
     template <size_t N>
@@ -507,7 +507,7 @@ namespace jrmwng::popcount_ranges::std
     {
         for (size_t i = uint<N>::M; i-- > 0;) [[likely]]
             if (value.data[i] != 0) [[unlikely]]
-                return static_cast<int>((uint<N>::M - i - 1) * uint<N>::B + ::std::countl_zero(value.data[i]));
+                return static_cast<int>((uint<N>::M - i - 1) * uint<N>::B + std::countl_zero(value.data[i]));
         return static_cast<int>(N);
     }
 
@@ -547,7 +547,7 @@ namespace jrmwng::popcount_ranges::std
             T m_remaining;
 
         public:
-            using iterator_category = ::std::forward_iterator_tag;
+            using iterator_category = std::forward_iterator_tag;
             using value_type = size_t;
             using difference_type = ptrdiff_t;
             using reference = value_type;
@@ -558,7 +558,7 @@ namespace jrmwng::popcount_ranges::std
 
             constexpr reference operator*() const noexcept
             {
-                return ::std::countr_zero(m_remaining);
+                return std::countr_zero(m_remaining);
             }
 
             constexpr iterator& operator++() noexcept
@@ -615,7 +615,7 @@ namespace jrmwng::popcount_ranges::std
             }
 
         public:
-            using iterator_category = ::std::forward_iterator_tag;
+            using iterator_category = std::forward_iterator_tag;
             using value_type = size_t;
             using difference_type = ptrdiff_t;
             using reference = value_type;
@@ -630,7 +630,7 @@ namespace jrmwng::popcount_ranges::std
 
             constexpr reference operator*() const noexcept
             {
-                return m_word * uint<N>::B + ::std::countr_zero(m_remaining);
+                return m_word * uint<N>::B + std::countr_zero(m_remaining);
             }
 
             constexpr iterator& operator++() noexcept
@@ -682,7 +682,7 @@ namespace jrmwng::popcount_ranges::std
             size_t m_index{};
 
         public:
-            using iterator_category = ::std::forward_iterator_tag;
+            using iterator_category = std::forward_iterator_tag;
             using value_type = size_t;
             using difference_type = ptrdiff_t;
             using reference = value_type;
@@ -757,7 +757,7 @@ namespace jrmwng::popcount_ranges::std
             }
 
         public:
-            using iterator_category = ::std::forward_iterator_tag;
+            using iterator_category = std::forward_iterator_tag;
             using value_type = size_t;
             using difference_type = ptrdiff_t;
             using reference = value_type;
@@ -827,37 +827,37 @@ namespace jrmwng::popcount_ranges::std
 }
 
 #include <utility>
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
     template <size_t I, typename Ttuple>
     constexpr decltype(auto) get(Ttuple && tuple) noexcept
     {
-        return ::std::get<I>(::std::forward<Ttuple>(tuple));
+        return std::get<I>(std::forward<Ttuple>(tuple));
     }
     template <typename T, typename Ttuple>
     constexpr decltype(auto) get(Ttuple && tuple) noexcept
     {
-        return ::std::get<T>(::std::forward<Ttuple>(tuple));
+        return std::get<T>(std::forward<Ttuple>(tuple));
     }
 
     template <typename T, T VALUE>
-    using integral_constant = ::std::integral_constant<T, VALUE>;
+    using integral_constant = std::integral_constant<T, VALUE>;
     template <size_t N>
-    using make_index_sequence = ::std::make_index_sequence<N>;
+    using make_index_sequence = std::make_index_sequence<N>;
     template <size_t... Is>
-    using index_sequence = ::std::index_sequence<Is...>;
+    using index_sequence = std::index_sequence<Is...>;
 }
 
 #include <limits>
-namespace jrmwng::popcount_ranges::std
+namespace jrmwng::popcount_ranges::stdx
 {
     template <typename T>
-    using numeric_limits = ::std::numeric_limits<T>;
+    using numeric_limits = std::numeric_limits<T>;
 }
 namespace std
 {
     template <size_t N, size_t R>
-    struct numeric_limits<jrmwng::popcount_ranges::std::uint_indices<N, R>>
+    struct numeric_limits<jrmwng::popcount_ranges::stdx::uint_indices<N, R>>
     {
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = false;
@@ -872,7 +872,7 @@ namespace std
         static constexpr int radix = 2;
         static constexpr int digits = static_cast<int>(N);
         static constexpr int digits10 = N * 301 / 1000;
-        using value_type = jrmwng::popcount_ranges::std::uint_indices<N, R>;
+        using value_type = jrmwng::popcount_ranges::stdx::uint_indices<N, R>;
         static constexpr value_type min() noexcept { return {}; }
         static constexpr value_type lowest() noexcept { return {}; }
         static constexpr value_type max() noexcept
@@ -885,7 +885,7 @@ namespace std
     };
 
     template <size_t N, size_t R>
-    struct numeric_limits<jrmwng::popcount_ranges::std::uint_complement_indices<N, R>>
+    struct numeric_limits<jrmwng::popcount_ranges::stdx::uint_complement_indices<N, R>>
     {
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = false;
@@ -900,7 +900,7 @@ namespace std
         static constexpr int radix = 2;
         static constexpr int digits = static_cast<int>(N);
         static constexpr int digits10 = N * 301 / 1000;
-        using value_type = jrmwng::popcount_ranges::std::uint_complement_indices<N, R>;
+        using value_type = jrmwng::popcount_ranges::stdx::uint_complement_indices<N, R>;
         static constexpr value_type min() noexcept { return {}; }
         static constexpr value_type lowest() noexcept { return {}; }
         static constexpr value_type max() noexcept
@@ -913,7 +913,7 @@ namespace std
     };
 
     template <size_t N>
-    struct numeric_limits<jrmwng::popcount_ranges::std::uint<N>>
+    struct numeric_limits<jrmwng::popcount_ranges::stdx::uint<N>>
     {
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = false;
@@ -929,8 +929,8 @@ namespace std
         static constexpr int digits10 = N * 301 / 1000; // approximate log10(2)
         static constexpr int max_digits10 = 0;
         static constexpr int radix = 2;
-        static constexpr jrmwng::popcount_ranges::std::uint<N> min() noexcept { return jrmwng::popcount_ranges::std::uint<N>{0}; }
-        static constexpr jrmwng::popcount_ranges::std::uint<N> lowest() noexcept { return jrmwng::popcount_ranges::std::uint<N>{0}; }
-        static constexpr jrmwng::popcount_ranges::std::uint<N> max() noexcept { return ~jrmwng::popcount_ranges::std::uint<N>{0}; }
+        static constexpr jrmwng::popcount_ranges::stdx::uint<N> min() noexcept { return jrmwng::popcount_ranges::stdx::uint<N>{0}; }
+        static constexpr jrmwng::popcount_ranges::stdx::uint<N> lowest() noexcept { return jrmwng::popcount_ranges::stdx::uint<N>{0}; }
+        static constexpr jrmwng::popcount_ranges::stdx::uint<N> max() noexcept { return ~jrmwng::popcount_ranges::stdx::uint<N>{0}; }
     };
 }

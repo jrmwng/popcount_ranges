@@ -75,7 +75,7 @@ std::uint64_t popcount_sample(std::vector<std::uint32_t> const& population,
 
     std::uint64_t checksum = 0;
     for (std::size_t position :
-         jrmwng::popcount_ranges::std::set_bit_positions(Set{}[randev(generator)]))
+         jrmwng::popcount_ranges::stdx::set_bit_positions(Set{}[randev(generator)]))
         checksum += population[position];
     return checksum;
 }
@@ -206,7 +206,7 @@ bool decompose_case(std::string_view type_name, std::size_t repetitions)
         {
             std::size_t position_index = 0;
             for (std::size_t position :
-                 jrmwng::popcount_ranges::std::set_bit_positions(values[i]))
+                 jrmwng::popcount_ranges::stdx::set_bit_positions(values[i]))
             {
                 if (position_index == popcount)
                 {
@@ -303,14 +303,14 @@ void benchmark_type(std::string_view type_name, bool quick)
 template <std::size_t N, std::size_t R>
 void benchmark_sparse_case(std::string_view type_name, bool quick)
 {
-    using sparse_type = jrmwng::popcount_ranges::std::uint_indices<N, R>;
+    using sparse_type = jrmwng::popcount_ranges::stdx::uint_indices<N, R>;
     benchmark_case<sparse_type, sparse_type{}>(type_name, quick);
 }
 
 template <std::size_t N, std::size_t HoleCount>
 void benchmark_sparse_complement_case(std::string_view type_name, bool quick)
 {
-    using sparse_type = jrmwng::popcount_ranges::std::uint_complement_indices<N, HoleCount>;
+    using sparse_type = jrmwng::popcount_ranges::stdx::uint_complement_indices<N, HoleCount>;
     benchmark_case<sparse_type, sparse_type{}>(type_name, quick);
 }
 
@@ -338,16 +338,16 @@ int main(int argc, char const* argv[])
     if (decompose)
     {
         std::cout << "type,N,R,lower_bound_threshold,phase,ns_per_sample,checksum\n";
-        using uint8192 = jrmwng::popcount_ranges::std::uint<8192>;
-        using sparse_uint8192_r1 = jrmwng::popcount_ranges::std::uint_indices<8192, 1>;
-        using sparse_uint8192_r2 = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
-        using sparse_uint8192_r3 = jrmwng::popcount_ranges::std::uint_indices<8192, 3>;
-        using sparse_uint8192_r4 = jrmwng::popcount_ranges::std::uint_indices<8192, 4>;
-        using sparse_uint8192_r5 = jrmwng::popcount_ranges::std::uint_indices<8192, 5>;
+        using uint8192 = jrmwng::popcount_ranges::stdx::uint<8192>;
+        using sparse_uint8192_r1 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 1>;
+        using sparse_uint8192_r2 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 2>;
+        using sparse_uint8192_r3 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 3>;
+        using sparse_uint8192_r4 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 4>;
+        using sparse_uint8192_r5 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 5>;
         using sparse_complement_uint8192_h1 =
-            jrmwng::popcount_ranges::std::uint_complement_indices<8192, 1>;
+            jrmwng::popcount_ranges::stdx::uint_complement_indices<8192, 1>;
         using sparse_complement_uint8192_h2 =
-            jrmwng::popcount_ranges::std::uint_complement_indices<8192, 2>;
+            jrmwng::popcount_ranges::stdx::uint_complement_indices<8192, 2>;
         constexpr std::size_t repetitions = 100'000u;
         constexpr std::size_t high_popcount_repetitions = 1'000u;
         if (!decompose_case<uint8192, uint8192{1}>("uint8192", repetitions) ||
@@ -379,13 +379,13 @@ int main(int argc, char const* argv[])
     benchmark_type<std::uint32_t>("uint32", quick);
     benchmark_type<std::uint64_t>("uint64", quick);
 
-    using uint128 = jrmwng::popcount_ranges::std::uint<128>;
-    using uint256 = jrmwng::popcount_ranges::std::uint<256>;
-    using uint512 = jrmwng::popcount_ranges::std::uint<512>;
-    using uint1024 = jrmwng::popcount_ranges::std::uint<1024>;
-    using uint2048 = jrmwng::popcount_ranges::std::uint<2048>;
-    using uint4096 = jrmwng::popcount_ranges::std::uint<4096>;
-    using uint8192 = jrmwng::popcount_ranges::std::uint<8192>;
+    using uint128 = jrmwng::popcount_ranges::stdx::uint<128>;
+    using uint256 = jrmwng::popcount_ranges::stdx::uint<256>;
+    using uint512 = jrmwng::popcount_ranges::stdx::uint<512>;
+    using uint1024 = jrmwng::popcount_ranges::stdx::uint<1024>;
+    using uint2048 = jrmwng::popcount_ranges::stdx::uint<2048>;
+    using uint4096 = jrmwng::popcount_ranges::stdx::uint<4096>;
+    using uint8192 = jrmwng::popcount_ranges::stdx::uint<8192>;
     benchmark_type<uint128>("uint128", quick);
     benchmark_type<uint256>("uint256", quick);
     benchmark_type<uint512>("uint512", quick);

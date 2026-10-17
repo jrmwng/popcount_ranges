@@ -31,15 +31,15 @@ namespace jrmwng
         };
 
         template <std::size_t N, std::size_t CurrentR, std::size_t R>
-        struct set_complement<std::uint_indices<N, CurrentR>, R>
+        struct set_complement<stdx::uint_indices<N, CurrentR>, R>
         {
-            using type = set<std::uint_indices<N, N - R>{}>;
+            using type = set<stdx::uint_indices<N, N - R>{}>;
         };
 
         template <std::size_t N, std::size_t HoleCount, std::size_t R>
-        struct set_complement<std::uint_complement_indices<N, HoleCount>, R>
+        struct set_complement<stdx::uint_complement_indices<N, HoleCount>, R>
         {
-            using type = set<std::uint_indices<N, HoleCount>{}>;
+            using type = set<stdx::uint_indices<N, HoleCount>{}>;
         };
 
         // A set of unsigned integers having the same `std::popcount` result.
@@ -49,7 +49,7 @@ namespace jrmwng
             inline constexpr static std::size_t zuPOPCOUNT = uPOPCOUNT;
 
             using Tuint = decltype(uPOPCOUNT);
-            static_assert(std::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
+            static_assert(stdx::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
             static_assert(zuPOPCOUNT <= std::numeric_limits<Tuint>::digits, "set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
             inline constexpr static bool IS_INDEX_UINT = requires(Tuint value) { value.indices; value.is_sentinel; };
             inline constexpr static bool IS_COMPLEMENT_INDEX = requires { Tuint::is_complement_index; };
@@ -108,7 +108,7 @@ namespace jrmwng
                 else
                 {
                     // Gosper's hack: https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
-                    int const cnt = std::countr_zero(i0);
+                    int const cnt = stdx::countr_zero(i0);
                     Tuint const i1 = i0 >> cnt;
                     Tuint const r1 = i1 + Tuint(1);
                     return ((r1 ^ i1) >> 2) | (r1 << cnt);
@@ -269,7 +269,7 @@ namespace jrmwng
                     //          v &= v - 1                 -- clear that bit
                     return []<std::size_t... Js>(std::uintmax_t result, Tuint v, std::index_sequence<Js...>) {
                         return ((result += 
-                                nCr_read<Tuint>(std::countr_zero(v), std::integral_constant<std::size_t, Js + 1>{})
+                                nCr_read<Tuint>(stdx::countr_zero(v), std::integral_constant<std::size_t, Js + 1>{})
                             , v &= v - Tuint(1)), ...),
                             result;
                     }(0u, value, std::make_index_sequence<zuPOPCOUNT>{});
@@ -293,8 +293,8 @@ namespace jrmwng
                 else
                 {
                     return []<std::size_t... Js>(std::uintmax_t r0, std::uintmax_t r1, Tuint v0, Tuint v1, std::index_sequence<Js...>) {
-                        return ((r0 += nCr_read<Tuint>(std::countr_zero(v0), std::integral_constant<std::size_t, Js + 1>{}),
-                                 r1 += nCr_read<Tuint>(std::countr_zero(v1), std::integral_constant<std::size_t, Js + 1>{}),
+                        return ((r0 += nCr_read<Tuint>(stdx::countr_zero(v0), std::integral_constant<std::size_t, Js + 1>{}),
+                                 r1 += nCr_read<Tuint>(stdx::countr_zero(v1), std::integral_constant<std::size_t, Js + 1>{}),
                                  v0 &= v0 - Tuint(1),
                                  v1 &= v1 - Tuint(1)), ...),
                                (r1 >= r0 ? static_cast<std::ptrdiff_t>(r1 - r0) : -static_cast<std::ptrdiff_t>(r0 - r1));
@@ -369,7 +369,7 @@ namespace jrmwng
                                 n = found_n;
                                 remaining -= found_nCr;
 
-                                if constexpr (std::is_uint<Tuint>::value)
+                                if constexpr (stdx::is_uint<Tuint>::value)
                                     result.data[found_n / Tuint::B] |= 1ull << (found_n % Tuint::B);
                                 else
                                     result |= static_cast<Tuint>(Tuint(1) << found_n);
@@ -394,12 +394,12 @@ namespace jrmwng
                 #ifdef _DEBUG
                 if (first != SENTINEL)
                 {
-                    if (std::popcount(first) != static_cast<int>(uPOPCOUNT))
+                    if (stdx::popcount(first) != static_cast<int>(uPOPCOUNT))
                         throw std::invalid_argument("set: first does not have the required reduce_count");
                 }
                 if (last != SENTINEL)
                 {
-                    if (std::popcount(last) != static_cast<int>(uPOPCOUNT))
+                    if (stdx::popcount(last) != static_cast<int>(uPOPCOUNT))
                         throw std::invalid_argument("set: last does not have the required reduce_count");
                     if (first == SENTINEL)
                         throw std::invalid_argument("set: last is not sentinel but first is");

@@ -14,18 +14,18 @@ The `lower_bound` executable prints CSV rows containing element type, sort direc
 
 The `popcount_set` executable prints `type,popcount,direction,distance,implementation,ns_per_operation,checksum`. It compares repeated Gosper-based `++`/`--` with direct `advance()` calls, which use `unrank` for the requested offset. Compare rows with the same type, popcount, direction, and distance; the first distance where `unrank_advance` is faster is the observed break-even point for that case.
 
-For sparse wide sets, `jrmwng::popcount_ranges::std::uint_indices<N, R>` stores
+For sparse wide sets, `jrmwng::popcount_ranges::stdx::uint_indices<N, R>` stores
 the positions of the `R` set bits instead of an `N`-bit value. It can be used as
 the value type for `set`, for example:
 
 ```cpp
-using sparse_value = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
+using sparse_value = jrmwng::popcount_ranges::stdx::uint_indices<8192, 2>;
 using sparse_set = jrmwng::popcount_ranges::set<sparse_value{}>;
 ```
 
-`std::uint_indices<N, R>` exposes sorted set-bit positions through `indices`.
+`stdx::uint_indices<N, R>` exposes sorted set-bit positions through `indices`.
 Use `uint<N>` for dense popcounts, where storing the set-bit positions would
-take more space. For high popcounts, `std::uint_complement_indices<N, H>`
+take more space. For high popcounts, `stdx::uint_complement_indices<N, H>`
 stores the `H` unset positions instead; its set-bit-position iterator yields
 every other position.
 
@@ -74,8 +74,8 @@ The sampling cases cover every popcount `R` for each listed width where
 applicable, since those are distinct sampling workloads despite having the same
 number of combinations. For every width above 64 bits, it also reports
 `sparse_uint<N>` cases for every feasible sparse popcount and its complement.
-Low-popcount cases use `std::uint_indices<N, R>`; high-popcount cases use
-`std::uint_complement_indices<N, N-R>` to store the unset positions. Their
+Low-popcount cases use `stdx::uint_indices<N, R>`; high-popcount cases use
+`stdx::uint_complement_indices<N, N-R>` to store the unset positions. Their
 `std_sample` rows are the same reference workloads with the same population
 size and sample count.
 
