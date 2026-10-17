@@ -582,6 +582,67 @@ namespace jrmwng::popcount_ranges::std
         }
     };
 
+    template <size_t N, size_t R>
+    class set_bit_positions_view<uint_indices<N, R>>
+    {
+        uint_indices<N, R> m_value;
+
+    public:
+        class iterator
+        {
+            uint_indices<N, R> const* m_value{};
+            size_t m_index{};
+
+        public:
+            using iterator_category = ::std::forward_iterator_tag;
+            using value_type = size_t;
+            using difference_type = ptrdiff_t;
+            using reference = value_type;
+
+            constexpr iterator(uint_indices<N, R> const& value, size_t index) noexcept
+                : m_value(&value)
+                , m_index(value.is_sentinel ? R : index)
+            {}
+
+            constexpr reference operator*() const noexcept
+            {
+                return m_value->indices[m_index];
+            }
+
+            constexpr iterator& operator++() noexcept
+            {
+                ++m_index;
+                return *this;
+            }
+
+            constexpr iterator operator++(int) noexcept
+            {
+                iterator result{*this};
+                ++(*this);
+                return result;
+            }
+
+            constexpr bool operator==(iterator const& other) const noexcept
+            {
+                return m_value == other.m_value && m_index == other.m_index;
+            }
+        };
+
+        constexpr explicit set_bit_positions_view(uint_indices<N, R> value) noexcept
+            : m_value(value)
+        {}
+
+        constexpr iterator begin() const noexcept
+        {
+            return iterator{m_value, 0};
+        }
+
+        constexpr iterator end() const noexcept
+        {
+            return iterator{m_value, R};
+        }
+    };
+
     template <typename T>
         requires is_unsigned_v<T>
     constexpr auto set_bit_positions(T value) noexcept

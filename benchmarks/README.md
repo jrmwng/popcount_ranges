@@ -69,13 +69,16 @@ The `std_sample` rows are a useful per-run reference, but compare the
 The sampling cases cover every popcount `R` for each listed width where
 `C(N,R)` fits in `uint64_t`. The benchmark includes both `R` and `N-R` where
 applicable, since those are distinct sampling workloads despite having the same
-number of combinations.
+number of combinations. It also reports `sparse_uint8192` cases for `R=1..4`,
+using `std::uint_indices<8192, R>` in addition to the existing dense `uint8192`
+representation. Their `std_sample` rows are the same reference workloads with
+the same population size and sample count.
 
 To inspect time spent in the sampling stages for wider-integer cases, run a
 threshold-specific sampling executable with `--decompose`. This reports rank
 generation, the `nCr_search` steps used by unranking in isolation, bit-position
 traversal over a reusable batch of preconstructed values, population loads from
-precomputed positions, and end-to-end time for `uint8192` with `R=1..4`. The
-isolated stages have different cache and execution conditions from the fused
-end-to-end loop, so use them as estimates rather than summing them as an exact
-decomposition.
+precomputed positions, and end-to-end time for dense and sparse `uint8192`
+representations with `R=1..4`. The isolated stages have different cache and
+execution conditions from the fused end-to-end loop, so use them as estimates
+rather than summing them as an exact decomposition.

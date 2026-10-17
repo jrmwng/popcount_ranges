@@ -65,23 +65,22 @@ double measure_mt19937_ns_per_sample(std::size_t calls, std::size_t repetitions)
     return elapsed / static_cast<double>(repetitions);
 }
 
-template <typename T, T R>
+template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
 std::uint64_t popcount_sample(std::vector<std::uint32_t> const& population,
                               counting_mt19937& generator)
 {
-    using set_type = jrmwng::popcount_ranges::set<R>;
     constexpr auto count = jrmwng::popcount_ranges::nCr_read<T>(
         std::numeric_limits<T>::digits, std::integral_constant<std::size_t, R>{});
     std::uniform_int_distribution<std::uintmax_t> randev(0, count - 1);
 
     std::uint64_t checksum = 0;
     for (std::size_t position :
-         jrmwng::popcount_ranges::std::set_bit_positions(set_type{}[randev(generator)]))
+         jrmwng::popcount_ranges::std::set_bit_positions(Set{}[randev(generator)]))
         checksum += population[position];
     return checksum;
 }
 
-template <typename T, T R>
+template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
 void run_case(std::string_view type_name, std::size_t repetitions)
 {
     constexpr auto N = static_cast<std::size_t>(std::numeric_limits<T>::digits);
@@ -94,7 +93,7 @@ void run_case(std::string_view type_name, std::size_t repetitions)
     std::uint64_t popcount_checksum = 0;
     auto const popcount_started = std::chrono::steady_clock::now();
     for (std::size_t repetition = 0; repetition < repetitions; ++repetition)
-        popcount_checksum += popcount_sample<T, R>(population, popcount_generator);
+        popcount_checksum += popcount_sample<T, R, Set>(population, popcount_generator);
     auto const popcount_elapsed = std::chrono::duration<double, std::nano>(
         std::chrono::steady_clock::now() - popcount_started).count();
     auto const popcount_calls = popcount_generator.calls() - popcount_calls_before;
@@ -137,10 +136,10 @@ void run_case(std::string_view type_name, std::size_t repetitions)
               << standard_checksum << '\n';
 }
 
-template <typename T, T R>
+template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
 void benchmark_case(std::string_view type_name, bool quick)
 {
-    run_case<T, R>(type_name, quick ? 1'000u : 100'000u);
+    run_case<T, R, Set>(type_name, quick ? 1'000u : 100'000u);
 }
 
 template <typename T, std::size_t R>
@@ -154,7 +153,7 @@ std::size_t unrank_search_steps(std::size_t n, std::uintmax_t remaining)
         return found_n + unrank_search_steps<T, R - 1>(found_n, remaining - found_nCr);
 }
 
-template <typename T, T R>
+template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
 bool decompose_case(std::string_view type_name, std::size_t repetitions)
 {
     constexpr std::size_t N = static_cast<std::size_t>(std::numeric_limits<T>::digits);
@@ -187,8 +186,7 @@ bool decompose_case(std::string_view type_name, std::size_t repetitions)
     for (std::size_t i = 0; i < N; ++i)
         population[i] = static_cast<std::uint32_t>(i + 1);
 
-    using set_type = jrmwng::popcount_ranges::set<R>;
-    using value_type = decltype(set_type{}[std::size_t{}]);
+    using value_type = decltype(Set{}[std::size_t{}]);
     using positions_type = std::array<std::size_t, popcount>;
     constexpr std::size_t batch_size = 32;
     std::vector<value_type> values(batch_size);
@@ -199,7 +197,7 @@ bool decompose_case(std::string_view type_name, std::size_t repetitions)
     {
         std::size_t const batch_count = std::min(batch_size, repetitions - batch);
         for (std::size_t i = 0; i < batch_count; ++i)
-            values[i] = set_type{}[ranks[batch + i]];
+            values[i] = Set{}[ranks[batch + i]];
 
         auto const traversal_started = std::chrono::steady_clock::now();
         for (std::size_t i = 0; i < batch_count; ++i)
@@ -266,7 +264,7 @@ bool decompose_case(std::string_view type_name, std::size_t repetitions)
     std::uint64_t end_to_end_checksum = 0;
     auto const end_to_end_started = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < repetitions; ++i)
-        end_to_end_checksum += popcount_sample<T, R>(population, end_to_end_generator);
+        end_to_end_checksum += popcount_sample<T, R, Set>(population, end_to_end_generator);
     auto const end_to_end_elapsed = std::chrono::duration<double, std::nano>(
         std::chrono::steady_clock::now() - end_to_end_started).count();
     if (end_to_end_checksum != population_checksum)
@@ -308,11 +306,22 @@ int main(int argc, char const* argv[])
     {
         std::cout << "type,N,R,lower_bound_threshold,phase,ns_per_sample,checksum\n";
         using uint8192 = jrmwng::popcount_ranges::std::uint<8192>;
+        using sparse_uint8192_r1 = jrmwng::popcount_ranges::std::uint_indices<8192, 1>;
+        using sparse_uint8192_r2 = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
+        using sparse_uint8192_r3 = jrmwng::popcount_ranges::std::uint_indices<8192, 3>;
+        using sparse_uint8192_r4 = jrmwng::popcount_ranges::std::uint_indices<8192, 4>;
+        using sparse_uint8192_r5 = jrmwng::popcount_ranges::std::uint_indices<8192, 5>;
         constexpr std::size_t repetitions = 100'000u;
         if (!decompose_case<uint8192, uint8192{1}>("uint8192", repetitions) ||
             !decompose_case<uint8192, uint8192{2}>("uint8192", repetitions) ||
             !decompose_case<uint8192, uint8192{3}>("uint8192", repetitions) ||
-            !decompose_case<uint8192, uint8192{4}>("uint8192", repetitions))
+            !decompose_case<uint8192, uint8192{4}>("uint8192", repetitions) ||
+            !decompose_case<uint8192, uint8192{5}>("uint8192", repetitions) ||
+            !decompose_case<sparse_uint8192_r1, sparse_uint8192_r1{}>("sparse_uint8192", repetitions) ||
+            !decompose_case<sparse_uint8192_r2, sparse_uint8192_r2{}>("sparse_uint8192", repetitions) ||
+            !decompose_case<sparse_uint8192_r3, sparse_uint8192_r3{}>("sparse_uint8192", repetitions) ||
+            !decompose_case<sparse_uint8192_r4, sparse_uint8192_r4{}>("sparse_uint8192", repetitions) ||
+            !decompose_case<sparse_uint8192_r5, sparse_uint8192_r5{}>("sparse_uint8192", repetitions))
             return 1;
         std::cerr << "sink=" << sink << '\n';
         return 0;
@@ -333,6 +342,11 @@ int main(int argc, char const* argv[])
     using uint2048 = jrmwng::popcount_ranges::std::uint<2048>;
     using uint4096 = jrmwng::popcount_ranges::std::uint<4096>;
     using uint8192 = jrmwng::popcount_ranges::std::uint<8192>;
+    using sparse_uint8192_r1 = jrmwng::popcount_ranges::std::uint_indices<8192, 1>;
+    using sparse_uint8192_r2 = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
+    using sparse_uint8192_r3 = jrmwng::popcount_ranges::std::uint_indices<8192, 3>;
+    using sparse_uint8192_r4 = jrmwng::popcount_ranges::std::uint_indices<8192, 4>;
+    using sparse_uint8192_r5 = jrmwng::popcount_ranges::std::uint_indices<8192, 5>;
     benchmark_type<uint128>("uint128", quick);
     benchmark_type<uint256>("uint256", quick);
     benchmark_type<uint512>("uint512", quick);
@@ -340,6 +354,11 @@ int main(int argc, char const* argv[])
     benchmark_type<uint2048>("uint2048", quick);
     benchmark_type<uint4096>("uint4096", quick);
     benchmark_type<uint8192>("uint8192", quick);
+    benchmark_case<sparse_uint8192_r1, sparse_uint8192_r1{}>("sparse_uint8192", quick);
+    benchmark_case<sparse_uint8192_r2, sparse_uint8192_r2{}>("sparse_uint8192", quick);
+    benchmark_case<sparse_uint8192_r3, sparse_uint8192_r3{}>("sparse_uint8192", quick);
+    benchmark_case<sparse_uint8192_r4, sparse_uint8192_r4{}>("sparse_uint8192", quick);
+    benchmark_case<sparse_uint8192_r5, sparse_uint8192_r5{}>("sparse_uint8192", quick);
 
     std::cerr << "sink=" << sink << '\n';
 }
