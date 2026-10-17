@@ -543,6 +543,79 @@ bool check_wide_index_set()
     return forward == bounded.end() && reverse == bounded.rend();
 }
 
+template <std::size_t N, std::size_t HoleCount>
+bool check_complement_index_set()
+{
+    using T = jrmwng::popcount_ranges::std::uint_complement_indices<N, HoleCount>;
+    using Set = jrmwng::popcount_ranges::set<T{}>;
+    using iterator = typename Set::iterator;
+    using HoleSetValue = jrmwng::popcount_ranges::std::uint_indices<N, HoleCount>;
+    using HoleSet = jrmwng::popcount_ranges::set<HoleSetValue{}>;
+    constexpr std::size_t expected_size = static_cast<std::size_t>(
+        jrmwng::popcount_ranges::nCr_read<T>(
+            N, std::integral_constant<std::size_t, HoleCount>{}));
+
+    Set values;
+    HoleSet holes;
+    if (values.size() != expected_size ||
+        jrmwng::popcount_ranges::std::popcount(*values.begin()) != static_cast<int>(N - HoleCount))
+        return false;
+
+    std::size_t rank = 0;
+    for (auto value : values)
+    {
+        auto const expected_holes = holes[expected_size - rank - 1u];
+        iterator const current{value};
+        if (value.is_sentinel ||
+            jrmwng::popcount_ranges::std::popcount(value) != static_cast<int>(N - HoleCount) ||
+            values.begin() + static_cast<std::ptrdiff_t>(rank) != current)
+            return false;
+        for (std::size_t i = 0; i < HoleCount; ++i)
+        {
+            if (value.indices[i] != expected_holes.indices[i])
+                return false;
+        }
+
+        std::size_t position = 0;
+        std::size_t hole_index = 0;
+        for (std::size_t set_position :
+             jrmwng::popcount_ranges::std::set_bit_positions(value))
+        {
+            while (hole_index < HoleCount &&
+                   expected_holes.indices[hole_index] == position)
+            {
+                ++position;
+                ++hole_index;
+            }
+            if (set_position != position)
+                return false;
+            ++position;
+        }
+        while (hole_index < HoleCount && expected_holes.indices[hole_index] == position)
+        {
+            ++position;
+            ++hole_index;
+        }
+        if (position != N || hole_index != HoleCount)
+            return false;
+
+        if (current - values.begin() != static_cast<std::ptrdiff_t>(rank))
+            return false;
+        ++rank;
+    }
+
+    if (rank != expected_size)
+        return false;
+
+    rank = 0;
+    for (auto iterator = values.rbegin(); iterator != values.rend(); ++iterator, ++rank)
+    {
+        if (*iterator != values[expected_size - rank - 1u])
+            return false;
+    }
+    return rank == expected_size;
+}
+
 template <std::size_t N, std::size_t R>
 bool check_index_singleton_set()
 {
@@ -718,6 +791,9 @@ int main()
 #else
     std::cout << "Running release exhaustive set tests..." << std::endl;
 
+    static_assert(sizeof(jrmwng::popcount_ranges::std::uint_complement_indices<8192, 2>) <
+                  sizeof(jrmwng::popcount_ranges::std::uint<8192>));
+
     if (!check_uint8_exhaustive_sets())
     {
         std::cerr << "uint8_t exhaustive cases failed\n";
@@ -742,6 +818,16 @@ int main()
         return 4;
     }
 
+    if (!check_complement_index_set<8, 0>() ||
+        !check_complement_index_set<8, 1>() ||
+        !check_complement_index_set<8, 2>() ||
+        !check_complement_index_set<8, 3>() ||
+        !check_complement_index_set<8, 4>())
+    {
+        std::cerr << "complement index set tests failed\n";
+        return 5;
+    }
+
     if (!check_wide_uint_set<128, 0>() || !check_wide_uint_set<128, 1>() ||
         !check_wide_uint_set<128, 2>() || !check_wide_uint_set<128, 126>() ||
         !check_wide_uint_set<128, 127>() || !check_wide_uint_set<128, 128>() ||
@@ -753,18 +839,18 @@ int main()
         !check_wide_uint_set<256, 255>() || !check_wide_uint_set<256, 256>())
     {
         std::cerr << "wide uint set tests failed\n";
-        return 5;
+        return 6;
     }
 
     if (!check_wide_index_set())
     {
         std::cerr << "wide index set tests failed\n";
-        return 6;
+        return 7;
     }
     if (!check_index_singleton_set<8, 0>() || !check_index_singleton_set<8, 8>())
     {
         std::cerr << "index singleton set tests failed\n";
-        return 7;
+        return 8;
     }
 
     std::cout << "expanded set tests passed\n";

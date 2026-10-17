@@ -23,8 +23,11 @@ using sparse_value = jrmwng::popcount_ranges::std::uint_indices<8192, 2>;
 using sparse_set = jrmwng::popcount_ranges::set<sparse_value{}>;
 ```
 
-Each value exposes its sorted bit positions through `indices`. Use `uint<N>` for
-dense popcounts, where storing the set-bit positions would take more space.
+`std::uint_indices<N, R>` exposes sorted set-bit positions through `indices`.
+Use `uint<N>` for dense popcounts, where storing the set-bit positions would
+take more space. For high popcounts, `std::uint_complement_indices<N, H>`
+stores the `H` unset positions instead; its set-bit-position iterator yields
+every other position.
 
 Use `--quick` for a smoke test. Omit it for the wider distance sweep. Use Release or RelWithDebInfo for timing; Debug results are useful only for correctness and diagnostics. Timing results depend on the compiler, CPU, and system load, so capture them locally rather than committing CSV output.
 
@@ -70,9 +73,9 @@ The sampling cases cover every popcount `R` for each listed width where
 `C(N,R)` fits in `uint64_t`. The benchmark includes both `R` and `N-R` where
 applicable, since those are distinct sampling workloads despite having the same
 number of combinations. For every width above 64 bits, it also reports
-`sparse_uint<N>` cases using `std::uint_indices<N, R>` for each `R` from 0
-through `nCr_max_R(N)`. These are the sparse-popcount workloads; the
-high-popcount complements remain covered by the dense cases. Their
+`sparse_uint<N>` cases for every feasible sparse popcount and its complement.
+Low-popcount cases use `std::uint_indices<N, R>`; high-popcount cases use
+`std::uint_complement_indices<N, N-R>` to store the unset positions. Their
 `std_sample` rows are the same reference workloads with the same population
 size and sample count.
 
@@ -81,6 +84,8 @@ threshold-specific sampling executable with `--decompose`. This reports rank
 generation, the `nCr_search` steps used by unranking in isolation, bit-position
 traversal over a reusable batch of preconstructed values, population loads from
 precomputed positions, and end-to-end time for dense and sparse `uint8192`
-representations with `R=1..5`. The isolated stages have different cache and
-execution conditions from the fused end-to-end loop, so use them as estimates
-rather than summing them as an exact decomposition.
+representations with `R=1..5`, plus dense and sparse complement-index
+representations with `R=8190` and `R=8191`. The high-popcount decomposition
+uses fewer repetitions to limit its memory use. The isolated stages have
+different cache and execution conditions from the fused end-to-end loop, so use
+them as estimates rather than summing them as an exact decomposition.

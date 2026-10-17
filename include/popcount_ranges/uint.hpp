@@ -72,6 +72,60 @@ namespace jrmwng::popcount_ranges::std
         constexpr bool operator>=(uint_indices const& other) const noexcept { return !(*this < other); }
     };
 
+    template <size_t N, size_t R>
+    struct uint_complement_indices
+    {
+        static_assert(N > 0, "N must be greater than zero");
+        static_assert(R <= N, "R must be less than or equal to N");
+
+        inline constexpr static bool is_complement_index = true;
+        using index_type = typename uint_indices<N, R>::index_type;
+
+        ::std::array<index_type, R> indices{};
+        bool is_sentinel{};
+
+        constexpr uint_complement_indices() noexcept
+        {
+            for (size_t i = 0; i < R; ++i)
+                indices[i] = static_cast<index_type>(N - R + i);
+        }
+
+        constexpr explicit uint_complement_indices(::std::array<index_type, R> positions) noexcept
+            : indices(positions)
+        {}
+
+        constexpr operator size_t() const noexcept
+        {
+            return N - R;
+        }
+
+        constexpr bool operator==(uint_complement_indices const& other) const noexcept
+        {
+            if (is_sentinel || other.is_sentinel)
+                return is_sentinel == other.is_sentinel;
+            return indices == other.indices;
+        }
+
+        constexpr bool operator<(uint_complement_indices const& other) const noexcept
+        {
+            if (is_sentinel != other.is_sentinel)
+                return !is_sentinel;
+            if (is_sentinel)
+                return false;
+            for (size_t i = R; i-- > 0;)
+            {
+                if (indices[i] != other.indices[i])
+                    return indices[i] > other.indices[i];
+            }
+            return false;
+        }
+
+        constexpr bool operator!=(uint_complement_indices const& other) const noexcept { return !(*this == other); }
+        constexpr bool operator>(uint_complement_indices const& other) const noexcept { return other < *this; }
+        constexpr bool operator<=(uint_complement_indices const& other) const noexcept { return !(other < *this); }
+        constexpr bool operator>=(uint_complement_indices const& other) const noexcept { return !(*this < other); }
+    };
+
     template <size_t N>
     struct uint
     {
@@ -339,6 +393,10 @@ namespace jrmwng::popcount_ranges::std
     {};
 
     template <size_t N, size_t R>
+    struct is_unsigned<uint_complement_indices<N, R>> : ::std::true_type
+    {};
+
+    template <size_t N, size_t R>
     struct is_unsigned<uint_indices<N, R> const> : is_unsigned<uint_indices<N, R>>
     {};
 
@@ -348,6 +406,18 @@ namespace jrmwng::popcount_ranges::std
 
     template <size_t N, size_t R>
     struct is_unsigned<uint_indices<N, R> const volatile> : is_unsigned<uint_indices<N, R>>
+    {};
+
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_complement_indices<N, R> const> : is_unsigned<uint_complement_indices<N, R>>
+    {};
+
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_complement_indices<N, R> volatile> : is_unsigned<uint_complement_indices<N, R>>
+    {};
+
+    template <size_t N, size_t R>
+    struct is_unsigned<uint_complement_indices<N, R> const volatile> : is_unsigned<uint_complement_indices<N, R>>
     {};
 
     template <typename T>
@@ -379,6 +449,12 @@ namespace jrmwng::popcount_ranges::std
         return static_cast<int>(R);
     }
 
+    template <size_t N, size_t R>
+    constexpr int popcount(uint_complement_indices<N, R>) noexcept
+    {
+        return static_cast<int>(N - R);
+    }
+
     template <typename T>
         requires std::is_unsigned_v<T>
     constexpr int popcount(T value) noexcept
@@ -399,6 +475,18 @@ namespace jrmwng::popcount_ranges::std
     constexpr int countr_zero(uint_indices<N, R> value) noexcept
     {
         return value.is_sentinel || R == 0 ? static_cast<int>(N) : static_cast<int>(value.indices[0]);
+    }
+
+    template <size_t N, size_t R>
+    constexpr int countr_zero(uint_complement_indices<N, R> value) noexcept
+    {
+        if (value.is_sentinel)
+            return static_cast<int>(N);
+
+        size_t position = 0;
+        for (size_t i = 0; i < R && value.indices[i] == position; ++i)
+            ++position;
+        return static_cast<int>(position);
     }
 
     template <typename T>
@@ -643,6 +731,93 @@ namespace jrmwng::popcount_ranges::std
         }
     };
 
+    template <size_t N, size_t R>
+    class set_bit_positions_view<uint_complement_indices<N, R>>
+    {
+        uint_complement_indices<N, R> m_value;
+
+    public:
+        class iterator
+        {
+            uint_complement_indices<N, R> const* m_value{};
+            size_t m_position{};
+            size_t m_hole_index{};
+            size_t m_next_hole{N + 1u};
+
+            constexpr void skip_holes() noexcept
+            {
+                while (m_position == m_next_hole) [[unlikely]]
+                {
+                    ++m_position;
+                    ++m_hole_index;
+                    m_next_hole = m_hole_index < R
+                        ? static_cast<size_t>(m_value->indices[m_hole_index])
+                        : N + 1u;
+                }
+            }
+
+        public:
+            using iterator_category = ::std::forward_iterator_tag;
+            using value_type = size_t;
+            using difference_type = ptrdiff_t;
+            using reference = value_type;
+
+            constexpr iterator(uint_complement_indices<N, R> const& value,
+                               size_t position) noexcept
+                : m_value(&value)
+                , m_position(value.is_sentinel ? N : position)
+                , m_next_hole([&] {
+                    if constexpr (R == 0)
+                        return N + 1u;
+                    else
+                        return value.is_sentinel
+                            ? N + 1u
+                            : static_cast<size_t>(value.indices[0]);
+                }())
+            {
+                skip_holes();
+            }
+
+            constexpr reference operator*() const noexcept
+            {
+                return m_position;
+            }
+
+            constexpr iterator& operator++() noexcept
+            {
+                ++m_position;
+                skip_holes();
+                return *this;
+            }
+
+            constexpr iterator operator++(int) noexcept
+            {
+                iterator result{*this};
+                ++(*this);
+                return result;
+            }
+
+            constexpr bool operator==(iterator const& other) const noexcept
+            {
+                return m_value == other.m_value && m_position == other.m_position;
+            }
+        };
+
+        constexpr explicit set_bit_positions_view(uint_complement_indices<N, R> value) noexcept
+            : m_value(value)
+        {}
+
+        constexpr iterator begin() const noexcept
+        {
+            return iterator{m_value, 0};
+        }
+
+        constexpr iterator end() const noexcept
+        {
+            return iterator{m_value, N};
+        }
+    };
+
     template <typename T>
         requires is_unsigned_v<T>
     constexpr auto set_bit_positions(T value) noexcept
@@ -705,6 +880,34 @@ namespace std
             value_type value{};
             for (size_t i = 0; i < R; ++i)
                 value.indices[i] = static_cast<typename value_type::index_type>(N - R + i);
+            return value;
+        }
+    };
+
+    template <size_t N, size_t R>
+    struct numeric_limits<jrmwng::popcount_ranges::std::uint_complement_indices<N, R>>
+    {
+        static constexpr bool is_specialized = true;
+        static constexpr bool is_signed = false;
+        static constexpr bool is_integer = true;
+        static constexpr bool is_exact = true;
+        static constexpr bool has_infinity = false;
+        static constexpr bool has_quiet_NaN = false;
+        static constexpr bool has_signaling_NaN = false;
+        static constexpr int max_digits10 = 0;
+        static constexpr bool is_bounded = true;
+        static constexpr bool is_modulo = true;
+        static constexpr int radix = 2;
+        static constexpr int digits = static_cast<int>(N);
+        static constexpr int digits10 = N * 301 / 1000;
+        using value_type = jrmwng::popcount_ranges::std::uint_complement_indices<N, R>;
+        static constexpr value_type min() noexcept { return {}; }
+        static constexpr value_type lowest() noexcept { return {}; }
+        static constexpr value_type max() noexcept
+        {
+            value_type value{};
+            for (size_t i = 0; i < R; ++i)
+                value.indices[i] = static_cast<typename value_type::index_type>(i);
             return value;
         }
     };

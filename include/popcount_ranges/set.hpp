@@ -36,6 +36,12 @@ namespace jrmwng
             using type = set<std::uint_indices<N, N - R>{}>;
         };
 
+        template <std::size_t N, std::size_t HoleCount, std::size_t R>
+        struct set_complement<std::uint_complement_indices<N, HoleCount>, R>
+        {
+            using type = set<std::uint_indices<N, HoleCount>{}>;
+        };
+
         // A set of unsigned integers having the same `std::popcount` result.
         template <auto uPOPCOUNT>
         class set
@@ -46,6 +52,7 @@ namespace jrmwng
             static_assert(std::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
             static_assert(zuPOPCOUNT <= std::numeric_limits<Tuint>::digits, "set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
             inline constexpr static bool IS_INDEX_UINT = requires(Tuint value) { value.indices; value.is_sentinel; };
+            inline constexpr static bool IS_COMPLEMENT_INDEX = requires { Tuint::is_complement_index; };
 
             using complementary_set = typename set_complement<Tuint, zuPOPCOUNT>::type;
             friend complementary_set;
@@ -56,17 +63,36 @@ namespace jrmwng
                 {
                     if (i0.is_sentinel)
                         return i0;
-                    for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
+                    if constexpr (IS_COMPLEMENT_INDEX)
                     {
-                        auto const limit = i + 1u < zuPOPCOUNT
-                            ? static_cast<std::size_t>(i0.indices[i + 1u])
-                            : std::numeric_limits<Tuint>::digits;
-                        if (static_cast<std::size_t>(i0.indices[i]) + 1u < limit)
+                        constexpr std::size_t HOLE_COUNT =
+                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                        for (std::size_t i = 0; i < HOLE_COUNT; ++i)
                         {
-                            ++i0.indices[i];
-                            for (std::size_t j = 0; j < i; ++j)
-                                i0.indices[j] = static_cast<typename Tuint::index_type>(j);
-                            return i0;
+                            if (static_cast<std::size_t>(i0.indices[i]) > i)
+                            {
+                                --i0.indices[i];
+                                for (std::size_t j = 0; j < i; ++j)
+                                    i0.indices[j] = static_cast<typename Tuint::index_type>(
+                                        static_cast<std::size_t>(i0.indices[i]) - i + j);
+                                return i0;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
+                        {
+                            auto const limit = i + 1u < zuPOPCOUNT
+                                ? static_cast<std::size_t>(i0.indices[i + 1u])
+                                : std::numeric_limits<Tuint>::digits;
+                            if (static_cast<std::size_t>(i0.indices[i]) + 1u < limit)
+                            {
+                                ++i0.indices[i];
+                                for (std::size_t j = 0; j < i; ++j)
+                                    i0.indices[j] = static_cast<typename Tuint::index_type>(j);
+                                return i0;
+                            }
                         }
                     }
                     return SENTINEL;
@@ -94,9 +120,19 @@ namespace jrmwng
                 {
                     if (value.is_sentinel)
                     {
-                        for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
-                            value.indices[i] = static_cast<typename Tuint::index_type>(
-                                std::numeric_limits<Tuint>::digits - zuPOPCOUNT + i);
+                        if constexpr (IS_COMPLEMENT_INDEX)
+                        {
+                            constexpr std::size_t HOLE_COUNT =
+                                std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                            for (std::size_t i = 0; i < HOLE_COUNT; ++i)
+                                value.indices[i] = static_cast<typename Tuint::index_type>(i);
+                        }
+                        else
+                        {
+                            for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
+                                value.indices[i] = static_cast<typename Tuint::index_type>(
+                                    std::numeric_limits<Tuint>::digits - zuPOPCOUNT + i);
+                        }
                         value.is_sentinel = false;
                         return value;
                     }
@@ -105,15 +141,36 @@ namespace jrmwng
                         value.is_sentinel = true;
                         return value;
                     }
-                    for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
+                    if constexpr (IS_COMPLEMENT_INDEX)
                     {
-                        if (static_cast<std::size_t>(value.indices[i]) > i)
+                        constexpr std::size_t HOLE_COUNT =
+                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                        for (std::size_t i = 0; i < HOLE_COUNT; ++i)
                         {
-                            --value.indices[i];
-                            for (std::size_t j = 0; j < i; ++j)
-                                value.indices[j] = static_cast<typename Tuint::index_type>(
-                                    static_cast<std::size_t>(value.indices[i]) - i + j);
-                            return value;
+                            auto const limit = i + 1u < HOLE_COUNT
+                                ? static_cast<std::size_t>(value.indices[i + 1u])
+                                : std::numeric_limits<Tuint>::digits;
+                            if (static_cast<std::size_t>(value.indices[i]) + 1u < limit)
+                            {
+                                ++value.indices[i];
+                                for (std::size_t j = 0; j < i; ++j)
+                                    value.indices[j] = static_cast<typename Tuint::index_type>(j);
+                                return value;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
+                        {
+                            if (static_cast<std::size_t>(value.indices[i]) > i)
+                            {
+                                --value.indices[i];
+                                for (std::size_t j = 0; j < i; ++j)
+                                    value.indices[j] = static_cast<typename Tuint::index_type>(
+                                        static_cast<std::size_t>(value.indices[i]) - i + j);
+                                return value;
+                            }
                         }
                     }
                     value.is_sentinel = true;
@@ -130,8 +187,19 @@ namespace jrmwng
                 if constexpr (IS_INDEX_UINT)
                 {
                     Tuint value{};
-                    for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
-                        value.indices[i] = static_cast<typename Tuint::index_type>(i);
+                    if constexpr (IS_COMPLEMENT_INDEX)
+                    {
+                        constexpr std::size_t HOLE_COUNT =
+                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                        for (std::size_t i = 0; i < HOLE_COUNT; ++i)
+                            value.indices[i] = static_cast<typename Tuint::index_type>(
+                                std::numeric_limits<Tuint>::digits - HOLE_COUNT + i);
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
+                            value.indices[i] = static_cast<typename Tuint::index_type>(i);
+                    }
                     return value;
                 }
                 else if constexpr (zuPOPCOUNT == 0u)
@@ -166,10 +234,25 @@ namespace jrmwng
                     return 0;
                 else if constexpr (IS_INDEX_UINT)
                 {
-                    return []<std::size_t... Js>(Tuint const& v, std::index_sequence<Js...>) {
-                        return (std::uintmax_t{} + ... +
-                            nCr_read<Tuint>(v.indices[Js], std::integral_constant<std::size_t, Js + 1>{}));
-                    }(value, std::make_index_sequence<zuPOPCOUNT>{});
+                    if constexpr (IS_COMPLEMENT_INDEX)
+                    {
+                        constexpr std::size_t HOLE_COUNT =
+                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                        auto const complement_rank =
+                            []<std::size_t... Js>(Tuint const& v, std::index_sequence<Js...>) {
+                                return (std::uintmax_t{} + ... +
+                                    nCr_read<Tuint>(v.indices[Js],
+                                        std::integral_constant<std::size_t, Js + 1>{}));
+                            }(value, std::make_index_sequence<HOLE_COUNT>{});
+                        return TOTAL - 1u - complement_rank;
+                    }
+                    else
+                    {
+                        return []<std::size_t... Js>(Tuint const& v, std::index_sequence<Js...>) {
+                            return (std::uintmax_t{} + ... +
+                                nCr_read<Tuint>(v.indices[Js], std::integral_constant<std::size_t, Js + 1>{}));
+                        }(value, std::make_index_sequence<zuPOPCOUNT>{});
+                    }
                 }
                 else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
                 {
@@ -227,6 +310,26 @@ namespace jrmwng
                     return INITIAL;
                 else if (rank == TOTAL)
                     return SENTINEL;
+                else if constexpr (IS_COMPLEMENT_INDEX)
+                {
+                    constexpr std::size_t HOLE_COUNT =
+                        std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                    Tuint result{};
+                    [&]<std::size_t... Is>(std::uintmax_t remaining, std::size_t n,
+                                           std::index_sequence<Is...>) {
+                        (([&] {
+                            constexpr std::size_t position = HOLE_COUNT - Is - 1u;
+                            auto const [found_n, found_nCr] = nCr_search<Tuint>(
+                                position + 1u, n, remaining,
+                                std::integral_constant<std::size_t, position + 1u>{});
+                            n = found_n;
+                            remaining -= found_nCr;
+                            result.indices[position] = static_cast<typename Tuint::index_type>(found_n);
+                        }()), ...);
+                    }(TOTAL - 1u - rank, std::numeric_limits<Tuint>::digits + 1u,
+                      std::make_index_sequence<HOLE_COUNT>{});
+                    return result;
+                }
                 else if constexpr (IS_INDEX_UINT)
                 {
                     Tuint result{};
