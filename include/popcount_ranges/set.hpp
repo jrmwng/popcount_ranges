@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <limits>
 #include <cstdint>
+#include <cmath>
 
 #include "ncr.hpp"
 #include "uint.hpp"
@@ -135,20 +136,32 @@ namespace jrmwng
                 }
                 else
                 {
-                    return []<std::size_t... Is>(std::uintmax_t remaining, std::size_t n, std::index_sequence<Is...>)->Tuint {
+                    Tuint result{};
+                    [&result]<std::size_t... Is>(std::uintmax_t remaining, std::size_t n, std::index_sequence<Is...>){
                         if constexpr (sizeof...(Is) == 0)
-                            return 0;
+                            return;
                         else
-                            return (([&](auto R)->Tuint {
+                            (([&](auto R){
                                 // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
+
+                                // if constexpr (R == 2)
+                                // {
+                                //     auto const n_max = (3.0f + ::std::sqrt(::std::nextafter(8.0f * static_cast<float>(remaining) + 1.0f, std::numeric_limits<float>::max()))) * 0.5f;
+                                //     n = ::std::min<size_t>(n, static_cast<std::size_t>(n_max));
+                                // }
 
                                 auto const [found_n, found_nCr] = nCr_search<Tuint>(R, n, remaining, R);
                                 n = found_n;
                                 remaining -= found_nCr;
-                                return static_cast<Tuint>(Tuint(1) << found_n);
+
+                                if constexpr (std::is_uint<Tuint>::value)
+                                    result.data[found_n / Tuint::B] |= 1ull << (found_n % Tuint::B);
+                                else
+                                    result |= static_cast<Tuint>(Tuint(1) << found_n);
                             }
-                            (std::integral_constant<std::size_t, zuPOPCOUNT - Is>{})) | ...);
+                            (std::integral_constant<std::size_t, zuPOPCOUNT - Is>{})), ...);
                     }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<zuPOPCOUNT>{});
+                    return result;
                 }
             }
 

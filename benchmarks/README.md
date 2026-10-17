@@ -26,3 +26,44 @@ than 32 random bits (because `std::mt19937` produces 32-bit results) and can req
 additional calls for distribution rejection. The standard library's engine-call count
 is implementation-dependent, so the benchmark measures it instead of assuming it
 equals `N`.
+
+The sampling executable reports the compiled `POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD`
+only on `popcount_ranges` rows; the threshold column is blank for `std_sample`, which
+is independent of that setting. CMake builds the default `sampling_benchmark` at
+threshold 4 and also creates `sampling_benchmark_threshold_<value>` targets for the values in
+`POPCOUNT_RANGES_SAMPLING_THRESHOLDS` (default:
+`1;2;4;8;12;16;20;24;28;32`; threshold 4 uses the
+default executable). To compare the defaults, build and run:
+
+```text
+cmake --build build-release --target sampling_benchmark sampling_benchmark_threshold_1 sampling_benchmark_threshold_2 sampling_benchmark_threshold_8 sampling_benchmark_threshold_12 sampling_benchmark_threshold_16 sampling_benchmark_threshold_20 sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
+build-release/sampling_benchmark.exe > sampling-threshold-4.csv
+build-release/sampling_benchmark_threshold_1.exe > sampling-threshold-1.csv
+build-release/sampling_benchmark_threshold_2.exe > sampling-threshold-2.csv
+build-release/sampling_benchmark_threshold_8.exe > sampling-threshold-8.csv
+build-release/sampling_benchmark_threshold_12.exe > sampling-threshold-12.csv
+build-release/sampling_benchmark_threshold_16.exe > sampling-threshold-16.csv
+build-release/sampling_benchmark_threshold_20.exe > sampling-threshold-20.csv
+build-release/sampling_benchmark_threshold_24.exe > sampling-threshold-24.csv
+build-release/sampling_benchmark_threshold_28.exe > sampling-threshold-28.csv
+build-release/sampling_benchmark_threshold_32.exe > sampling-threshold-32.csv
+```
+
+Set `POPCOUNT_RANGES_SAMPLING_THRESHOLDS` at configure time to build a different
+matrix. Use the same build type, machine, and repetition mode for all variants.
+The `std_sample` rows are a useful per-run reference, but compare the
+`popcount_ranges` rows across thresholds to evaluate the threshold effect.
+
+The sampling cases cover every popcount `R` for each listed width where
+`C(N,R)` fits in `uint64_t`. The benchmark includes both `R` and `N-R` where
+applicable, since those are distinct sampling workloads despite having the same
+number of combinations.
+
+To inspect time spent in the sampling stages for wider-integer cases, run a
+threshold-specific sampling executable with `--decompose`. This reports rank
+generation, the `nCr_search` steps used by unranking in isolation, bit-position
+traversal over a reusable batch of preconstructed values, population loads from
+precomputed positions, and end-to-end time for `uint8192` with `R=1..4`. The
+isolated stages have different cache and execution conditions from the fused
+end-to-end loop, so use them as estimates rather than summing them as an exact
+decomposition.

@@ -4,6 +4,7 @@
 #include <ranges>
 #include <numeric>
 #include <execution>
+#include <array>
 
 #include <data_par/simd_native.hpp>
 #include <data_par/simd_range.hpp>
@@ -13,7 +14,7 @@ namespace jrmwng
     namespace popcount_ranges
     {
         template <typename T, typename Tpredicate>
-        T * lower_bound(T * first, T * last, std::remove_cv_t<T> target, Tpredicate pred) noexcept
+        T * lower_bound(T * first, T * last, std::remove_cv_t<T> target, Tpredicate pred) noexcept(noexcept(pred(*first, target)))
         {
             using type = std::remove_cv_t<T>;
 
@@ -86,5 +87,74 @@ namespace jrmwng
                 return std::lower_bound(first, last, target, pred);
             }
         }
+
+        template <typename Trange>
+        struct lower_bound_range;
+
+        template <typename T, std::size_t N>
+        struct lower_bound_range<std::array<T, N>>
+        {
+            static_assert(N > 0, "Array size must be greater than 0.");
+            static_assert(sizeof(T) <= 8, "Type T must be at most 8 bytes.");
+
+            #ifndef POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD
+            #define POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD 4u
+            #endif
+            inline constexpr static std::size_t N0 = (64u * POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD);
+            inline constexpr static std::size_t N1 = (N0 / sizeof(T));
+            inline constexpr static std::size_t N2 = ((N + N1 - 1) / N1);
+
+            std::array<T, N> const &range;
+            std::array<T, N2> chunks;
+
+            std::conditional_t<(N2 > 1), lower_bound_range<std::array<T, N2>>, std::array<T, N2>&> next;
+
+            constexpr lower_bound_range(std::array<T, N> const &r) noexcept
+                : range(r), chunks{}, next(chunks)
+            {
+            }
+            constexpr lower_bound_range(lower_bound_range const &) = delete;
+            constexpr lower_bound_range &operator=(lower_bound_range const &) = delete;
+            constexpr lower_bound_range(lower_bound_range &&) = delete;
+            constexpr lower_bound_range &operator=(lower_bound_range &&) = delete;
+
+            constexpr void update()
+            {
+                for (std::size_t i = 0, j = 1; j < N2; ++i, ++j)
+                {
+                    chunks[i] = range[j * N1 - 1u];
+                }
+                chunks[N2-1u] = range[N - 1u];
+                if constexpr (N2 > 1)
+                {
+                    next.update();
+                }
+            }
+
+            template <typename Tpredicate>
+            std::size_t operator() (std::size_t first, std::size_t last, T target, Tpredicate pred) const noexcept(noexcept(lower_bound(range.data() + first, range.data() + last, target, pred)))
+            {
+                if constexpr (N2 > 1)
+                if (last - first > N1) [[unlikely]]
+                {
+                    std::size_t const next_first = first / N1;
+                    std::size_t const next_last = (last + N1 - 1) / N1;
+
+                    std::size_t const next_chunk = next(next_first, next_last, target, pred);
+                    if (next_chunk == next_last) [[unlikely]]
+                        return last;
+
+                    first = std::max(first, next_chunk * N1);    
+                    last = std::min(last, next_chunk * N1 + N1);
+                }    
+
+                return static_cast<std::size_t>(lower_bound(range.data() + first, range.data() + last, target, pred) - range.data());
+            }
+            template <typename Tpredicate>
+            T const * operator() (T const *first, T const *last, T target, Tpredicate pred) const noexcept(noexcept(this->operator()(static_cast<std::size_t>(first - range.data()), static_cast<std::size_t>(last - range.data()), target, pred)))
+            {
+                return range.data() + this->operator()(static_cast<std::size_t>(first - range.data()), static_cast<std::size_t>(last - range.data()), target, pred);
+            }
+        };
     }
 }

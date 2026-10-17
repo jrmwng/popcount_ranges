@@ -98,8 +98,14 @@ namespace jrmwng
                         Max <= std::numeric_limits<uint32_t>::max(), uint32_t,
                         uintmax_t>>>;
             using Tvalue = min_uint_t<std::get<uintmax_t>(nCr(MAX_N, R))>;
-            Tvalue m_row[MAX_N - R + 2]; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
+            std::array<Tvalue, MAX_N - R + 2> m_row; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
+            lower_bound_range<std::array<Tvalue, MAX_N - R + 2>> m_lower_bound_range = m_row;
         public:
+            constexpr void update() noexcept
+            {
+                m_lower_bound_range.update();
+            }
+
             using value_type = Tvalue;
             constexpr auto & operator[](size_t n) noexcept
             {
@@ -111,8 +117,10 @@ namespace jrmwng
             }
             constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
             {
-                auto itFound = lower_bound(std::begin(m_row) + (MAX_N - (n_last - 1u)), std::end(m_row) - 1, target, std::greater<>{});
-                return {MAX_N - std::distance(std::begin(m_row), itFound), *itFound};
+                // auto itFound = lower_bound(std::begin(m_row) + (MAX_N - (n_last - 1u)), std::end(m_row) - 1, target, std::greater<>{});
+                // return {MAX_N - std::distance(std::begin(m_row), itFound), *itFound};
+                std::size_t const found = m_lower_bound_range(MAX_N - (n_last - 1u), std::size(m_row) - 1u, target, std::greater<>{});
+                return {MAX_N - found, m_row[found]};
             }
         };
         template <size_t MAX_N>
@@ -152,7 +160,7 @@ namespace jrmwng
             static_assert(false == std::get<bool>(nCr(MAX_N, MAX_R)), "nCr_table: nCr value is not representable in uintmax_t");
             using row_tuple = decltype([]<size_t... Is>(std::index_sequence<Is...>)
             {
-                return std::make_tuple(nCr_row<MAX_N, Is>{}...);
+                return std::tuple<nCr_row<MAX_N, Is>...>{};
             }
             (std::make_index_sequence<MAX_R + 1>{}));
             row_tuple m_tupleRow;
@@ -185,6 +193,11 @@ namespace jrmwng
                         }(std::integral_constant<size_t, R2s + 2>{}), ...);
                     }(std::make_index_sequence<MAX_R - 1>{}));
                 }
+                [&, this]<size_t... R2s>(std::index_sequence<R2s...>){ // R2s = 0, 1, ..., MAX_R-2
+                    ([&, this]<size_t R>(std::integral_constant<size_t, R>){
+                        std::get<R>(m_tupleRow).update();
+                    }(std::integral_constant<size_t, R2s + 2>{}), ...);
+                }(std::make_index_sequence<MAX_R - 1>{});
             }
 
             template <size_t R>

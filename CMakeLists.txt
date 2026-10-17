@@ -8,7 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CTest)
 
-option(POPCOUNT_RANGES_BUILD_BENCHMARKS "Build benchmarks" OFF)
+set(POPCOUNT_RANGES_SAMPLING_THRESHOLDS "1;2;4;8;12;16;20;24;28;32" CACHE STRING
+    "Thresholds used to build sampling benchmark variants")
 
 function(configure_popcount_target target)
     target_include_directories(${target}
@@ -85,4 +86,22 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
     )
 
     configure_popcount_target(sampling_benchmark)
+    target_compile_definitions(sampling_benchmark PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=4u)
+
+    foreach(threshold IN LISTS POPCOUNT_RANGES_SAMPLING_THRESHOLDS)
+        if(NOT threshold MATCHES "^[0-9]+$")
+            message(FATAL_ERROR "Invalid sampling benchmark threshold: ${threshold}")
+        endif()
+
+        if(threshold STREQUAL "4")
+            continue()
+        endif()
+
+        set(target sampling_benchmark_threshold_${threshold})
+        add_executable(${target}
+            benchmarks/sampling_benchmark.cpp
+        )
+        configure_popcount_target(${target})
+        target_compile_definitions(${target} PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=${threshold}u)
+    endforeach()
 endif()
