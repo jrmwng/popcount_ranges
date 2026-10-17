@@ -99,11 +99,11 @@ namespace jrmwng
                         uintmax_t>>>;
             using Tvalue = min_uint_t<std::get<uintmax_t>(nCr(MAX_N, R))>;
             std::array<Tvalue, MAX_N - R + 2> m_row; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
-            lower_bound_range<std::array<Tvalue, MAX_N - R + 2>> m_lower_bound_range = m_row;
+            lower_bound_descent<std::array<Tvalue, MAX_N - R + 2>> m_lower_bound_descent = m_row;
         public:
             constexpr void update() noexcept
             {
-                m_lower_bound_range.update();
+                m_lower_bound_descent.update();
             }
 
             using value_type = Tvalue;
@@ -117,9 +117,7 @@ namespace jrmwng
             }
             constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
             {
-                // auto itFound = lower_bound(std::begin(m_row) + (MAX_N - (n_last - 1u)), std::end(m_row) - 1, target, std::greater<>{});
-                // return {MAX_N - std::distance(std::begin(m_row), itFound), *itFound};
-                std::size_t const found = m_lower_bound_range(MAX_N - (n_last - 1u), std::size(m_row) - 1u, target, std::greater<>{});
+                std::size_t const found = m_lower_bound_descent(MAX_N - (n_last - 1u), std::size(m_row) - 1u, target, std::greater<>{});
                 return {MAX_N - found, m_row[found]};
             }
         };

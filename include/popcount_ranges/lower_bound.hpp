@@ -89,10 +89,10 @@ namespace jrmwng
         }
 
         template <typename Trange>
-        struct lower_bound_range;
+        struct lower_bound_descent;
 
         template <typename T, std::size_t N>
-        struct lower_bound_range<std::array<T, N>>
+        struct lower_bound_descent<std::array<T, N>>
         {
             static_assert(N > 0, "Array size must be greater than 0.");
             static_assert(sizeof(T) <= 8, "Type T must be at most 8 bytes.");
@@ -107,16 +107,16 @@ namespace jrmwng
             std::array<T, N> const &range;
             std::array<T, N2> chunks;
 
-            std::conditional_t<(N2 > 1), lower_bound_range<std::array<T, N2>>, std::array<T, N2>&> next;
+            std::conditional_t<(N2 > 1), lower_bound_descent<std::array<T, N2>>, std::array<T, N2>&> next;
 
-            constexpr lower_bound_range(std::array<T, N> const &r) noexcept
+            constexpr lower_bound_descent(std::array<T, N> const &r) noexcept
                 : range(r), chunks{}, next(chunks)
             {
             }
-            constexpr lower_bound_range(lower_bound_range const &) = delete;
-            constexpr lower_bound_range &operator=(lower_bound_range const &) = delete;
-            constexpr lower_bound_range(lower_bound_range &&) = delete;
-            constexpr lower_bound_range &operator=(lower_bound_range &&) = delete;
+            constexpr lower_bound_descent(lower_bound_descent const &) = delete;
+            constexpr lower_bound_descent &operator=(lower_bound_descent const &) = delete;
+            constexpr lower_bound_descent(lower_bound_descent &&) = delete;
+            constexpr lower_bound_descent &operator=(lower_bound_descent &&) = delete;
 
             constexpr void update()
             {
@@ -149,11 +149,6 @@ namespace jrmwng
                 }    
 
                 return static_cast<std::size_t>(lower_bound(range.data() + first, range.data() + last, target, pred) - range.data());
-            }
-            template <typename Tpredicate>
-            T const * operator() (T const *first, T const *last, T target, Tpredicate pred) const noexcept(noexcept(this->operator()(static_cast<std::size_t>(first - range.data()), static_cast<std::size_t>(last - range.data()), target, pred)))
-            {
-                return range.data() + this->operator()(static_cast<std::size_t>(first - range.data()), static_cast<std::size_t>(last - range.data()), target, pred);
             }
         };
     }
