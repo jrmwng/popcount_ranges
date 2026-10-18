@@ -9,10 +9,12 @@
 #include <type_traits>
 #include <vector>
 
+namespace stdx = jrmwng::popcount_ranges::stdx;
+
 namespace
 {
 template <std::size_t N>
-using wide_uint = jrmwng::popcount_ranges::stdx::uint<N>;
+using wide_uint = stdx::uint<N>;
 
 template <std::size_t N>
 wide_uint<N> reference_shift(wide_uint<N> const& value, std::size_t shift, bool left)
@@ -84,8 +86,8 @@ bool check_uint_operations()
         std::cerr << N << "-bit minimum failed\n";
         return false;
     }
-    if (jrmwng::popcount_ranges::stdx::popcount(zero) != 0 ||
-        jrmwng::popcount_ranges::stdx::popcount(maximum) != static_cast<int>(N))
+    if (stdx::popcount(zero) != 0 ||
+        stdx::popcount(maximum) != static_cast<int>(N))
     {
         std::cerr << N << "-bit popcount failed\n";
         return false;
@@ -227,7 +229,7 @@ bool check_native_set_bit_positions()
     T const value = static_cast<T>((T{1} << 0) | (T{1} << 3) |
                                    (T{1} << (std::numeric_limits<T>::digits - 1)));
     std::vector<std::size_t> positions;
-    for (std::size_t position : jrmwng::popcount_ranges::stdx::set_bit_positions(value))
+    for (std::size_t position : stdx::set_bit_positions(value))
         positions.push_back(position);
 
     std::vector<std::size_t> const expected{0, 3, std::numeric_limits<T>::digits - 1};
@@ -249,7 +251,7 @@ bool check_wide_set_bit_positions()
         value.data[position / 64] |= std::uint64_t{1} << (position % 64);
 
     std::vector<std::size_t> positions;
-    for (std::size_t position : jrmwng::popcount_ranges::stdx::set_bit_positions(value))
+    for (std::size_t position : stdx::set_bit_positions(value))
         positions.push_back(position);
 
     if (positions != expected)
@@ -259,7 +261,7 @@ bool check_wide_set_bit_positions()
     }
 
     std::vector<std::size_t> temporary_positions;
-    for (std::size_t position : jrmwng::popcount_ranges::stdx::set_bit_positions(
+    for (std::size_t position : stdx::set_bit_positions(
              uint_type{1} | (uint_type{1} << (N - 1))))
         temporary_positions.push_back(position);
     if (temporary_positions != std::vector<std::size_t>{0, N - 1})
@@ -269,7 +271,7 @@ bool check_wide_set_bit_positions()
     }
 
     uint_type const zero{};
-    auto const empty_positions = jrmwng::popcount_ranges::stdx::set_bit_positions(zero);
+    auto const empty_positions = stdx::set_bit_positions(zero);
     if (empty_positions.begin() != empty_positions.end())
     {
         std::cerr << N << "-bit empty set-bit position iteration failed\n";
@@ -285,27 +287,27 @@ int main()
     static_assert(std::is_trivially_copyable_v<wide_uint<128>>);
     static_assert(192 % 64 == 0 && !std::has_single_bit(std::size_t{192}));
     static_assert(320 % 64 == 0 && !std::has_single_bit(std::size_t{320}));
-    static_assert(jrmwng::popcount_ranges::stdx::is_unsigned_v<wide_uint<128>>);
-    static_assert(jrmwng::popcount_ranges::stdx::is_unsigned_v<wide_uint<128> const>);
-    static_assert(jrmwng::popcount_ranges::stdx::is_unsigned_v<wide_uint<256>>);
-    static_assert(jrmwng::popcount_ranges::stdx::is_unsigned_v<std::uint64_t>);
-    static_assert(!jrmwng::popcount_ranges::stdx::is_unsigned_v<int>);
-    static_assert(jrmwng::popcount_ranges::stdx::numeric_limits<wide_uint<128>>::digits == 128);
-    static_assert(jrmwng::popcount_ranges::stdx::numeric_limits<wide_uint<192>>::digits == 192);
-    static_assert(jrmwng::popcount_ranges::stdx::numeric_limits<wide_uint<256>>::digits == 256);
-    static_assert(jrmwng::popcount_ranges::stdx::numeric_limits<wide_uint<320>>::digits == 320);
-    static_assert(jrmwng::popcount_ranges::stdx::popcount(wide_uint<128>{3}) == 2);
-    static_assert(jrmwng::popcount_ranges::stdx::countr_zero(wide_uint<128>{0}) == 128);
-    static_assert(jrmwng::popcount_ranges::stdx::countr_zero(wide_uint<256>{1} << 128) == 128);
-    static_assert(jrmwng::popcount_ranges::stdx::countr_zero(std::uint64_t{8}) == 3);
-    static_assert(jrmwng::popcount_ranges::stdx::countr_one(~wide_uint<128>{}));
-    static_assert(jrmwng::popcount_ranges::stdx::countl_zero(wide_uint<128>{1}) == 127);
-    static_assert(jrmwng::popcount_ranges::stdx::countl_zero(wide_uint<192>{1}) == 191);
-    static_assert(jrmwng::popcount_ranges::stdx::countl_one(~wide_uint<256>{}));
-    static_assert(jrmwng::popcount_ranges::stdx::has_single_bit(wide_uint<256>{1} << 255));
-    static_assert(jrmwng::popcount_ranges::stdx::has_single_bit(wide_uint<320>{1} << 319));
-    static_assert(jrmwng::popcount_ranges::stdx::bit_width(wide_uint<128>{1} << 127) == 128);
-    static_assert(jrmwng::popcount_ranges::stdx::bit_floor((wide_uint<256>{1} << 127) + wide_uint<256>{13}) ==
+    static_assert(stdx::is_unsigned_v<wide_uint<128>>);
+    static_assert(stdx::is_unsigned_v<wide_uint<128> const>);
+    static_assert(stdx::is_unsigned_v<wide_uint<256>>);
+    static_assert(stdx::is_unsigned_v<std::uint64_t>);
+    static_assert(!stdx::is_unsigned_v<int>);
+    static_assert(std::numeric_limits<wide_uint<128>>::digits == 128);
+    static_assert(std::numeric_limits<wide_uint<192>>::digits == 192);
+    static_assert(std::numeric_limits<wide_uint<256>>::digits == 256);
+    static_assert(std::numeric_limits<wide_uint<320>>::digits == 320);
+    static_assert(stdx::popcount(wide_uint<128>{3}) == 2);
+    static_assert(stdx::countr_zero(wide_uint<128>{0}) == 128);
+    static_assert(stdx::countr_zero(wide_uint<256>{1} << 128) == 128);
+    static_assert(stdx::countr_zero(std::uint64_t{8}) == 3);
+    static_assert(stdx::countr_one(~wide_uint<128>{}));
+    static_assert(stdx::countl_zero(wide_uint<128>{1}) == 127);
+    static_assert(stdx::countl_zero(wide_uint<192>{1}) == 191);
+    static_assert(stdx::countl_one(~wide_uint<256>{}));
+    static_assert(stdx::has_single_bit(wide_uint<256>{1} << 255));
+    static_assert(stdx::has_single_bit(wide_uint<320>{1} << 319));
+    static_assert(stdx::bit_width(wide_uint<128>{1} << 127) == 128);
+    static_assert(stdx::bit_floor((wide_uint<256>{1} << 127) + wide_uint<256>{13}) ==
         (wide_uint<256>{1} << 127));
     static_assert((wide_uint<128>{1} << 64).data[1] == 1);
 

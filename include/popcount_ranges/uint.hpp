@@ -4,12 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-namespace jrmwng::popcount_ranges::stdx
-{
-    using uintmax_t = std::uintmax_t;
-    using size_t = std::size_t;
-    using ptrdiff_t = std::ptrdiff_t;
-}
 
 namespace jrmwng::popcount_ranges::stdx
 {
@@ -424,13 +418,6 @@ namespace jrmwng::popcount_ranges::stdx
     inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 }
 
-#include <iterator>
-namespace jrmwng::popcount_ranges::stdx
-{
-    using random_access_iterator_tag = std::random_access_iterator_tag;
-    using forward_iterator_tag = std::forward_iterator_tag;
-}
-
 #include <bit>
 namespace jrmwng::popcount_ranges::stdx
 {
@@ -826,34 +813,7 @@ namespace jrmwng::popcount_ranges::stdx
     }
 }
 
-#include <utility>
-namespace jrmwng::popcount_ranges::stdx
-{
-    template <size_t I, typename Ttuple>
-    constexpr decltype(auto) get(Ttuple && tuple) noexcept
-    {
-        return std::get<I>(std::forward<Ttuple>(tuple));
-    }
-    template <typename T, typename Ttuple>
-    constexpr decltype(auto) get(Ttuple && tuple) noexcept
-    {
-        return std::get<T>(std::forward<Ttuple>(tuple));
-    }
-
-    template <typename T, T VALUE>
-    using integral_constant = std::integral_constant<T, VALUE>;
-    template <size_t N>
-    using make_index_sequence = std::make_index_sequence<N>;
-    template <size_t... Is>
-    using index_sequence = std::index_sequence<Is...>;
-}
-
 #include <limits>
-namespace jrmwng::popcount_ranges::stdx
-{
-    template <typename T>
-    using numeric_limits = std::numeric_limits<T>;
-}
 namespace std
 {
     template <size_t N, size_t R>

@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <vector>
 
+namespace stdx = jrmwng::popcount_ranges::stdx;
+
 namespace
 {
 #ifdef _DEBUG
@@ -429,7 +431,7 @@ bool check_range_and_jump_operations()
 template <std::size_t N, std::size_t K>
 bool check_wide_uint_set()
 {
-    using T = jrmwng::popcount_ranges::stdx::uint<N>;
+    using T = stdx::uint<N>;
     using Set = jrmwng::popcount_ranges::set<T{K}>;
     constexpr std::size_t r = K < N - K ? K : N - K;
     constexpr std::size_t expected_size = [] {
@@ -451,7 +453,7 @@ bool check_wide_uint_set()
     T previous{};
     for (T value : values)
     {
-        if (jrmwng::popcount_ranges::stdx::popcount(value) != static_cast<int>(K) ||
+        if (stdx::popcount(value) != static_cast<int>(K) ||
             (index != 0 && !(previous < value)))
         {
             std::cerr << "wide set iteration failed for N=" << N << ", K=" << K
@@ -489,13 +491,13 @@ bool check_wide_uint_set()
 
 bool check_wide_index_set()
 {
-    using T = jrmwng::popcount_ranges::stdx::uint_indices<8192, 2>;
+    using T = stdx::uint_indices<8192, 2>;
     using Set = jrmwng::popcount_ranges::set<T{}>;
     constexpr std::size_t expected_size = 8192u * 8191u / 2u;
 
-    static_assert(sizeof(T) < sizeof(jrmwng::popcount_ranges::stdx::uint<8192>));
+    static_assert(sizeof(T) < sizeof(stdx::uint<8192>));
     static_assert(std::numeric_limits<T>::digits == 8192);
-    static_assert(jrmwng::popcount_ranges::stdx::is_unsigned_v<T>);
+    static_assert(stdx::is_unsigned_v<T>);
 
     Set values;
     if (values.size() != expected_size)
@@ -546,10 +548,10 @@ bool check_wide_index_set()
 template <std::size_t N, std::size_t HoleCount>
 bool check_complement_index_set()
 {
-    using T = jrmwng::popcount_ranges::stdx::uint_complement_indices<N, HoleCount>;
+    using T = stdx::uint_complement_indices<N, HoleCount>;
     using Set = jrmwng::popcount_ranges::set<T{}>;
     using iterator = typename Set::iterator;
-    using HoleSetValue = jrmwng::popcount_ranges::stdx::uint_indices<N, HoleCount>;
+    using HoleSetValue = stdx::uint_indices<N, HoleCount>;
     using HoleSet = jrmwng::popcount_ranges::set<HoleSetValue{}>;
     constexpr std::size_t expected_size = static_cast<std::size_t>(
         jrmwng::popcount_ranges::nCr_read<T>(
@@ -558,7 +560,7 @@ bool check_complement_index_set()
     Set values;
     HoleSet holes;
     if (values.size() != expected_size ||
-        jrmwng::popcount_ranges::stdx::popcount(*values.begin()) != static_cast<int>(N - HoleCount))
+        stdx::popcount(*values.begin()) != static_cast<int>(N - HoleCount))
         return false;
 
     std::size_t rank = 0;
@@ -567,7 +569,7 @@ bool check_complement_index_set()
         auto const expected_holes = holes[expected_size - rank - 1u];
         iterator const current{value};
         if (value.is_sentinel ||
-            jrmwng::popcount_ranges::stdx::popcount(value) != static_cast<int>(N - HoleCount) ||
+            stdx::popcount(value) != static_cast<int>(N - HoleCount) ||
             values.begin() + static_cast<std::ptrdiff_t>(rank) != current)
             return false;
         for (std::size_t i = 0; i < HoleCount; ++i)
@@ -579,7 +581,7 @@ bool check_complement_index_set()
         std::size_t position = 0;
         std::size_t hole_index = 0;
         for (std::size_t set_position :
-             jrmwng::popcount_ranges::stdx::set_bit_positions(value))
+             stdx::set_bit_positions(value))
         {
             while (hole_index < HoleCount &&
                    expected_holes.indices[hole_index] == position)
@@ -619,11 +621,11 @@ bool check_complement_index_set()
 template <std::size_t N, std::size_t R>
 bool check_index_singleton_set()
 {
-    using T = jrmwng::popcount_ranges::stdx::uint_indices<N, R>;
+    using T = stdx::uint_indices<N, R>;
     using Set = jrmwng::popcount_ranges::set<T{}>;
     Set values;
     if (values.size() != 1u || values.begin() == values.end() ||
-        values[0] != *values.begin() || jrmwng::popcount_ranges::stdx::popcount(values[0]) != static_cast<int>(R))
+        values[0] != *values.begin() || stdx::popcount(values[0]) != static_cast<int>(R))
         return false;
 
     auto last = values.end();
@@ -791,8 +793,8 @@ int main()
 #else
     std::cout << "Running release exhaustive set tests..." << std::endl;
 
-    static_assert(sizeof(jrmwng::popcount_ranges::stdx::uint_complement_indices<8192, 2>) <
-                  sizeof(jrmwng::popcount_ranges::stdx::uint<8192>));
+    static_assert(sizeof(stdx::uint_complement_indices<8192, 2>) <
+                  sizeof(stdx::uint<8192>));
 
     if (!check_uint8_exhaustive_sets())
     {
