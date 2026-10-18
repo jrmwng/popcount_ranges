@@ -1,20 +1,13 @@
 #pragma once
 
-// This header selects the best available SIMD implementation based on
-// compiler-defined preprocessor macros. It provides the native_simd alias
-// that applications should use for portable, performance-optimized code.
+// This header selects an available SIMD implementation based on compiler
+// predefined macros. It provides the native SIMD aliases used by the library.
 //
 // The selection priority is:
-// 1. AVX-512 (__AVX512F__)
-// 2. AVX2 (__AVX2__)
-// 3. SSE4.1/4.2 (__SSE4_1__/__SSE4_2__)
-// 4. ARM NEON (__ARM_NEON)
-// 5. Scalar fallback (always available)
+// 1. AVX2 (__AVX2__ or _M_AVX2)
+// 2. SSE4.1/4.2 (__SSE4_1__ or __SSE4_2__)
 //
-// Note: Each SIMD implementation header (simd_avx2.hpp, etc.) can also be
-// included directly. When included alone, it will define native_simd based
-// on compiler flags. When multiple implementations are included, the first
-// included implementation that compiles will be selected.
+// Compilation fails when neither supported SIMD target is enabled.
 
 #include "simd.hpp"
 
@@ -28,7 +21,7 @@
 #include "simd_avx2.hpp"
 #endif
 
-#if defined(__SSE4_2__) || defined(__SSE4_1__) || defined(__AVX2__) || defined(_M_X64)
+#if defined(__SSE4_2__) || defined(__SSE4_1__) || defined(__AVX2__) || defined(_M_AVX2)
 #include "simd_sse4.hpp"
 #endif
 
@@ -40,6 +33,7 @@
 // #include "simd_neon.hpp"
 // #endif
 
-// Include implementations in reverse priority order so higher priority
-// implementations can override lower priority ones
-#include "simd_scalar.hpp"  // Always available fallback
+#if !defined(__AVX2__) && !defined(_M_AVX2) && \
+    !defined(__SSE4_1__) && !defined(__SSE4_2__)
+#error "popcount_ranges requires an AVX2 or SSE4.1/4.2 SIMD target; scalar SIMD is not supported"
+#endif

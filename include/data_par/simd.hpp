@@ -60,12 +60,6 @@ namespace jrmwng
         template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator==(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
         template <size_t Bytes, typename Abi> basic_mask<Bytes, Abi> operator!=(const basic_mask<Bytes, Abi>&, const basic_mask<Bytes, Abi>&) noexcept;
 
-        // ABI tag types
-        template <typename T>
-        struct simd_abi_scalar
-        {
-        };
-
         // Memory alignment flags for load/store operations
         struct convert_tag {};
         struct aligned_tag {};

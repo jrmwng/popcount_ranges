@@ -1,34 +1,61 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 
-project(popcount_ranges LANGUAGES CXX)
+project(popcount_ranges VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CTest)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 set(POPCOUNT_RANGES_SAMPLING_THRESHOLDS "1;2;4;8;12;16;20;24;28;32" CACHE STRING
     "Thresholds used to build sampling benchmark variants")
 
-function(configure_popcount_target target)
-    target_include_directories(${target}
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/include
-    )
+add_library(popcount_ranges INTERFACE)
+add_library(jrmwng::popcount_ranges ALIAS popcount_ranges)
 
-    if (MSVC)
-        target_compile_options(${target} PRIVATE /arch:AVX2)
-    else()
-        target_compile_options(${target} PRIVATE -mavx2)
-    endif()
-endfunction()
-
-add_executable(popcount_ranges
-    src/main.cpp
+target_compile_features(popcount_ranges INTERFACE cxx_std_23)
+target_include_directories(popcount_ranges INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-configure_popcount_target(popcount_ranges)
+if(MSVC)
+    target_compile_options(popcount_ranges INTERFACE /arch:AVX2)
+else()
+    target_compile_options(popcount_ranges INTERFACE -mavx2)
+endif()
+
+function(configure_popcount_target target)
+    target_link_libraries(${target} PRIVATE jrmwng::popcount_ranges)
+endfunction()
+
+set(popcount_ranges_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/popcount_ranges")
+configure_package_config_file(
+    cmake/popcount_rangesConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/popcount_rangesConfig.cmake"
+    INSTALL_DESTINATION "${popcount_ranges_cmake_dir}"
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/popcount_rangesConfigVersion.cmake"
+    VERSION "${PROJECT_VERSION}"
+    COMPATIBILITY SameMajorVersion
+)
+
+install(TARGETS popcount_ranges EXPORT popcount_rangesTargets)
+install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(EXPORT popcount_rangesTargets
+    FILE popcount_rangesTargets.cmake
+    NAMESPACE jrmwng::
+    DESTINATION "${popcount_ranges_cmake_dir}"
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/popcount_rangesConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/popcount_rangesConfigVersion.cmake"
+    DESTINATION "${popcount_ranges_cmake_dir}"
+)
 
 if(BUILD_TESTING)
     add_executable(uint_tests
