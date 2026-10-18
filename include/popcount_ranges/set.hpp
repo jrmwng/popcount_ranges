@@ -315,7 +315,7 @@ namespace jrmwng
                     constexpr std::size_t HOLE_COUNT =
                         std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
                     Tuint result{};
-                    [&]<std::size_t... Is>(std::uintmax_t remaining, std::size_t n,
+                    [&]<std::size_t... Is>([[maybe_unused]] std::uintmax_t remaining, [[maybe_unused]] std::size_t n,
                                            std::index_sequence<Is...>) {
                         (([&] {
                             constexpr std::size_t position = HOLE_COUNT - Is - 1u;
@@ -333,7 +333,7 @@ namespace jrmwng
                 else if constexpr (IS_INDEX_UINT)
                 {
                     Tuint result{};
-                    [&]<std::size_t... Is>(std::uintmax_t remaining, std::size_t n, std::index_sequence<Is...>) {
+                    [&]<std::size_t... Is>([[maybe_unused]] std::uintmax_t remaining, [[maybe_unused]] std::size_t n, std::index_sequence<Is...>) {
                         (([&] {
                             constexpr std::size_t position = zuPOPCOUNT - Is - 1u;
                             auto const [found_n, found_nCr] = nCr_search<Tuint>(

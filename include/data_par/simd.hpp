@@ -8,6 +8,12 @@ namespace jrmwng
 {
     namespace data_par
     {
+        template <size_t, typename T>
+        struct simd_repeated_type
+        {
+            using type = T;
+        };
+
         // Forward declarations
         template <typename T, typename Abi> class basic_vec;
         template <size_t Bytes, typename Abi> class basic_mask;

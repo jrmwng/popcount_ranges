@@ -17,8 +17,8 @@ bool check_case(std::vector<T> const& values, T target, Predicate predicate, cha
 {
     auto const expected = std::lower_bound(values.begin(), values.end(), target, predicate);
     auto const actual = jrmwng::popcount_ranges::lower_bound(values.data(), values.data() + values.size(), target, predicate);
-    auto const expected_index = static_cast<std::size_t>(expected - values.begin());
-    auto const actual_index = static_cast<std::size_t>(actual - values.data());
+    auto const expected_index = expected - values.begin();
+    auto const actual_index = actual - values.data();
 
     if (actual_index != expected_index)
     {

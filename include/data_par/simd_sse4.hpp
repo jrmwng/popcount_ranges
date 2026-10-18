@@ -326,9 +326,16 @@ namespace jrmwng
             static_assert(Bytes == sizeof(T), "Size mismatch in basic_mask for simd_abi_sse4");
 
             using vector_type = typename simd_abi_sse4<T>::mask_vector_type;
-            using tuple_type = std::tuple<int32_t, vector_type>;
+            struct tuple_type
+            {
+                int32_t mask{};
+                vector_type vector{};
+            };
 
             constexpr static int32_t const nMASK = simd_abi_sse4<T>::all_mask;
+
+            static int32_t get_value(tuple_type const& value, int32_t*) noexcept { return value.mask; }
+            static vector_type get_value(tuple_type const& value, vector_type*) noexcept { return value.vector; }
 
 
             template <typename Tgenerator>
@@ -341,9 +348,9 @@ namespace jrmwng
             }
 
             static vector_type mask_not(vector_type v) {
-                if constexpr (std::is_same_v<vector_type, __m128i>) {
+                if constexpr (Bytes <= 2) {
                     return _mm_xor_si128(v, _mm_set1_epi8(-1));
-                } else if constexpr (std::is_same_v<vector_type, __m128>) {
+                } else if constexpr (Bytes == 4) {
                     return _mm_xor_ps(v, _mm_castsi128_ps(_mm_set1_epi32(-1)));
                 } else {
                     return _mm_xor_pd(v, _mm_castsi128_pd(_mm_set1_epi64x(-1)));
@@ -351,9 +358,9 @@ namespace jrmwng
             }
 
             static vector_type mask_and(vector_type a, vector_type b) {
-                if constexpr (std::is_same_v<vector_type, __m128i>) {
+                if constexpr (Bytes <= 2) {
                     return _mm_and_si128(a, b);
-                } else if constexpr (std::is_same_v<vector_type, __m128>) {
+                } else if constexpr (Bytes == 4) {
                     return _mm_and_ps(a, b);
                 } else {
                     return _mm_and_pd(a, b);
@@ -361,9 +368,9 @@ namespace jrmwng
             }
 
             static vector_type mask_or(vector_type a, vector_type b) {
-                if constexpr (std::is_same_v<vector_type, __m128i>) {
+                if constexpr (Bytes <= 2) {
                     return _mm_or_si128(a, b);
-                } else if constexpr (std::is_same_v<vector_type, __m128>) {
+                } else if constexpr (Bytes == 4) {
                     return _mm_or_ps(a, b);
                 } else {
                     return _mm_or_pd(a, b);
@@ -371,9 +378,9 @@ namespace jrmwng
             }
 
             static vector_type mask_xor(vector_type a, vector_type b) {
-                if constexpr (std::is_same_v<vector_type, __m128i>) {
+                if constexpr (Bytes <= 2) {
                     return _mm_xor_si128(a, b);
-                } else if constexpr (std::is_same_v<vector_type, __m128>) {
+                } else if constexpr (Bytes == 4) {
                     return _mm_xor_ps(a, b);
                 } else {
                     return _mm_xor_pd(a, b);
@@ -422,7 +429,7 @@ namespace jrmwng
             template <typename U>
             U get() const noexcept
             {
-                return std::get<U>(m_tupleValue);
+                return get_value(m_tupleValue, static_cast<U*>(nullptr));
             }
 
             basic_mask() = default;
@@ -558,34 +565,34 @@ namespace jrmwng
                 : m_tupleValue(mask_from_generator(std::forward<Tgenerator>(gen), std::make_index_sequence<size>{}).m_tupleValue)
             {}
 
-            bool operator[](std::size_t i) const noexcept { return ((std::get<int32_t>(m_tupleValue) >> i) & 1) != 0; }
+            bool operator[](std::size_t i) const noexcept { return ((m_tupleValue.mask >> i) & 1) != 0; }
 
             friend basic_mask operator!(const basic_mask& a) noexcept {
-                return basic_mask(mask_not(std::get<vector_type>(a.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ nMASK);
+                return basic_mask(mask_not(a.m_tupleValue.vector), a.m_tupleValue.mask ^ nMASK);
             }
             friend basic_mask operator&(const basic_mask& a, const basic_mask& b) noexcept {
-                return basic_mask(mask_and(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) & std::get<int32_t>(b.m_tupleValue));
+                return basic_mask(mask_and(a.m_tupleValue.vector, b.m_tupleValue.vector), a.m_tupleValue.mask & b.m_tupleValue.mask);
             }
             friend basic_mask operator|(const basic_mask& a, const basic_mask& b) noexcept {
-                return basic_mask(mask_or(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) | std::get<int32_t>(b.m_tupleValue));
+                return basic_mask(mask_or(a.m_tupleValue.vector, b.m_tupleValue.vector), a.m_tupleValue.mask | b.m_tupleValue.mask);
             }
             friend basic_mask operator^(const basic_mask& a, const basic_mask& b) noexcept {
-                return basic_mask(mask_xor(std::get<vector_type>(a.m_tupleValue), std::get<vector_type>(b.m_tupleValue)), std::get<int32_t>(a.m_tupleValue) ^ std::get<int32_t>(b.m_tupleValue));
+                return basic_mask(mask_xor(a.m_tupleValue.vector, b.m_tupleValue.vector), a.m_tupleValue.mask ^ b.m_tupleValue.mask);
             }
 
             basic_mask& operator&=(const basic_mask& other) noexcept {
-                std::get<vector_type>(m_tupleValue) = mask_and(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
-                std::get<int32_t>(m_tupleValue) &= std::get<int32_t>(other.m_tupleValue);
+                m_tupleValue.vector = mask_and(m_tupleValue.vector, other.m_tupleValue.vector);
+                m_tupleValue.mask &= other.m_tupleValue.mask;
                 return *this;
             }
             basic_mask& operator|=(const basic_mask& other) noexcept {
-                std::get<vector_type>(m_tupleValue) = mask_or(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
-                std::get<int32_t>(m_tupleValue) |= std::get<int32_t>(other.m_tupleValue);
+                m_tupleValue.vector = mask_or(m_tupleValue.vector, other.m_tupleValue.vector);
+                m_tupleValue.mask |= other.m_tupleValue.mask;
                 return *this;
             }
             basic_mask& operator^=(const basic_mask& other) noexcept {
-                std::get<vector_type>(m_tupleValue) = mask_xor(std::get<vector_type>(m_tupleValue), std::get<vector_type>(other.m_tupleValue));
-                std::get<int32_t>(m_tupleValue) ^= std::get<int32_t>(other.m_tupleValue);
+                m_tupleValue.vector = mask_xor(m_tupleValue.vector, other.m_tupleValue.vector);
+                m_tupleValue.mask ^= other.m_tupleValue.mask;
                 return *this;
             }
         };
@@ -732,7 +739,7 @@ namespace jrmwng
                     (N <= simd_abi_sse4<T>::lanes),
                     simd_abi_sse4<T>,
                     decltype([]<size_t... Is>(std::index_sequence<Is...>) ->
-                        simd_abi_tuple<T, simd_abi_sse4<std::conditional_t<(Is == Is), T, T>>...> {
+                        simd_abi_tuple<T, simd_abi_sse4<typename simd_repeated_type<Is, T>::type>...> {
                             return {};
                         }(std::make_index_sequence<
                             (1u + (N - 1u) / simd_abi_sse4<T>::lanes)
