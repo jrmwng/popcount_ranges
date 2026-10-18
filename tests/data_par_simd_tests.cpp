@@ -68,11 +68,43 @@ bool check_vec_and_mask()
 
     return true;
 }
+
+template <typename T>
+bool check_range_mask()
+{
+    using traits = jrmwng::data_par::simd_range_traits<T>;
+    using simd_type = typename traits::simd_type;
+    using mask_type = typename traits::mask_type;
+
+    auto const valid_bits = traits::make_bitset(0, traits::simd_width / 2);
+    mask_type const valid_mask = traits::make_mask(valid_bits);
+    if (jrmwng::data_par::reduce_count(valid_mask) !=
+        static_cast<int>(traits::simd_width / 2))
+        return false;
+
+    simd_type const values([](auto index)
+    {
+        return static_cast<T>(index);
+    });
+    auto const comparison = values < simd_type(static_cast<T>(traits::simd_width / 2));
+    auto const combined = valid_mask & comparison;
+    if (jrmwng::data_par::reduce_count(combined) !=
+        static_cast<int>(traits::simd_width / 2))
+        return false;
+
+    auto const complement = !valid_mask;
+    return jrmwng::data_par::reduce_count(valid_mask | complement) ==
+               static_cast<int>(traits::simd_width) &&
+           jrmwng::data_par::reduce_count(valid_mask ^ complement) ==
+               static_cast<int>(traits::simd_width);
+}
 }
 
 int main()
 {
-    bool const passed = check_vec_and_mask<int>() && check_vec_and_mask<float>();
+    bool const passed = check_vec_and_mask<int>() && check_vec_and_mask<float>() &&
+                        check_range_mask<std::int32_t>() &&
+                        check_range_mask<std::uint64_t>();
     if (!passed)
     {
         std::cerr << "data_par SIMD API test failed\n";

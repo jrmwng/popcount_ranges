@@ -1,7 +1,8 @@
 # popcount_ranges
 
 `popcount_ranges` is a header-only C++23 library for working with fixed-popcount
-integer ranges, wide integers, and SIMD-assisted search.
+integer ranges, wide integers, and SIMD-assisted search. An optional C++26
+backend uses the standard `<simd>` header for `lower_bound`.
 
 ## Requirements
 
@@ -9,10 +10,28 @@ integer ranges, wide integers, and SIMD-assisted search.
 - An x86 CPU with AVX2 support when using the CMake target. The target propagates
   the AVX2 compiler option to consumers.
 - CMake 3.20 or newer.
+- When using the standard SIMD backend, a C++26 compiler and standard library
+  providing `<simd>`.
 
-The `data_par` SIMD facility has no scalar backend. Including
+By default, `lower_bound` uses the existing `data_par` SIMD implementation. The
+`data_par` SIMD facility has no scalar backend. Including
 `data_par/simd_native.hpp` without an AVX2 or SSE4.1/4.2 compiler target produces
 a compile-time error. The normal CMake target builds for AVX2.
+
+The CMake option `POPCOUNT_RANGES_SIMD` selects the C++26 `<simd>` backend for
+`lower_bound` and raises the target language requirement to C++26:
+
+```text
+cmake -S . -B build -DPOPCOUNT_RANGES_SIMD=ON
+```
+
+The corresponding preprocessor macro is numeric: define
+`POPCOUNT_RANGES_SIMD=1` to select `<simd>` or `0` (the default) to select the
+existing `data_par/simd_*.hpp` implementation. The custom
+`data_par/simd_range.hpp` range and `simd_short_range` interfaces are retained
+for both backends; the header maps their vector, mask, load, and mask-count
+operations to the selected implementation rather than replacing these range
+types with standard-library ranges.
 
 ## Build and install
 

@@ -6,7 +6,6 @@
 #include <execution>
 #include <array>
 
-#include <data_par/simd_native.hpp>
 #include <data_par/simd_range.hpp>
 
 namespace jrmwng

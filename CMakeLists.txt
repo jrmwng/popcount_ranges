@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(POPCOUNT_RANGES_SIMD "Use the C++26 <simd> implementation" OFF)
+
 include(CTest)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -17,6 +19,16 @@ add_library(popcount_ranges INTERFACE)
 add_library(jrmwng::popcount_ranges ALIAS popcount_ranges)
 
 target_compile_features(popcount_ranges INTERFACE cxx_std_23)
+if(POPCOUNT_RANGES_SIMD)
+    if(MSVC)
+        target_compile_options(popcount_ranges INTERFACE /std:c++latest)
+    else()
+        target_compile_options(popcount_ranges INTERFACE -std=c++2c)
+    endif()
+endif()
+target_compile_definitions(popcount_ranges INTERFACE
+    POPCOUNT_RANGES_SIMD=$<BOOL:${POPCOUNT_RANGES_SIMD}>
+)
 target_include_directories(popcount_ranges INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -114,6 +126,12 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
 
     configure_popcount_target(sampling_benchmark)
     target_compile_definitions(sampling_benchmark PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=4u)
+
+    add_executable(simd_adapter_benchmark
+        benchmarks/simd_adapter_benchmark.cpp
+    )
+
+    configure_popcount_target(simd_adapter_benchmark)
 
     foreach(threshold IN LISTS POPCOUNT_RANGES_SAMPLING_THRESHOLDS)
         if(NOT threshold MATCHES "^[0-9]+$")

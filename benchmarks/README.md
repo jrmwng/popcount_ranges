@@ -42,6 +42,17 @@ additional calls for distribution rejection. The standard library's engine-call 
 is implementation-dependent, so the benchmark measures it instead of assuming it
 equals `N`.
 
+The `simd_adapter_benchmark` executable measures bitset-to-mask construction,
+native comparison-mask conversion, reduction of preconstructed comparison masks,
+and full-width SIMD loads separately. Build and run it in Release mode with
+`POPCOUNT_RANGES_SIMD=OFF` and `ON` to compare the legacy and standard SIMD
+backends. In standard SIMD mode,
+`POPCOUNT_RANGES_SIMD_MASK_BITSET` defaults to `1`, enabling the dual
+bitset/native-mask representation; set it to `0` (for example with
+`-DCMAKE_CXX_FLAGS=-DPOPCOUNT_RANGES_SIMD_MASK_BITSET=0`) to measure native
+standard masks without the wrapper. Keep compiler, optimization level, CPU, and
+run conditions the same when comparing CSV rows.
+
 The sampling executable reports the compiled `POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD`
 only on `popcount_ranges` rows; the threshold column is blank for `std_sample`, which
 is independent of that setting. CMake builds the default `sampling_benchmark` at
