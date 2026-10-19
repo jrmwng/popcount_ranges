@@ -81,4 +81,19 @@ Include the API headers directly, for example:
 #include <popcount_ranges/set.hpp>
 ```
 
+## Fixed-popcount sets
+
+`set<N, R, Tuint>` enumerates the `N`-bit unsigned values whose popcount is
+`R`. `Tuint` defaults to the native register type for `N` equal to 8, 16, 32,
+or 64. For every other width it defaults to the sparse
+`stdx::uint_indices<N, R>` representation. Supply an exact-width
+representation explicitly to opt into a dense bitset:
+
+```cpp
+using byte_pairs = jrmwng::popcount_ranges::set<8, 2>;
+using sparse_pairs = jrmwng::popcount_ranges::set<8192, 2>;
+using dense_pairs =
+    jrmwng::popcount_ranges::set<8192, 2, jrmwng::popcount_ranges::stdx::uint<8192>>;
+```
+
 See [benchmarks/README.md](benchmarks/README.md) for benchmark targets and usage.

@@ -20,7 +20,7 @@ the value type for `set`, for example:
 
 ```cpp
 using sparse_value = jrmwng::popcount_ranges::stdx::uint_indices<8192, 2>;
-using sparse_set = jrmwng::popcount_ranges::set<sparse_value{}>;
+using sparse_set = jrmwng::popcount_ranges::set<8192, 2>;
 ```
 
 `stdx::uint_indices<N, R>` exposes sorted set-bit positions through `indices`.
@@ -32,7 +32,7 @@ every other position.
 Use `--quick` for a smoke test. Omit it for the wider distance sweep. Use Release or RelWithDebInfo for timing; Debug results are useful only for correctness and diagnostics. Timing results depend on the compiler, CPU, and system load, so capture them locally rather than committing CSV output.
 
 The `sampling` executable compares `std::sample` with sampling a uniformly selected
-`popcount_ranges::set<R>` rank and then enumerating its set-bit positions. Each CSV
+`popcount_ranges::set<N, R>` rank and then enumerating its set-bit positions. Each CSV
 row reports total sample time, a separately measured raw-`std::mt19937` baseline for
 the observed number of engine calls, the difference, and actual engine invocations
 per sample. The popcount-ranges path makes one logical uniform-rank request per

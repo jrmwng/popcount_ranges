@@ -65,7 +65,9 @@ double measure_mt19937_ns_per_sample(std::size_t calls, std::size_t repetitions)
     return elapsed / static_cast<double>(repetitions);
 }
 
-template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
+template <typename T, T R,
+          typename Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                                       static_cast<std::size_t>(R), T>>
 std::uint64_t popcount_sample(std::vector<std::uint32_t> const& population,
                               counting_mt19937& generator)
 {
@@ -80,7 +82,9 @@ std::uint64_t popcount_sample(std::vector<std::uint32_t> const& population,
     return checksum;
 }
 
-template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
+template <typename T, T R,
+          typename Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                                       static_cast<std::size_t>(R), T>>
 void run_case(std::string_view type_name, std::size_t repetitions)
 {
     constexpr auto N = static_cast<std::size_t>(std::numeric_limits<T>::digits);
@@ -136,7 +140,9 @@ void run_case(std::string_view type_name, std::size_t repetitions)
               << standard_checksum << '\n';
 }
 
-template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
+template <typename T, T R,
+          typename Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                                       static_cast<std::size_t>(R), T>>
 void benchmark_case(std::string_view type_name, bool quick)
 {
     run_case<T, R, Set>(type_name, quick ? 1'000u : 100'000u);
@@ -153,7 +159,9 @@ std::size_t unrank_search_steps(std::size_t n, std::uintmax_t remaining)
         return found_n + unrank_search_steps<T, R - 1>(found_n, remaining - found_nCr);
 }
 
-template <typename T, T R, typename Set = jrmwng::popcount_ranges::set<R>>
+template <typename T, T R,
+          typename Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                                       static_cast<std::size_t>(R), T>>
 bool decompose_case(std::string_view type_name, std::size_t repetitions)
 {
     constexpr std::size_t N = static_cast<std::size_t>(std::numeric_limits<T>::digits);

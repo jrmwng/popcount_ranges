@@ -52,7 +52,8 @@ void run_case(std::string_view type_name, std::size_t reduce_count, std::string_
 template <typename T, T Popcount>
 void benchmark_set(std::string_view type_name, bool quick)
 {
-    using Set = jrmwng::popcount_ranges::set<Popcount>;
+    using Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                              static_cast<std::size_t>(Popcount), T>;
     constexpr auto total = static_cast<std::size_t>(jrmwng::popcount_ranges::nCr_read<T>(
         std::numeric_limits<T>::digits, std::integral_constant<std::size_t, Popcount>{}));
     std::vector<std::size_t> distances{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};

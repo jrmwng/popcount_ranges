@@ -21,36 +21,70 @@ namespace jrmwng
         template <typename Tuint, std::size_t R>
         constexpr decltype(auto) nCr_search(std::size_t n_first, std::size_t n_last, uintmax_t target, std::integral_constant<std::size_t, R>) noexcept;
 
-        template <auto uPOPCOUNT>
+        template <std::size_t N, std::size_t R>
+        struct default_set_uint
+        {
+            using type = stdx::uint_indices<N, R>;
+        };
+
+        template <std::size_t R>
+        struct default_set_uint<8u, R>
+        {
+            using type = std::uint8_t;
+        };
+
+        template <std::size_t R>
+        struct default_set_uint<16u, R>
+        {
+            using type = std::uint16_t;
+        };
+
+        template <std::size_t R>
+        struct default_set_uint<32u, R>
+        {
+            using type = std::uint32_t;
+        };
+
+        template <std::size_t R>
+        struct default_set_uint<64u, R>
+        {
+            using type = std::uint64_t;
+        };
+
+        template <std::size_t N, std::size_t R>
+        using default_set_uint_t = typename default_set_uint<N, R>::type;
+
+        template <std::size_t N, std::size_t R, typename Tuint = default_set_uint_t<N, R>>
         class set;
 
         template <typename Tuint, std::size_t R>
         struct set_complement
         {
-            using type = set<Tuint{std::numeric_limits<Tuint>::digits - R}>;
+            using type = set<std::numeric_limits<Tuint>::digits,
+                             std::numeric_limits<Tuint>::digits - R, Tuint>;
         };
 
         template <std::size_t N, std::size_t CurrentR, std::size_t R>
         struct set_complement<stdx::uint_indices<N, CurrentR>, R>
         {
-            using type = set<stdx::uint_indices<N, N - R>{}>;
+            using type = set<N, N - R, stdx::uint_indices<N, N - R>>;
         };
 
         template <std::size_t N, std::size_t HoleCount, std::size_t R>
         struct set_complement<stdx::uint_complement_indices<N, HoleCount>, R>
         {
-            using type = set<stdx::uint_indices<N, HoleCount>{}>;
+            using type = set<N, N - R, stdx::uint_indices<N, HoleCount>>;
         };
 
         // A set of unsigned integers having the same `std::popcount` result.
-        template <auto uPOPCOUNT>
+        template <std::size_t N, std::size_t R, typename Tuint>
         class set
         {
-            inline constexpr static std::size_t zuPOPCOUNT = uPOPCOUNT;
-
-            using Tuint = decltype(uPOPCOUNT);
+            inline constexpr static std::size_t zuPOPCOUNT = R;
             static_assert(stdx::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
-            static_assert(zuPOPCOUNT <= std::numeric_limits<Tuint>::digits, "set: uPOPCOUNT must be less than or equal to the number of bits in Tuint");
+            static_assert(N == std::numeric_limits<Tuint>::digits,
+                          "set: Tuint must have exactly N value bits");
+            static_assert(zuPOPCOUNT <= N, "set: R must be less than or equal to N");
             inline constexpr static bool IS_INDEX_UINT = requires(Tuint value) { value.indices; value.is_sentinel; };
             inline constexpr static bool IS_COMPLEMENT_INDEX = requires { Tuint::is_complement_index; };
 
@@ -226,7 +260,8 @@ namespace jrmwng
 
             constexpr static std::uintmax_t rank(Tuint value) noexcept
             {
-                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<std::size_t, uPOPCOUNT>{});
+                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits,
+                                                        std::integral_constant<std::size_t, zuPOPCOUNT>{});
 
                 if (value == SENTINEL)
                     return TOTAL;
@@ -356,8 +391,8 @@ namespace jrmwng
                         if constexpr (sizeof...(Is) == 0)
                             return;
                         else
-                            (([&](auto R){
-                                // R = uPOPCOUNT, uPOPCOUNT-1, ..., 1
+                            (([&](auto count){
+                                // count = R, R-1, ..., 1
 
                                 // if constexpr (R == 2)
                                 // {
@@ -365,7 +400,8 @@ namespace jrmwng
                                 //     n = ::std::min<size_t>(n, static_cast<std::size_t>(n_max));
                                 // }
 
-                                auto const [found_n, found_nCr] = nCr_search<Tuint>(R, n, remaining, R);
+                                auto const [found_n, found_nCr] =
+                                    nCr_search<Tuint>(count, n, remaining, count);
                                 n = found_n;
                                 remaining -= found_nCr;
 
@@ -394,12 +430,12 @@ namespace jrmwng
                 #ifdef _DEBUG
                 if (first != SENTINEL)
                 {
-                    if (stdx::popcount(first) != static_cast<int>(uPOPCOUNT))
+                    if (stdx::popcount(first) != static_cast<int>(zuPOPCOUNT))
                         throw std::invalid_argument("set: first does not have the required reduce_count");
                 }
                 if (last != SENTINEL)
                 {
-                    if (stdx::popcount(last) != static_cast<int>(uPOPCOUNT))
+                    if (stdx::popcount(last) != static_cast<int>(zuPOPCOUNT))
                         throw std::invalid_argument("set: last does not have the required reduce_count");
                     if (first == SENTINEL)
                         throw std::invalid_argument("set: last is not sentinel but first is");
@@ -648,8 +684,8 @@ namespace jrmwng
                 return unrank(index);
             }
         };
-        template <auto uPOPCOUNT>
-        constexpr set<uPOPCOUNT>::iterator::iterator(reverse_iterator const& it) noexcept
+        template <std::size_t N, std::size_t R, typename Tuint>
+        constexpr set<N, R, Tuint>::iterator::iterator(reverse_iterator const& it) noexcept
             : m_value([&] {
                 if constexpr (IS_INDEX_UINT)
                     return it.m_value.is_sentinel ? INITIAL : GospersHack(it.m_value);

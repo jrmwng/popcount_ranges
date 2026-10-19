@@ -52,7 +52,7 @@ bool throws_invalid_argument(Function&& function)
 
 bool check_constructor_exceptions()
 {
-    using Set = jrmwng::popcount_ranges::set<std::uint8_t{2}>;
+    using Set = jrmwng::popcount_ranges::set<8, 2>;
     auto const sentinel = *Set().end();
 
     // 1. first does not have required reduce_count
@@ -88,7 +88,7 @@ bool check_constructor_exceptions()
 
 bool check_iterator_exception_bounds()
 {
-    using Set = jrmwng::popcount_ranges::set<std::uint8_t{2}>;
+    using Set = jrmwng::popcount_ranges::set<8, 2>;
     Set set;
 
     // 1. Incrementing past end
@@ -136,7 +136,8 @@ bool check_iterator_exception_bounds()
 template <typename T, T Popcount>
 bool check_iterator_operators()
 {
-    using Set = jrmwng::popcount_ranges::set<Popcount>;
+    using Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                              static_cast<std::size_t>(Popcount)>;
     using difference_type = typename Set::iterator::difference_type;
 
     Set set;
@@ -238,7 +239,8 @@ bool check_iterator_operators()
 template <typename T, T Popcount>
 bool check_exhaustive_set(std::size_t expected_size)
 {
-    using Set = jrmwng::popcount_ranges::set<Popcount>;
+    using Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                              static_cast<std::size_t>(Popcount)>;
     Set set;
     std::size_t size = 0;
     T previous = 0;
@@ -356,7 +358,8 @@ bool check_exhaustive_set(std::size_t expected_size)
 template <typename T, T Popcount>
 bool check_range_and_jump_operations()
 {
-    using Set = jrmwng::popcount_ranges::set<Popcount>;
+    using Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
+                                              static_cast<std::size_t>(Popcount)>;
     using difference_type = typename Set::iterator::difference_type;
 
     static_assert(std::bidirectional_iterator<typename Set::iterator>);
@@ -432,7 +435,7 @@ template <std::size_t N, std::size_t K>
 bool check_wide_uint_set()
 {
     using T = stdx::uint<N>;
-    using Set = jrmwng::popcount_ranges::set<T{K}>;
+    using Set = jrmwng::popcount_ranges::set<N, K, T>;
     constexpr std::size_t r = K < N - K ? K : N - K;
     constexpr std::size_t expected_size = [] {
         std::size_t result = 1;
@@ -492,12 +495,13 @@ bool check_wide_uint_set()
 bool check_wide_index_set()
 {
     using T = stdx::uint_indices<8192, 2>;
-    using Set = jrmwng::popcount_ranges::set<T{}>;
+    using Set = jrmwng::popcount_ranges::set<8192, 2>;
     constexpr std::size_t expected_size = 8192u * 8191u / 2u;
 
     static_assert(sizeof(T) < sizeof(stdx::uint<8192>));
     static_assert(std::numeric_limits<T>::digits == 8192);
     static_assert(stdx::is_unsigned_v<T>);
+    static_assert(std::same_as<typename Set::iterator::value_type, T>);
 
     Set values;
     if (values.size() != expected_size)
@@ -549,10 +553,10 @@ template <std::size_t N, std::size_t HoleCount>
 bool check_complement_index_set()
 {
     using T = stdx::uint_complement_indices<N, HoleCount>;
-    using Set = jrmwng::popcount_ranges::set<T{}>;
+    using Set = jrmwng::popcount_ranges::set<N, N - HoleCount, T>;
     using iterator = typename Set::iterator;
     using HoleSetValue = stdx::uint_indices<N, HoleCount>;
-    using HoleSet = jrmwng::popcount_ranges::set<HoleSetValue{}>;
+    using HoleSet = jrmwng::popcount_ranges::set<N, HoleCount, HoleSetValue>;
     constexpr std::size_t expected_size = static_cast<std::size_t>(
         jrmwng::popcount_ranges::nCr_read<T>(
             N, std::integral_constant<std::size_t, HoleCount>{}));
@@ -622,7 +626,7 @@ template <std::size_t N, std::size_t R>
 bool check_index_singleton_set()
 {
     using T = stdx::uint_indices<N, R>;
-    using Set = jrmwng::popcount_ranges::set<T{}>;
+    using Set = jrmwng::popcount_ranges::set<N, R, T>;
     Set values;
     if (values.size() != 1u || values.begin() == values.end() ||
         values[0] != *values.begin() || stdx::popcount(values[0]) != static_cast<int>(R))
