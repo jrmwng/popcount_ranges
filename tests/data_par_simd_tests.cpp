@@ -110,16 +110,17 @@ bool check_bitset_range_mask()
     using traits = jrmwng::data_par::simd_range_traits<
         T, typename default_traits::simd_type::abi_type, bitset_type>;
     using short_range_type = typename traits::short_type;
-    using long_range_type =
-        jrmwng::data_par::simd_range<T, typename traits::simd_type::abi_type, bitset_type>;
+    using long_range_type = typename traits::long_type;
     using native_mask_type = typename default_traits::simd_type::mask_type;
     using native_short_range_type =
         jrmwng::data_par::simd_short_range<T, typename traits::simd_type::abi_type, native_mask_type>;
     using default_short_range_type = jrmwng::data_par::simd_short_range<T>;
-    using default_long_range_type = jrmwng::data_par::simd_range<T>;
+    using default_long_range_type = jrmwng::data_par::simd_range_traits<T>::long_type;
 
     static_assert(std::same_as<typename short_range_type::mask_type, bitset_type>);
     static_assert(std::same_as<typename long_range_type::mask_type, bitset_type>);
+    static_assert(std::same_as<typename default_long_range_type::mask_type,
+                               typename default_traits::mask_type>);
     static_assert(std::same_as<typename native_short_range_type::mask_type, native_mask_type>);
 
     constexpr std::size_t count = traits::simd_width + 2;

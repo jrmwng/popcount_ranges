@@ -36,6 +36,16 @@ namespace jrmwng
         template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
                   typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
 #endif
+            requires std::is_arithmetic_v<T>
+        class simd_long_range;
+
+#if POPCOUNT_RANGES_SIMD
+        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
+                  typename Tmask = typename std::simd::basic_vec<T, Tsimd_abi>::mask_type>
+#else
+        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
+                  typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
+#endif
         struct simd_range_traits
         {
 #if POPCOUNT_RANGES_SIMD
@@ -48,6 +58,7 @@ namespace jrmwng
 
             using bitset_type = std::bitset<simd_width>;
             using short_type = simd_short_range<T, Tsimd_abi, mask_type>;
+            using long_type = simd_long_range<T, Tsimd_abi, mask_type>;
 
             template <typename Tcount_mask>
             static int reduce_count(Tcount_mask const &mask) noexcept
@@ -230,14 +241,12 @@ namespace jrmwng
         //   Example: offset 2, end 6, width=8 → bits 2-5 set (0b00111100) = 4 valid elements
         //   Load uses reduce_count(combined_mask) = 4, not full simd_width
 #if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
-                  typename Tmask = typename simd_range_traits<T, Tsimd_abi>::mask_type>
+        template <typename T, typename Tsimd_abi, typename Tmask>
 #else
-        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
-                  typename Tmask = typename simd_range_traits<T, Tsimd_abi>::mask_type>
+        template <typename T, typename Tsimd_abi, typename Tmask>
 #endif
             requires std::is_arithmetic_v<T>
-        class simd_range
+        class simd_long_range
         {
         public:
             using traits = simd_range_traits<T, Tsimd_abi, Tmask>;
@@ -334,7 +343,7 @@ namespace jrmwng
             
             template <std::ranges::contiguous_range R>
                 requires std::is_arithmetic_v<T> && std::same_as<std::ranges::range_value_t<R>, T>
-            simd_range(R && data)
+            simd_long_range(R && data)
                 : m_tupleIterator
                 (
                     traits::align_floor(std::ranges::data(data)),
@@ -377,7 +386,7 @@ namespace jrmwng
             }
         };
 
-        // For long range, we use `simd_range` to perform vector-aligned loads
+        // For long range, we use `simd_long_range` to perform vector-aligned loads
         // For short range, we use `simd_short_range` to perform element-wise aligned loads
 #if POPCOUNT_RANGES_SIMD
         template <typename T, typename Tsimd_abi, typename Tmask>
