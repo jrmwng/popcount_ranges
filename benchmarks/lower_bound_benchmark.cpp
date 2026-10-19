@@ -61,12 +61,13 @@ void benchmark_type(std::string_view type_name, bool quick)
         {
             std::vector<T> values(size);
             for (std::size_t index = 0; index < size; ++index)
+            {
+                std::size_t const value_index = descending ? size - index - 1u : index;
                 values[index] = static_cast<T>(size == 1
                     ? 0
-                    : (index * (static_cast<std::size_t>(std::numeric_limits<T>::max()) / (size - 1)))
-                        + (index * (static_cast<std::size_t>(std::numeric_limits<T>::max()) % (size - 1))) / (size - 1));
-            if (descending)
-                std::reverse(values.begin(), values.end());
+                    : (value_index * (static_cast<std::size_t>(std::numeric_limits<T>::max()) / (size - 1)))
+                        + (value_index * (static_cast<std::size_t>(std::numeric_limits<T>::max()) % (size - 1))) / (size - 1));
+            }
 
             std::vector<T> queries;
             for (std::size_t index : {std::size_t{0}, size / 4, size / 2, (size * 3) / 4, size - 1})
