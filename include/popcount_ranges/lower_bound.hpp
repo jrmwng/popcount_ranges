@@ -38,8 +38,12 @@ namespace jrmwng
 
                     if (!pred(next[-1], target)) [[unlikely]]
                     {
-                        using traits = data_par::simd_range_traits<type>;
-                        using mask_type = std::bitset<traits::simd_width>;
+                        using default_traits = data_par::simd_range_traits<type>;
+                        using mask_type = std::bitset<default_traits::simd_width>;
+                        using traits = data_par::simd_range_traits<
+                            type, typename default_traits::simd_type::abi_type, mask_type>;
+                        using range_type = typename traits::short_type;
+                        using simd_type = typename traits::simd_type;
 
                         return it + []<size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>)->int {
 
@@ -48,18 +52,18 @@ namespace jrmwng
 
                             // (pred(chunk0, target), pred(chunk1, target), ...)
                             std::tuple tupleCompare(traits::mask_to_bitset(
-                                pred(std::get<typename traits::simd_type>(std::get<Is>(tuplePair)), target))...);
+                                pred(std::get<simd_type>(std::get<Is>(tuplePair)), target))...);
 
                             // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
                             std::tuple tupleResult((std::get<1>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
                             
                             // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
-                            std::tuple tuplePopcount(data_par::reduce_count(std::get<Is>(tupleResult))...);
+                            std::tuple tuplePopcount(traits::reduce_count(std::get<Is>(tupleResult))...);
 
                             // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
                             return (std::get<Is>(tuplePopcount) + ...);
 
-                        }(data_par::simd_short_range<type, typename traits::simd_type::abi_type, mask_type>(it, next),
+                        }(range_type(it, next),
                           target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});
                     }
 

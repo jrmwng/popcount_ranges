@@ -26,6 +26,16 @@ namespace jrmwng
         template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
                   typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
 #endif
+            requires std::is_arithmetic_v<T>
+        class simd_short_range;
+
+#if POPCOUNT_RANGES_SIMD
+        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
+                  typename Tmask = typename std::simd::basic_vec<T, Tsimd_abi>::mask_type>
+#else
+        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
+                  typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
+#endif
         struct simd_range_traits
         {
 #if POPCOUNT_RANGES_SIMD
@@ -37,6 +47,27 @@ namespace jrmwng
             inline constexpr static std::size_t simd_width = simd_type::size();
 
             using bitset_type = std::bitset<simd_width>;
+            using short_type = simd_short_range<T, Tsimd_abi, mask_type>;
+
+            template <typename Tcount_mask>
+            static int reduce_count(Tcount_mask const &mask) noexcept
+            {
+                if constexpr (requires { mask.count(); })
+                {
+                    return static_cast<int>(mask.count());
+                }
+#if POPCOUNT_RANGES_SIMD
+                else
+                {
+                    return static_cast<int>(std::simd::reduce_count(mask));
+                }
+#else
+                else
+                {
+                    return data_par::reduce_count(mask);
+                }
+#endif
+            }
 
             template <typename Tsource_mask>
             static bitset_type mask_to_bitset(Tsource_mask const &mask)
@@ -349,11 +380,9 @@ namespace jrmwng
         // For long range, we use `simd_range` to perform vector-aligned loads
         // For short range, we use `simd_short_range` to perform element-wise aligned loads
 #if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
-                  typename Tmask = typename simd_range_traits<T, Tsimd_abi>::mask_type>
+        template <typename T, typename Tsimd_abi, typename Tmask>
 #else
-        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
-                  typename Tmask = typename simd_range_traits<T, Tsimd_abi>::mask_type>
+        template <typename T, typename Tsimd_abi, typename Tmask>
 #endif
             requires std::is_arithmetic_v<T>
         class simd_short_range

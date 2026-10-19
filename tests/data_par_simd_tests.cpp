@@ -105,16 +105,16 @@ bool check_range_mask()
 template <typename T>
 bool check_bitset_range_mask()
 {
-    using traits = jrmwng::data_par::simd_range_traits<T>;
-    using abi_type = typename traits::simd_type::abi_type;
-    using bitset_type = std::bitset<traits::simd_width>;
-    using short_range_type =
-        jrmwng::data_par::simd_short_range<T, abi_type, bitset_type>;
+    using default_traits = jrmwng::data_par::simd_range_traits<T>;
+    using bitset_type = std::bitset<default_traits::simd_width>;
+    using traits = jrmwng::data_par::simd_range_traits<
+        T, typename default_traits::simd_type::abi_type, bitset_type>;
+    using short_range_type = typename traits::short_type;
     using long_range_type =
-        jrmwng::data_par::simd_range<T, abi_type, bitset_type>;
-    using native_mask_type = typename traits::simd_type::mask_type;
+        jrmwng::data_par::simd_range<T, typename traits::simd_type::abi_type, bitset_type>;
+    using native_mask_type = typename default_traits::simd_type::mask_type;
     using native_short_range_type =
-        jrmwng::data_par::simd_short_range<T, abi_type, native_mask_type>;
+        jrmwng::data_par::simd_short_range<T, typename traits::simd_type::abi_type, native_mask_type>;
     using default_short_range_type = jrmwng::data_par::simd_short_range<T>;
     using default_long_range_type = jrmwng::data_par::simd_range<T>;
 
@@ -130,7 +130,7 @@ bool check_bitset_range_mask()
     short_range_type const short_range(first, last);
     std::size_t short_valid_count = 0;
     for (auto const &chunk : short_range)
-        short_valid_count += std::get<1>(chunk).count();
+        short_valid_count += traits::reduce_count(std::get<1>(chunk));
     if (short_valid_count != count)
         return false;
 
