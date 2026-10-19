@@ -771,6 +771,139 @@ bool check_uint64_exhaustive_sets()
         return false;
     return true;
 }
+
+template <std::size_t N, std::size_t R>
+bool check_small_register_set()
+{
+    using Set = jrmwng::popcount_ranges::set<N, R>;
+    using Tuint = typename Set::iterator::value_type;
+    constexpr auto limit = std::uint32_t{1} << N;
+
+    static_assert(std::numeric_limits<Tuint>::digits >= N);
+    static_assert(N <= 8 ? std::same_as<Tuint, std::uint8_t>
+                  : N <= 16 ? std::same_as<Tuint, std::uint16_t>
+                            : true);
+    auto const fail = [](char const* step)
+    {
+        std::cerr << "small register set failure at " << step << " for N=" << N << ", R=" << R << '\n';
+        return false;
+    };
+
+    Set values;
+    std::vector<Tuint> expected;
+    for (std::uint32_t value = 0; value < limit; ++value)
+    {
+        if (std::popcount(value) == static_cast<int>(R))
+            expected.push_back(static_cast<Tuint>(value));
+    }
+
+    if (values.size() != expected.size() ||
+        values.end() - values.begin() != static_cast<std::ptrdiff_t>(expected.size()))
+        return fail("size");
+    if (values.rend() - values.rbegin() != static_cast<std::ptrdiff_t>(expected.size()))
+        return fail("reverse distance");
+
+    std::size_t index = 0;
+    for (auto value : values)
+    {
+        if (value != expected[index] || values[index] != expected[index])
+            return fail("forward");
+        ++index;
+    }
+    if (index != expected.size())
+        return false;
+
+    index = expected.size();
+    for (auto iterator = values.rbegin(); iterator != values.rend(); ++iterator)
+    {
+        if (*iterator != expected[--index])
+            return fail("reverse");
+    }
+
+    if (expected.size() > 2)
+    {
+        auto const first = expected[expected.size() / 3];
+        auto const last = expected[(expected.size() * 2) / 3];
+        Set bounded{first, last};
+        if (*bounded.begin() != first || *bounded.end() != last ||
+            bounded.size() != (expected.size() * 2) / 3 - expected.size() / 3)
+            return fail("bounded");
+    }
+
+    return true;
+}
+
+template <std::size_t N, std::size_t... Rs>
+bool check_small_register_width(std::index_sequence<Rs...>)
+{
+    return (check_small_register_set<N, Rs>() && ...);
+}
+
+template <std::size_t N>
+bool check_register_edge_width()
+{
+    using SingletonSet = jrmwng::popcount_ranges::set<N, 1>;
+    using NearFullSet = jrmwng::popcount_ranges::set<N, N - 1>;
+    using PairSet = jrmwng::popcount_ranges::set<N, 2>;
+    using Tuint = typename SingletonSet::iterator::value_type;
+    constexpr auto mask = (std::uint64_t{1} << N) - 1u;
+    static_assert(std::numeric_limits<Tuint>::digits >= N);
+
+    SingletonSet singletons;
+    NearFullSet near_full;
+    PairSet pairs;
+    if (singletons.size() != N || near_full.size() != N ||
+        pairs.size() != N * (N - 1u) / 2u)
+        return false;
+
+    std::size_t index = 0;
+    for (Tuint value : singletons)
+    {
+        if (value != (Tuint{1} << index))
+            return false;
+        ++index;
+    }
+    if (index != N)
+        return false;
+
+    index = 0;
+    for (std::size_t high_bit = 1; high_bit < N; ++high_bit)
+    {
+        for (std::size_t low_bit = 0; low_bit < high_bit; ++low_bit)
+        {
+            auto const expected = static_cast<Tuint>(
+                (std::uint64_t{1} << high_bit) | (std::uint64_t{1} << low_bit));
+            if (pairs[index] != expected ||
+                *(pairs.begin() + static_cast<std::ptrdiff_t>(index)) != expected ||
+                typename PairSet::iterator{expected} - pairs.begin() != static_cast<std::ptrdiff_t>(index))
+                return false;
+            ++index;
+        }
+    }
+    if (index != pairs.size())
+        return false;
+
+    index = 0;
+    for (Tuint value : near_full)
+    {
+        auto const missing_bit = N - index - 1u;
+        if (value != static_cast<Tuint>(mask ^ (std::uint64_t{1} << missing_bit)))
+            return false;
+        ++index;
+    }
+    if (index != N)
+        return false;
+
+    index = 0;
+    for (auto iterator = near_full.rbegin(); iterator != near_full.rend(); ++iterator)
+    {
+        auto const missing_bit = index;
+        if (*iterator != static_cast<Tuint>(mask ^ (std::uint64_t{1} << missing_bit)))
+            return false;
+        ++index;
+    }
+    return index == N;
+}
 }
 
 int main()
@@ -822,6 +955,25 @@ int main()
     {
         std::cerr << "uint64_t exhaustive cases failed\n";
         return 4;
+    }
+
+    if (!check_small_register_width<1>(std::make_index_sequence<2>{}) ||
+        !check_small_register_width<3>(std::make_index_sequence<4>{}) ||
+        !check_small_register_width<5>(std::make_index_sequence<6>{}) ||
+        !check_small_register_width<7>(std::make_index_sequence<8>{}) ||
+        !check_small_register_width<9>(std::make_index_sequence<10>{}))
+    {
+        std::cerr << "small register set tests failed\n";
+        return 9;
+    }
+    if (!check_register_edge_width<15>() ||
+        !check_register_edge_width<17>() ||
+        !check_register_edge_width<31>() ||
+        !check_register_edge_width<33>() ||
+        !check_register_edge_width<63>())
+    {
+        std::cerr << "register edge-width set tests failed\n";
+        return 10;
     }
 
     if (!check_complement_index_set<8, 0>() ||

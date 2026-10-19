@@ -24,31 +24,15 @@ namespace jrmwng
         template <std::size_t N, std::size_t R>
         struct default_set_uint
         {
-            using type = stdx::uint_indices<N, R>;
-        };
-
-        template <std::size_t R>
-        struct default_set_uint<8u, R>
-        {
-            using type = std::uint8_t;
-        };
-
-        template <std::size_t R>
-        struct default_set_uint<16u, R>
-        {
-            using type = std::uint16_t;
-        };
-
-        template <std::size_t R>
-        struct default_set_uint<32u, R>
-        {
-            using type = std::uint32_t;
-        };
-
-        template <std::size_t R>
-        struct default_set_uint<64u, R>
-        {
-            using type = std::uint64_t;
+            using type = std::conditional_t<
+                (N <= 8u), std::uint8_t,
+                std::conditional_t<
+                    (N <= 16u), std::uint16_t,
+                    std::conditional_t<
+                        (N <= 32u), std::uint32_t,
+                        std::conditional_t<
+                            (N <= 64u), std::uint64_t,
+                            stdx::uint_indices<N, R>>>>>;
         };
 
         template <std::size_t N, std::size_t R>
@@ -57,21 +41,20 @@ namespace jrmwng
         template <std::size_t N, std::size_t R, typename Tuint = default_set_uint_t<N, R>>
         class set;
 
-        template <typename Tuint, std::size_t R>
+        template <std::size_t N, typename Tuint, std::size_t R>
         struct set_complement
         {
-            using type = set<std::numeric_limits<Tuint>::digits,
-                             std::numeric_limits<Tuint>::digits - R, Tuint>;
+            using type = set<N, N - R, Tuint>;
         };
 
         template <std::size_t N, std::size_t CurrentR, std::size_t R>
-        struct set_complement<stdx::uint_indices<N, CurrentR>, R>
+        struct set_complement<N, stdx::uint_indices<N, CurrentR>, R>
         {
             using type = set<N, N - R, stdx::uint_indices<N, N - R>>;
         };
 
         template <std::size_t N, std::size_t HoleCount, std::size_t R>
-        struct set_complement<stdx::uint_complement_indices<N, HoleCount>, R>
+        struct set_complement<N, stdx::uint_complement_indices<N, HoleCount>, R>
         {
             using type = set<N, N - R, stdx::uint_indices<N, HoleCount>>;
         };
@@ -82,14 +65,47 @@ namespace jrmwng
         {
             inline constexpr static std::size_t zuPOPCOUNT = R;
             static_assert(stdx::is_unsigned_v<Tuint>, "set: Tuint must be an unsigned integer type");
-            static_assert(N == std::numeric_limits<Tuint>::digits,
-                          "set: Tuint must have exactly N value bits");
+            static_assert(N > 0, "set: N must be greater than zero");
+            static_assert(N <= std::numeric_limits<Tuint>::digits,
+                          "set: Tuint must have at least N value bits");
             static_assert(zuPOPCOUNT <= N, "set: R must be less than or equal to N");
             inline constexpr static bool IS_INDEX_UINT = requires(Tuint value) { value.indices; value.is_sentinel; };
             inline constexpr static bool IS_COMPLEMENT_INDEX = requires { Tuint::is_complement_index; };
+            inline constexpr static std::size_t REGISTER_BITS = std::numeric_limits<Tuint>::digits;
+            inline constexpr static Tuint LOGICAL_MASK = [] {
+                if constexpr (IS_INDEX_UINT)
+                    return Tuint{};
+                else if constexpr (N == REGISTER_BITS)
+                    return static_cast<Tuint>(~Tuint{});
+                else
+                    return static_cast<Tuint>((Tuint{1} << N) - Tuint{1});
+            }();
 
-            using complementary_set = typename set_complement<Tuint, zuPOPCOUNT>::type;
+            using complementary_set = typename set_complement<N, Tuint, zuPOPCOUNT>::type;
             friend complementary_set;
+
+            constexpr static Tuint GospersHackRaw(Tuint value) noexcept
+            {
+                int const count = stdx::countr_zero(value);
+                Tuint const shifted = value >> count;
+                Tuint const raised = shifted + Tuint{1};
+                return static_cast<Tuint>(((raised ^ shifted) >> 2) | (raised << count));
+            }
+
+            constexpr static Tuint LogicalNot(Tuint value) noexcept
+            {
+                if constexpr (IS_INDEX_UINT)
+                    return Tuint{};
+                else
+                    return static_cast<Tuint>((~value) & LOGICAL_MASK);
+            }
+
+            constexpr static Tuint ReverseComplement(Tuint value) noexcept
+            {
+                if (value == LogicalNot(complementary_set::SENTINEL))
+                    return complementary_set::SENTINEL;
+                return LogicalNot(value);
+            }
 
             constexpr static Tuint GospersHack(Tuint i0) noexcept
             {
@@ -100,7 +116,7 @@ namespace jrmwng
                     if constexpr (IS_COMPLEMENT_INDEX)
                     {
                         constexpr std::size_t HOLE_COUNT =
-                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                            N - zuPOPCOUNT;
                         for (std::size_t i = 0; i < HOLE_COUNT; ++i)
                         {
                             if (static_cast<std::size_t>(i0.indices[i]) > i)
@@ -119,7 +135,7 @@ namespace jrmwng
                         {
                             auto const limit = i + 1u < zuPOPCOUNT
                                 ? static_cast<std::size_t>(i0.indices[i + 1u])
-                                : std::numeric_limits<Tuint>::digits;
+                                : N;
                             if (static_cast<std::size_t>(i0.indices[i]) + 1u < limit)
                             {
                                 ++i0.indices[i];
@@ -131,21 +147,11 @@ namespace jrmwng
                     }
                     return SENTINEL;
                 }
-                else if constexpr (zuPOPCOUNT == 0u)
-                    return ~i0; // either 0 or ~0
-                else if constexpr (zuPOPCOUNT == std::numeric_limits<Tuint>::digits)
-                    return ~i0; // either 0 or ~0
-                else if constexpr (zuPOPCOUNT == 1u)
-                    return (i0 << 1);
-                else if constexpr (zuPOPCOUNT + 1u == std::numeric_limits<Tuint>::digits)
-                    return ~(static_cast<Tuint>(~i0) >> 1);
+                else if constexpr (zuPOPCOUNT == 0u || zuPOPCOUNT == N)
+                    return SENTINEL;
                 else
                 {
-                    // Gosper's hack: https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
-                    int const cnt = stdx::countr_zero(i0);
-                    Tuint const i1 = i0 >> cnt;
-                    Tuint const r1 = i1 + Tuint(1);
-                    return ((r1 ^ i1) >> 2) | (r1 << cnt);
+                    return GospersHackRaw(i0);
                 }
             }
             constexpr static Tuint Previous(Tuint value) noexcept
@@ -157,7 +163,7 @@ namespace jrmwng
                         if constexpr (IS_COMPLEMENT_INDEX)
                         {
                             constexpr std::size_t HOLE_COUNT =
-                                std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                                N - zuPOPCOUNT;
                             for (std::size_t i = 0; i < HOLE_COUNT; ++i)
                                 value.indices[i] = static_cast<typename Tuint::index_type>(i);
                         }
@@ -165,7 +171,7 @@ namespace jrmwng
                         {
                             for (std::size_t i = 0; i < zuPOPCOUNT; ++i)
                                 value.indices[i] = static_cast<typename Tuint::index_type>(
-                                    std::numeric_limits<Tuint>::digits - zuPOPCOUNT + i);
+                                    N - zuPOPCOUNT + i);
                         }
                         value.is_sentinel = false;
                         return value;
@@ -178,12 +184,12 @@ namespace jrmwng
                     if constexpr (IS_COMPLEMENT_INDEX)
                     {
                         constexpr std::size_t HOLE_COUNT =
-                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                        N - zuPOPCOUNT;
                         for (std::size_t i = 0; i < HOLE_COUNT; ++i)
                         {
                             auto const limit = i + 1u < HOLE_COUNT
                                 ? static_cast<std::size_t>(value.indices[i + 1u])
-                                : std::numeric_limits<Tuint>::digits;
+                                : N;
                             if (static_cast<std::size_t>(value.indices[i]) + 1u < limit)
                             {
                                 ++value.indices[i];
@@ -213,8 +219,9 @@ namespace jrmwng
                 else
                 {
                     if (value == SENTINEL)
-                        return static_cast<Tuint>(~complementary_set::INITIAL);
-                    return static_cast<Tuint>(~complementary_set::GospersHack(~value));
+                        return static_cast<Tuint>((~complementary_set::INITIAL) & LOGICAL_MASK);
+                    auto const complement = static_cast<Tuint>((~value) & LOGICAL_MASK);
+                    return static_cast<Tuint>((~complementary_set::GospersHack(complement)) & LOGICAL_MASK);
                 }
             }
             inline constexpr static Tuint INITIAL = [] {
@@ -224,10 +231,10 @@ namespace jrmwng
                     if constexpr (IS_COMPLEMENT_INDEX)
                     {
                         constexpr std::size_t HOLE_COUNT =
-                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                            N - zuPOPCOUNT;
                         for (std::size_t i = 0; i < HOLE_COUNT; ++i)
                             value.indices[i] = static_cast<typename Tuint::index_type>(
-                                std::numeric_limits<Tuint>::digits - HOLE_COUNT + i);
+                                N - HOLE_COUNT + i);
                     }
                     else
                     {
@@ -238,8 +245,8 @@ namespace jrmwng
                 }
                 else if constexpr (zuPOPCOUNT == 0u)
                     return Tuint{};
-                else if constexpr (zuPOPCOUNT == std::numeric_limits<Tuint>::digits)
-                    return static_cast<Tuint>(~Tuint{});
+                else if constexpr (zuPOPCOUNT == N)
+                    return LOGICAL_MASK;
                 else
                     return static_cast<Tuint>((Tuint{1} << zuPOPCOUNT) - Tuint{1});
             }();
@@ -252,16 +259,21 @@ namespace jrmwng
                 }
                 else if constexpr (zuPOPCOUNT == 0u)
                     return static_cast<Tuint>(~Tuint{});
-                else if constexpr (zuPOPCOUNT == std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT == N)
                     return Tuint{};
                 else
-                    return GospersHack(static_cast<Tuint>(~(static_cast<Tuint>(~Tuint{}) >> zuPOPCOUNT)));
+                {
+                    constexpr Tuint largest =
+                        static_cast<Tuint>(LOGICAL_MASK ^ ((Tuint{1} << (N - zuPOPCOUNT)) - Tuint{1}));
+                    return GospersHackRaw(largest);
+                }
             }();
 
             constexpr static std::uintmax_t rank(Tuint value) noexcept
             {
-                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits,
-                                                        std::integral_constant<std::size_t, zuPOPCOUNT>{});
+                constexpr auto TOTAL = nCr_read<Tuint>(
+                    N, std::integral_constant<std::size_t, (zuPOPCOUNT < N - zuPOPCOUNT
+                        ? zuPOPCOUNT : N - zuPOPCOUNT)>{});
 
                 if (value == SENTINEL)
                     return TOTAL;
@@ -272,7 +284,7 @@ namespace jrmwng
                     if constexpr (IS_COMPLEMENT_INDEX)
                     {
                         constexpr std::size_t HOLE_COUNT =
-                            std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                            N - zuPOPCOUNT;
                         auto const complement_rank =
                             []<std::size_t... Js>(Tuint const& v, std::index_sequence<Js...>) {
                                 return (std::uintmax_t{} + ... +
@@ -289,10 +301,10 @@ namespace jrmwng
                         }(value, std::make_index_sequence<zuPOPCOUNT>{});
                     }
                 }
-                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > N)
                 {
                     // Use the complementary set to compute the rank of the complement.
-                    return TOTAL - 1u - complementary_set::rank(~value);
+                    return TOTAL - 1u - complementary_set::rank(static_cast<Tuint>((~value) & LOGICAL_MASK));
                 }
                 else
                 {
@@ -318,10 +330,12 @@ namespace jrmwng
                 {
                     return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
                 }
-                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > N)
                 {
                     // Use the complementary set to compute the distance of the complement.
-                    return static_cast<std::ptrdiff_t>(complementary_set::distance(~last, ~first));
+                    return static_cast<std::ptrdiff_t>(complementary_set::distance(
+                        static_cast<Tuint>((~last) & LOGICAL_MASK),
+                        static_cast<Tuint>((~first) & LOGICAL_MASK)));
                 }
                 else if (first == last)
                     return 0;
@@ -339,7 +353,9 @@ namespace jrmwng
 
             constexpr static Tuint unrank(std::uintmax_t rank) noexcept
             {
-                constexpr auto TOTAL = nCr_read<Tuint>(std::numeric_limits<Tuint>::digits, std::integral_constant<std::size_t, zuPOPCOUNT>{});
+                constexpr auto TOTAL = nCr_read<Tuint>(
+                    N, std::integral_constant<std::size_t, (zuPOPCOUNT < N - zuPOPCOUNT
+                        ? zuPOPCOUNT : N - zuPOPCOUNT)>{});
 
                 if (rank == 0)
                     return INITIAL;
@@ -348,7 +364,7 @@ namespace jrmwng
                 else if constexpr (IS_COMPLEMENT_INDEX)
                 {
                     constexpr std::size_t HOLE_COUNT =
-                        std::numeric_limits<Tuint>::digits - zuPOPCOUNT;
+                        N - zuPOPCOUNT;
                     Tuint result{};
                     [&]<std::size_t... Is>([[maybe_unused]] std::uintmax_t remaining, [[maybe_unused]] std::size_t n,
                                            std::index_sequence<Is...>) {
@@ -361,7 +377,7 @@ namespace jrmwng
                             remaining -= found_nCr;
                             result.indices[position] = static_cast<typename Tuint::index_type>(found_n);
                         }()), ...);
-                    }(TOTAL - 1u - rank, std::numeric_limits<Tuint>::digits + 1u,
+                    }(TOTAL - 1u - rank, N + 1u,
                       std::make_index_sequence<HOLE_COUNT>{});
                     return result;
                 }
@@ -377,12 +393,12 @@ namespace jrmwng
                             remaining -= found_nCr;
                             result.indices[position] = static_cast<typename Tuint::index_type>(found_n);
                         }()), ...);
-                    }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<zuPOPCOUNT>{});
+                    }(rank, N + 1u, std::make_index_sequence<zuPOPCOUNT>{});
                     return result;
                 }
-                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > std::numeric_limits<Tuint>::digits)
+                else if constexpr (zuPOPCOUNT + zuPOPCOUNT > N)
                 {
-                    return static_cast<Tuint>(~complementary_set::unrank(TOTAL - 1 - rank));
+                    return static_cast<Tuint>((~complementary_set::unrank(TOTAL - 1 - rank)) & LOGICAL_MASK);
                 }
                 else
                 {
@@ -411,7 +427,7 @@ namespace jrmwng
                                     result |= static_cast<Tuint>(Tuint(1) << found_n);
                             }
                             (std::integral_constant<std::size_t, zuPOPCOUNT - Is>{})), ...);
-                    }(rank, std::numeric_limits<Tuint>::digits + 1u, std::make_index_sequence<zuPOPCOUNT>{});
+                    }(rank, N + 1u, std::make_index_sequence<zuPOPCOUNT>{});
                     return result;
                 }
             }
@@ -430,11 +446,21 @@ namespace jrmwng
                 #ifdef _DEBUG
                 if (first != SENTINEL)
                 {
+                    if constexpr (!IS_INDEX_UINT)
+                    {
+                        if ((first & static_cast<Tuint>(~LOGICAL_MASK)) != 0)
+                            throw std::invalid_argument("set: first exceeds the logical width");
+                    }
                     if (stdx::popcount(first) != static_cast<int>(zuPOPCOUNT))
                         throw std::invalid_argument("set: first does not have the required reduce_count");
                 }
                 if (last != SENTINEL)
                 {
+                    if constexpr (!IS_INDEX_UINT)
+                    {
+                        if ((last & static_cast<Tuint>(~LOGICAL_MASK)) != 0)
+                            throw std::invalid_argument("set: last exceeds the logical width");
+                    }
                     if (stdx::popcount(last) != static_cast<int>(zuPOPCOUNT))
                         throw std::invalid_argument("set: last does not have the required reduce_count");
                     if (first == SENTINEL)
@@ -620,8 +646,8 @@ namespace jrmwng
                             return Previous(it.m_value);
                         else
                             return it.m_value == SENTINEL
-                                ? static_cast<Tuint>(~complementary_set::INITIAL) // end() -> rbegin()
-                                : static_cast<Tuint>(~complementary_set::GospersHack(~(it.m_value))); // ..., begin() -> rend()
+                                ? LogicalNot(complementary_set::INITIAL) // end() -> rbegin()
+                                : LogicalNot(complementary_set::GospersHack(LogicalNot(it.m_value))); // ..., begin() -> rend()
                     }())
                 {}
 
@@ -635,7 +661,7 @@ namespace jrmwng
                     if constexpr (IS_INDEX_UINT)
                         m_value = Previous(m_value);
                     else
-                        m_value = static_cast<Tuint>(~complementary_set::GospersHack(~m_value));
+                        m_value = LogicalNot(complementary_set::GospersHack(LogicalNot(m_value)));
                     return *this;
                 }
                 reverse_iterator operator++ (int) noexcept
@@ -644,7 +670,7 @@ namespace jrmwng
                     if constexpr (IS_INDEX_UINT)
                         m_value = Previous(m_value);
                     else
-                        m_value = static_cast<Tuint>(~complementary_set::GospersHack(~m_value));
+                        m_value = LogicalNot(complementary_set::GospersHack(LogicalNot(m_value)));
                     return it;
                 }
 
@@ -662,9 +688,10 @@ namespace jrmwng
                     }
                     else
                     {
-                        // `~m_value` could be `complementary_set::SENTINEL` but `SENTINEL`,
+                        // The complement of `m_value` could be `complementary_set::SENTINEL`,
                         // therefore `complementary_set::distance` will handle that case correctly.
-                        return complementary_set::distance(~other.m_value, ~m_value);
+                        return complementary_set::distance(
+                            ReverseComplement(other.m_value), ReverseComplement(m_value));
                     }
                 }
             };
@@ -690,7 +717,7 @@ namespace jrmwng
                 if constexpr (IS_INDEX_UINT)
                     return it.m_value.is_sentinel ? INITIAL : GospersHack(it.m_value);
                 else
-                    return it.m_value == (Tuint)~complementary_set::SENTINEL
+                    return it.m_value == LogicalNot(complementary_set::SENTINEL)
                         ? INITIAL // rend() -> begin()
                         : GospersHack(it.m_value); // ..., rbegin() -> end()
             }())
