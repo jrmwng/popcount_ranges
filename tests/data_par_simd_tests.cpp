@@ -106,14 +106,14 @@ template <typename T>
 bool check_bitset_range_mask()
 {
     using default_traits = jrmwng::data_par::simd_range_traits<T>;
-    using bitset_type = std::bitset<default_traits::simd_width>;
-    using traits = jrmwng::data_par::simd_range_traits<
-        T, typename default_traits::simd_type::abi_type, bitset_type>;
+    using bitset_type = jrmwng::data_par::simd_bitset_mask<T>;
+    using traits = jrmwng::data_par::simd_range_traits<T, bitset_type>;
     using short_range_type = typename traits::short_type;
     using long_range_type = typename traits::long_type;
     using native_mask_type = typename default_traits::simd_type::mask_type;
     using native_short_range_type =
-        jrmwng::data_par::simd_short_range<T, typename traits::simd_type::abi_type, native_mask_type>;
+        jrmwng::data_par::simd_short_range<T, native_mask_type>;
+    using native_traits = jrmwng::data_par::simd_range_traits<T, native_mask_type>;
     using default_short_range_type = jrmwng::data_par::simd_short_range<T>;
     using default_long_range_type = jrmwng::data_par::simd_range_traits<T>::long_type;
 
@@ -122,6 +122,8 @@ bool check_bitset_range_mask()
     static_assert(std::same_as<typename default_long_range_type::mask_type,
                                typename default_traits::mask_type>);
     static_assert(std::same_as<typename native_short_range_type::mask_type, native_mask_type>);
+    static_assert(std::same_as<typename native_traits::simd_type::abi_type,
+                               typename default_traits::simd_type::abi_type>);
 
     constexpr std::size_t count = traits::simd_width + 2;
     std::array<T, count + 2> values{};

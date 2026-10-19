@@ -33,12 +33,16 @@ for both backends; the header maps their vector, mask, load, and mask-count
 operations to the selected implementation rather than replacing these range
 types with standard-library ranges.
 
-`simd_range_traits<T, Abi, Mask>`, `simd_long_range<T, Abi, Mask>`, and
-`simd_short_range<T, Abi, Mask>` accept an optional third template argument to
-choose the mask representation. The default remains the backend's mask type.
-For example, `std::bitset` can be selected when bitwise combination and
-population count are preferred; the `lower_bound` SIMD path uses this
-representation to combine range-validity and comparison masks directly.
+`simd_range_traits<T, Mask, Abi>`, `simd_long_range<T, Mask, Abi>`, and
+`simd_short_range<T, Mask, Abi>` accept an optional mask type before the
+optional ABI type. The ABI is inferred from a SIMD mask's `abi_type`; masks
+without ABI metadata, such as `std::bitset`, use the backend's default ABI. The
+third template argument remains available to override it. The default mask
+remains the backend's mask type. Use `jrmwng::data_par::simd_bitset_mask<T>` to select a `std::bitset` sized to
+the backend's SIMD width; for example,
+`jrmwng::data_par::simd_range_traits<T, jrmwng::data_par::simd_bitset_mask<T>>`
+lets the `lower_bound` SIMD path combine range-validity and comparison masks
+directly. A custom ABI can be provided as the third argument.
 
 ## Build and install
 

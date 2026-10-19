@@ -19,46 +19,71 @@ namespace jrmwng
 {
     namespace data_par
     {
+        namespace detail
+        {
+            struct default_simd_mask {};
+
 #if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
-                  typename Tmask = typename std::simd::basic_vec<T, Tsimd_abi>::mask_type>
+            template <typename T>
+            using default_simd_abi_t = typename std::simd::basic_vec<T>::abi_type;
+
+            template <typename T, typename Tsimd_abi>
+            using simd_vector_t = std::simd::basic_vec<T, Tsimd_abi>;
 #else
-        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
-                  typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
+            template <typename T>
+            using default_simd_abi_t = typename vec<T>::abi_type;
+
+            template <typename T, typename Tsimd_abi>
+            using simd_vector_t = basic_vec<T, Tsimd_abi>;
 #endif
+
+            template <typename T, typename Tmask, typename = void>
+            struct simd_abi_for_mask
+            {
+                using type = default_simd_abi_t<T>;
+            };
+
+            template <typename T, typename Tmask>
+            struct simd_abi_for_mask<T, Tmask, std::void_t<typename Tmask::abi_type>>
+            {
+                using type = typename Tmask::abi_type;
+            };
+
+            template <typename T, typename Tmask>
+            using simd_abi_for_mask_t = typename simd_abi_for_mask<T, Tmask>::type;
+
+            template <typename T, typename Tsimd_abi = default_simd_abi_t<T>>
+            using simd_bitset_mask_t = std::bitset<simd_vector_t<T, Tsimd_abi>::size()>;
+        }
+
+        template <typename T, typename Tsimd_abi = detail::default_simd_abi_t<T>>
+        using simd_bitset_mask = detail::simd_bitset_mask_t<T, Tsimd_abi>;
+
+        template <typename T, typename Tmask = detail::default_simd_mask,
+                  typename Tsimd_abi = detail::simd_abi_for_mask_t<T, Tmask>>
             requires std::is_arithmetic_v<T>
         class simd_short_range;
 
-#if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
-                  typename Tmask = typename std::simd::basic_vec<T, Tsimd_abi>::mask_type>
-#else
-        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
-                  typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
-#endif
+        template <typename T, typename Tmask = detail::default_simd_mask,
+                  typename Tsimd_abi = detail::simd_abi_for_mask_t<T, Tmask>>
             requires std::is_arithmetic_v<T>
         class simd_long_range;
 
-#if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
-                  typename Tmask = typename std::simd::basic_vec<T, Tsimd_abi>::mask_type>
-#else
-        template <typename T, typename Tsimd_abi = typename vec<T>::abi_type,
-                  typename Tmask = basic_mask<sizeof(T), Tsimd_abi>>
-#endif
+        template <typename T, typename Tmask = detail::default_simd_mask,
+                  typename Tsimd_abi = detail::simd_abi_for_mask_t<T, Tmask>>
         struct simd_range_traits
         {
-#if POPCOUNT_RANGES_SIMD
-            using simd_type = std::simd::basic_vec<T, Tsimd_abi>;
-#else
-            using simd_type = basic_vec<T, Tsimd_abi>;
-#endif
-            using mask_type = Tmask;
+            using simd_type = detail::simd_vector_t<T, Tsimd_abi>;
+            using mask_type = std::conditional_t<
+                std::same_as<Tmask, detail::default_simd_mask>,
+                typename simd_type::mask_type, Tmask>;
             inline constexpr static std::size_t simd_width = simd_type::size();
+            static_assert(mask_type{}.size() == simd_width,
+                          "The SIMD mask width must match the SIMD vector width.");
 
             using bitset_type = std::bitset<simd_width>;
-            using short_type = simd_short_range<T, Tsimd_abi, mask_type>;
-            using long_type = simd_long_range<T, Tsimd_abi, mask_type>;
+            using short_type = simd_short_range<T, mask_type, Tsimd_abi>;
+            using long_type = simd_long_range<T, mask_type, Tsimd_abi>;
 
             template <typename Tcount_mask>
             static int reduce_count(Tcount_mask const &mask) noexcept
@@ -240,16 +265,12 @@ namespace jrmwng
         //   Masks out elements both before start AND after end
         //   Example: offset 2, end 6, width=8 → bits 2-5 set (0b00111100) = 4 valid elements
         //   Load uses reduce_count(combined_mask) = 4, not full simd_width
-#if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi, typename Tmask>
-#else
-        template <typename T, typename Tsimd_abi, typename Tmask>
-#endif
+        template <typename T, typename Tmask, typename Tsimd_abi>
             requires std::is_arithmetic_v<T>
         class simd_long_range
         {
         public:
-            using traits = simd_range_traits<T, Tsimd_abi, Tmask>;
+            using traits = simd_range_traits<T, Tmask, Tsimd_abi>;
             using simd_type = typename traits::simd_type;
             using mask_type = typename traits::mask_type;
 
@@ -388,15 +409,11 @@ namespace jrmwng
 
         // For long range, we use `simd_long_range` to perform vector-aligned loads
         // For short range, we use `simd_short_range` to perform element-wise aligned loads
-#if POPCOUNT_RANGES_SIMD
-        template <typename T, typename Tsimd_abi, typename Tmask>
-#else
-        template <typename T, typename Tsimd_abi, typename Tmask>
-#endif
+        template <typename T, typename Tmask, typename Tsimd_abi>
             requires std::is_arithmetic_v<T>
         class simd_short_range
         {
-            using traits = simd_range_traits<T, Tsimd_abi, Tmask>;
+            using traits = simd_range_traits<T, Tmask, Tsimd_abi>;
             using bitset_type = typename traits::bitset_type;
 
             std::tuple<T const *, T const *, bitset_type, size_t> m_tuple; // (first, last, mask, length)

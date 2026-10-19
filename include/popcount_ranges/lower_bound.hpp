@@ -38,10 +38,9 @@ namespace jrmwng
 
                     if (!pred(next[-1], target)) [[unlikely]]
                     {
-                        using default_traits = data_par::simd_range_traits<type>;
-                        using mask_type = std::bitset<default_traits::simd_width>;
                         using traits = data_par::simd_range_traits<
-                            type, typename default_traits::simd_type::abi_type, mask_type>;
+                            type, data_par::simd_bitset_mask<type>>;
+                        using mask_type = typename traits::mask_type;
                         using range_type = typename traits::short_type;
                         using simd_type = typename traits::simd_type;
 
