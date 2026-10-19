@@ -5,6 +5,7 @@
 #include <numeric>
 #include <execution>
 #include <array>
+#include <bitset>
 
 #include <data_par/simd_range.hpp>
 
@@ -38,6 +39,7 @@ namespace jrmwng
                     if (!pred(next[-1], target)) [[unlikely]]
                     {
                         using traits = data_par::simd_range_traits<type>;
+                        using mask_type = std::bitset<traits::simd_width>;
 
                         return it + []<size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>)->int {
 
@@ -45,10 +47,11 @@ namespace jrmwng
                             std::tuple tuplePair(simd_rng[Is]...);
 
                             // (pred(chunk0, target), pred(chunk1, target), ...)
-                            std::tuple tupleCompare(pred(std::get<typename traits::simd_type>(std::get<Is>(tuplePair)), target)...);
+                            std::tuple tupleCompare(data_par::detail::mask_to_bitset<traits::simd_width>(
+                                pred(std::get<typename traits::simd_type>(std::get<Is>(tuplePair)), target))...);
 
                             // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
-                            std::tuple tupleResult((std::get<typename traits::mask_type>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
+                            std::tuple tupleResult((std::get<1>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
                             
                             // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
                             std::tuple tuplePopcount(data_par::reduce_count(std::get<Is>(tupleResult))...);
@@ -56,7 +59,8 @@ namespace jrmwng
                             // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
                             return (std::get<Is>(tuplePopcount) + ...);
 
-                        }(data_par::simd_short_range<type>(it, next), target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});
+                        }(data_par::simd_short_range<type, typename traits::simd_type::abi_type, mask_type>(it, next),
+                          target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});
                     }
 
                     it = next;

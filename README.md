@@ -33,6 +33,13 @@ for both backends; the header maps their vector, mask, load, and mask-count
 operations to the selected implementation rather than replacing these range
 types with standard-library ranges.
 
+`simd_range<T, Abi, Mask>` and `simd_short_range<T, Abi, Mask>` accept an
+optional third template argument to choose the yielded mask representation.
+The default remains the backend's mask type. For example, `std::bitset` can be
+selected when bitwise combination and population count are preferred; the
+`lower_bound` SIMD path uses this representation to combine range-validity and
+comparison masks without the dual-representation wrapper.
+
 ## Build and install
 
 ```text
