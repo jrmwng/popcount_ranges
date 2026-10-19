@@ -74,8 +74,7 @@ void benchmark_type()
     for (std::size_t index = 0; index < values.size(); ++index)
         values[index] = static_cast<T>(index * 7 + 3);
 
-    auto const vector = jrmwng::data_par::detail::simd_range_load<simd_type>(
-        values.data(), width);
+    auto const vector = traits::simd_range_load(values.data(), width);
 
     for (std::size_t mask_index = 0; mask_index < mask_count; ++mask_index)
     {
@@ -130,8 +129,7 @@ void benchmark_type()
         std::uint64_t checksum = 0;
         for (std::size_t index = 0; index < iterations; ++index)
         {
-            auto const loaded = jrmwng::data_par::detail::simd_range_load<simd_type>(
-                values.data() + index % 2, width);
+            auto const loaded = traits::simd_range_load(values.data() + index % 2, width);
             checksum += static_cast<std::uint64_t>(loaded[index % width]);
         }
         return checksum;

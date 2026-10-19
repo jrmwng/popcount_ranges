@@ -47,7 +47,7 @@ namespace jrmwng
                             std::tuple tuplePair(simd_rng[Is]...);
 
                             // (pred(chunk0, target), pred(chunk1, target), ...)
-                            std::tuple tupleCompare(data_par::detail::mask_to_bitset<traits::simd_width>(
+                            std::tuple tupleCompare(traits::mask_to_bitset(
                                 pred(std::get<typename traits::simd_type>(std::get<Is>(tuplePair)), target))...);
 
                             // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)

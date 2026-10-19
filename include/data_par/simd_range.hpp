@@ -19,26 +19,6 @@ namespace jrmwng
 {
     namespace data_par
     {
-        namespace detail
-        {
-            template <std::size_t Width, typename Tmask>
-            std::bitset<Width> mask_to_bitset(Tmask const &mask)
-            {
-                if constexpr (requires { mask.to_bitset(); })
-                {
-                    return mask.to_bitset();
-                }
-                else
-                {
-                    std::bitset<Width> bits;
-                    for (std::size_t index = 0; index < Width; ++index)
-                        bits.set(index, mask[index]);
-                    return bits;
-                }
-            }
-
-        }
-
 #if POPCOUNT_RANGES_SIMD
         template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type,
                   typename Tmask = typename std::simd::basic_vec<T, Tsimd_abi>::mask_type>
@@ -57,6 +37,44 @@ namespace jrmwng
             inline constexpr static std::size_t simd_width = simd_type::size();
 
             using bitset_type = std::bitset<simd_width>;
+
+            template <typename Tsource_mask>
+            static bitset_type mask_to_bitset(Tsource_mask const &mask)
+            {
+                if constexpr (requires { mask.to_bitset(); })
+                {
+                    return mask.to_bitset();
+                }
+                else
+                {
+                    bitset_type bits;
+                    for (std::size_t index = 0; index < simd_width; ++index)
+                        bits.set(index, mask[index]);
+                    return bits;
+                }
+            }
+
+#if POPCOUNT_RANGES_SIMD
+            static simd_type simd_range_load(T const *first, std::size_t count, bool = false)
+            {
+                if (count >= simd_width)
+                    return std::simd::unchecked_load<simd_type>(
+                        first, static_cast<std::ptrdiff_t>(simd_width));
+
+                return simd_type([first, count](auto index)
+                {
+                    return index < count ? first[index] : T{};
+                });
+            }
+#else
+            static simd_type simd_range_load(T const *first, std::size_t count,
+                                             bool aligned = false) noexcept
+            {
+                return aligned
+                    ? unchecked_load<simd_type>(first, count, flag_aligned)
+                    : unchecked_load<simd_type>(first, count, flag_default);
+            }
+#endif
 
             template <typename U = T>
             constexpr static U * align_floor(U *ptr) noexcept
@@ -140,32 +158,6 @@ namespace jrmwng
             return static_cast<int>(std::simd::reduce_count(mask));
         }
 
-        namespace detail
-        {
-            template <typename Tsimd, typename T>
-            Tsimd simd_range_load(T const *first, std::size_t count, bool = false)
-            {
-                constexpr std::size_t width = Tsimd::size();
-                if (count >= width)
-                    return std::simd::unchecked_load<Tsimd>(first, static_cast<std::ptrdiff_t>(width));
-
-                return Tsimd([first, count](auto index)
-                {
-                    return index < count ? first[index] : T{};
-                });
-            }
-        }
-#else
-        namespace detail
-        {
-            template <typename Tsimd, typename T>
-            Tsimd simd_range_load(T const *first, std::size_t count, bool aligned = false) noexcept
-            {
-                return aligned
-                    ? unchecked_load<Tsimd>(first, count, flag_aligned)
-                    : unchecked_load<Tsimd>(first, count, flag_default);
-            }
-        }
 #endif
 
         // SIMD range iterator for contiguous data
@@ -250,7 +242,7 @@ namespace jrmwng
                         // - First iteration: uses head_mask to exclude elements before range start
                         // - Subsequent iterations: uses all-true mask (set by operator++)
                         // - Always loads full simd_width from aligned address
-                        return value_type{detail::simd_range_load<simd_type>(std::get<0>(m_tupleIterator), traits::simd_width, true), current_mask};
+                        return value_type{traits::simd_range_load(std::get<0>(m_tupleIterator), traits::simd_width, true), current_mask};
                     }
                     else
                     {
@@ -277,7 +269,7 @@ namespace jrmwng
                         // - Case 3: explicitly unaligned
                         // - Performance: unaligned load with full simd_width + mask filtering is
                         //   often faster than partial load with temporary buffer
-                        return value_type{detail::simd_range_load<simd_type>(std::get<0>(m_tupleIterator), traits::simd_width), tail_mask};
+                        return value_type{traits::simd_range_load(std::get<0>(m_tupleIterator), traits::simd_width), tail_mask};
                     }
                 }
                 
@@ -418,7 +410,7 @@ namespace jrmwng
                 // Load a SIMD vector
                 value_type operator*() const
                 {
-                    return value_type(detail::simd_range_load<simd_type>(m_current, traits::simd_width), traits::make_mask(m_mask));
+                    return value_type(traits::simd_range_load(m_current, traits::simd_width), traits::make_mask(m_mask));
                 }
                 // Advance to the next SIMD vector for continuous memory reading
                 iterator& operator++() noexcept
@@ -457,9 +449,9 @@ namespace jrmwng
             value_type operator[] (size_t index) const noexcept
             {
                 if (index == 0)
-                    return value_type(detail::simd_range_load<simd_type>(std::get<0>(m_tuple), traits::simd_width), traits::make_mask(std::get<2>(m_tuple)));
+                    return value_type(traits::simd_range_load(std::get<0>(m_tuple), traits::simd_width), traits::make_mask(std::get<2>(m_tuple)));
                 else if (index < size())
-                    return value_type(detail::simd_range_load<simd_type>((std::get<0>(m_tuple) + std::get<2>(m_tuple).count() - traits::simd_width) + index * traits::simd_width, traits::simd_width), traits::make_full_mask(true));
+                    return value_type(traits::simd_range_load((std::get<0>(m_tuple) + std::get<2>(m_tuple).count() - traits::simd_width) + index * traits::simd_width, traits::simd_width), traits::make_full_mask(true));
                 else
                     return value_type(simd_type{}, traits::make_full_mask(false));
             }
