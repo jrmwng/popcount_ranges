@@ -2,10 +2,6 @@
 #define POPCOUNT_RANGES_SIMD 0
 #endif
 
-#ifndef POPCOUNT_RANGES_SIMD_MASK_BITSET
-#define POPCOUNT_RANGES_SIMD_MASK_BITSET 1
-#endif
-
 #if POPCOUNT_RANGES_SIMD
 #include <simd>
 #else
@@ -51,143 +47,6 @@ namespace jrmwng
             }
         }
 
-#if POPCOUNT_RANGES_SIMD && POPCOUNT_RANGES_SIMD_MASK_BITSET
-        template <std::size_t Bytes, typename Tsimd_abi>
-        class simd_mask_dual
-        {
-            using native_mask_type = std::simd::basic_mask<Bytes, Tsimd_abi>;
-
-        public:
-            inline constexpr static std::size_t simd_width = native_mask_type::size();
-            inline constexpr static std::integral_constant<std::size_t, simd_width> size{};
-            using bitset_type = std::bitset<simd_width>;
-            using value_type = bool;
-            using abi_type = Tsimd_abi;
-
-        private:
-            bitset_type m_bits{};
-            native_mask_type m_native{};
-
-            template <typename Tgenerator, std::size_t... Is>
-            static bitset_type make_bits(Tgenerator &&generator, std::index_sequence<Is...>)
-            {
-                bitset_type bits;
-                (bits.set(Is, generator(std::integral_constant<std::size_t, Is>{})), ...);
-                return bits;
-            }
-
-        public:
-            simd_mask_dual() = default;
-
-            explicit simd_mask_dual(bool value) noexcept
-                : m_bits(value ? bitset_type{}.set() : bitset_type{}), m_native(value)
-            {}
-
-            explicit simd_mask_dual(bitset_type const &bits) noexcept
-                : m_bits(bits), m_native(bits)
-            {}
-
-            explicit simd_mask_dual(native_mask_type const &mask) noexcept
-                : m_bits(mask.to_bitset()), m_native(mask)
-            {}
-
-            template <typename Tgenerator>
-                requires std::invocable<Tgenerator, std::integral_constant<std::size_t, 0>>
-            explicit simd_mask_dual(Tgenerator &&generator)
-                : simd_mask_dual(make_bits(std::forward<Tgenerator>(generator),
-                                           std::make_index_sequence<simd_width>{}))
-            {}
-
-            bool operator[](std::size_t index) const noexcept
-            {
-                return m_bits.test(index);
-            }
-
-            bitset_type const &to_bitset() const noexcept
-            {
-                return m_bits;
-            }
-
-            native_mask_type const &native() const noexcept
-            {
-                return m_native;
-            }
-
-            friend simd_mask_dual operator!(simd_mask_dual const &mask) noexcept
-            {
-                simd_mask_dual result;
-                result.m_bits = ~mask.m_bits;
-                result.m_native = !mask.m_native;
-                return result;
-            }
-
-            friend simd_mask_dual operator&(simd_mask_dual const &lhs,
-                                            simd_mask_dual const &rhs) noexcept
-            {
-                simd_mask_dual result;
-                result.m_bits = lhs.m_bits & rhs.m_bits;
-                result.m_native = lhs.m_native & rhs.m_native;
-                return result;
-            }
-
-            friend simd_mask_dual operator|(simd_mask_dual const &lhs,
-                                            simd_mask_dual const &rhs) noexcept
-            {
-                simd_mask_dual result;
-                result.m_bits = lhs.m_bits | rhs.m_bits;
-                result.m_native = lhs.m_native | rhs.m_native;
-                return result;
-            }
-
-            friend simd_mask_dual operator^(simd_mask_dual const &lhs,
-                                            simd_mask_dual const &rhs) noexcept
-            {
-                simd_mask_dual result;
-                result.m_bits = lhs.m_bits ^ rhs.m_bits;
-                result.m_native = lhs.m_native ^ rhs.m_native;
-                return result;
-            }
-
-            friend simd_mask_dual operator&(simd_mask_dual const &lhs,
-                                            native_mask_type const &rhs) noexcept
-            {
-                return lhs & simd_mask_dual(rhs);
-            }
-
-            friend simd_mask_dual operator&(native_mask_type const &lhs,
-                                            simd_mask_dual const &rhs) noexcept
-            {
-                return simd_mask_dual(lhs) & rhs;
-            }
-
-            simd_mask_dual &operator&=(simd_mask_dual const &rhs) noexcept
-            {
-                m_bits &= rhs.m_bits;
-                m_native &= rhs.m_native;
-                return *this;
-            }
-
-            simd_mask_dual &operator&=(native_mask_type const &rhs) noexcept
-            {
-                return *this &= simd_mask_dual(rhs);
-            }
-
-            simd_mask_dual &operator|=(simd_mask_dual const &rhs) noexcept
-            {
-                m_bits |= rhs.m_bits;
-                m_native |= rhs.m_native;
-                return *this;
-            }
-
-            simd_mask_dual &operator^=(simd_mask_dual const &rhs) noexcept
-            {
-                m_bits ^= rhs.m_bits;
-                m_native ^= rhs.m_native;
-                return *this;
-            }
-        };
-#endif
-
 #if POPCOUNT_RANGES_SIMD
         template <typename T, typename Tsimd_abi = typename std::simd::basic_vec<T>::abi_type>
 #else
@@ -197,11 +56,7 @@ namespace jrmwng
         {
 #if POPCOUNT_RANGES_SIMD
             using simd_type = std::simd::basic_vec<T, Tsimd_abi>;
-#if POPCOUNT_RANGES_SIMD_MASK_BITSET
-            using mask_type = simd_mask_dual<sizeof(T), Tsimd_abi>;
-#else
             using mask_type = typename simd_type::mask_type;
-#endif
 #else
             using simd_type = basic_vec<T, Tsimd_abi>;
             using mask_type = basic_mask<sizeof(T), Tsimd_abi>;
@@ -234,14 +89,6 @@ namespace jrmwng
             }
             static constexpr mask_type make_mask(bitset_type const &bits) noexcept
             {
-#if POPCOUNT_RANGES_SIMD && POPCOUNT_RANGES_SIMD_MASK_BITSET
-                return mask_type(bits);
-#elif POPCOUNT_RANGES_SIMD
-                return mask_type([bits](auto uIndex)
-                {
-                    return bits.test(uIndex);
-                });
-#else
                 if constexpr (std::constructible_from<mask_type, bitset_type>)
                 {
                     return mask_type(bits);
@@ -253,7 +100,6 @@ namespace jrmwng
                         return bits.test(uIndex);
                     });
                 }
-#endif
             }
             
             // Create a mask with bits set from 'offset' to end (upper bits)
@@ -326,19 +172,11 @@ namespace jrmwng
         }
 
 #if POPCOUNT_RANGES_SIMD
-#if POPCOUNT_RANGES_SIMD_MASK_BITSET
-        template <std::size_t Bytes, typename Tsimd_abi>
-        int reduce_count(simd_mask_dual<Bytes, Tsimd_abi> const &mask) noexcept
-        {
-            return static_cast<int>(mask.to_bitset().count());
-        }
-#else
         template <std::size_t Bytes, typename Tsimd_abi>
         int reduce_count(std::simd::basic_mask<Bytes, Tsimd_abi> const &mask) noexcept
         {
             return static_cast<int>(std::simd::reduce_count(mask));
         }
-#endif
 
         namespace detail
         {

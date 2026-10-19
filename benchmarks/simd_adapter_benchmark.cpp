@@ -85,20 +85,11 @@ void benchmark_type()
         auto const target = simd_type(static_cast<T>(mask_index * 3));
         auto const comparison = vector < target;
         comparisons[mask_index] = comparison;
-#if POPCOUNT_RANGES_SIMD && POPCOUNT_RANGES_SIMD_MASK_BITSET
-        masks[mask_index] = mask_type(comparison);
-#else
         masks[mask_index] = comparison;
-#endif
     }
 
 #if POPCOUNT_RANGES_SIMD
-    constexpr std::string_view backend =
-#if POPCOUNT_RANGES_SIMD_MASK_BITSET
-        "std_simd_bitset";
-#else
-        "std_simd_native";
-#endif
+    constexpr std::string_view backend = "std_simd";
 #else
     constexpr std::string_view backend = "data_par";
 #endif
@@ -114,12 +105,12 @@ void benchmark_type()
         return checksum;
     });
 
-    auto const convert_ns = measure<T>([&]
+    auto const copy_ns = measure<T>([&]
     {
         std::uint64_t checksum = 0;
         for (std::size_t index = 0; index < iterations; ++index)
         {
-            auto const mask = mask_type(comparisons[index % mask_count]);
+            auto const mask = comparisons[index % mask_count];
             checksum += mask[index % width] ? 1u : 0u;
         }
         return checksum;
@@ -148,8 +139,8 @@ void benchmark_type()
 
     std::cout << backend << ',' << type_name<T>() << ",make_mask_bitset,"
               << std::fixed << std::setprecision(2) << make_ns << '\n'
-              << backend << ',' << type_name<T>() << ",comparison_mask_conversion,"
-              << convert_ns << '\n'
+              << backend << ',' << type_name<T>() << ",comparison_mask_copy,"
+              << copy_ns << '\n'
               << backend << ',' << type_name<T>() << ",reduce_count_comparison,"
               << reduce_ns << '\n'
               << backend << ',' << type_name<T>() << ",simd_range_load_full,"
