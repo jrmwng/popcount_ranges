@@ -42,6 +42,30 @@ additional calls for distribution rejection. The standard library's engine-call 
 is implementation-dependent, so the benchmark measures it instead of assuming it
 equals `N`.
 
+The fixed-popcount path reaches `lower_bound` while unranking the sampled rank,
+so it is affected by both `POPCOUNT_RANGES_SIMD` and
+`POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD`. The `std_sample` path is independent of
+both settings. For a C++26 backend comparison, use GCC 16 with a libstdc++ that
+provides `<simd>` and keep separate build directories for the two backends:
+
+```text
+cmake -S . -B build-gcc16-custom -G Ninja -DCMAKE_CXX_COMPILER=g++-16 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=ON -DPOPCOUNT_RANGES_SIMD=OFF
+cmake -S . -B build-gcc16-simd -G Ninja -DCMAKE_CXX_COMPILER=g++-16 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=ON -DPOPCOUNT_RANGES_SIMD=ON
+cmake --build build-gcc16-custom --target sampling_benchmark sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
+cmake --build build-gcc16-simd --target sampling_benchmark sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
+build-gcc16-custom/sampling_benchmark_threshold_28 > custom-28.csv
+build-gcc16-simd/sampling_benchmark_threshold_28 > simd-28.csv
+```
+
+Use the same compiler version, standard library, CPU, build type, and threshold
+for each backend. Compare `popcount_ranges` rows by workload and verify their
+checksums; compare absolute `std_sample` times as well as speedup ratios when
+comparing toolchains, since `std::sample`'s engine-call strategy varies by
+standard library. The local results in the root README use GCC 16.0.1 for the
+custom-versus-`<simd>` comparison, Clang 23.1 and MSVC 19.51 for custom-backend
+comparisons, and an AMD Ryzen 9 5950X. On that machine, the installed Clang and
+Visual Studio 2026 standard libraries did not include `<simd>`.
+
 The `simd_adapter_benchmark` executable measures bitset-to-mask construction,
 native comparison-mask copying, reduction of preconstructed comparison masks,
 and full-width SIMD loads separately. Build and run it in Release mode with
@@ -77,6 +101,9 @@ Set `POPCOUNT_RANGES_SAMPLING_THRESHOLDS` at configure time to build a different
 matrix. Use the same build type, machine, and repetition mode for all variants.
 The `std_sample` rows are a useful per-run reference, but compare the
 `popcount_ranges` rows across thresholds to evaluate the threshold effect.
+The measured threshold differences are small and backend-dependent; threshold 28
+was near the best of 24, 28, and 32 in the local full Release comparison, rather
+than a universal optimum.
 
 The sampling cases cover every popcount `R` for each listed width where
 `C(N,R)` fits in `uint64_t`. The benchmark includes both `R` and `N-R` where
