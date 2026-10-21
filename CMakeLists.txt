@@ -125,7 +125,7 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
     )
 
     configure_popcount_target(sampling_benchmark)
-    target_compile_definitions(sampling_benchmark PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=4u)
+    target_compile_definitions(sampling_benchmark PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=32u)
 
     add_executable(simd_adapter_benchmark
         benchmarks/simd_adapter_benchmark.cpp
@@ -138,7 +138,7 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
             message(FATAL_ERROR "Invalid sampling benchmark threshold: ${threshold}")
         endif()
 
-        if(threshold STREQUAL "4")
+        if(threshold STREQUAL "32")
             continue()
         endif()
 

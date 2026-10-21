@@ -77,24 +77,24 @@ comparing CSV rows.
 
 The sampling executable reports the compiled `POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD`
 only on `popcount_ranges` rows; the threshold column is blank for `std_sample`, which
-is independent of that setting. CMake builds the default `sampling_benchmark` at
-threshold 4 and also creates `sampling_benchmark_threshold_<value>` targets for the values in
+is independent of that setting. The default `sampling_benchmark` uses threshold 32
+and CMake also creates `sampling_benchmark_threshold_<value>` targets for the values in
 `POPCOUNT_RANGES_SAMPLING_THRESHOLDS` (default:
-`1;2;4;8;12;16;20;24;28;32`; threshold 4 uses the
-default executable). To compare the defaults, build and run:
+`1;2;4;8;12;16;20;24;28;32`; threshold 32 uses the
+default executable). To compare the threshold variants, build and run:
 
 ```text
-cmake --build build-release --target sampling_benchmark sampling_benchmark_threshold_1 sampling_benchmark_threshold_2 sampling_benchmark_threshold_8 sampling_benchmark_threshold_12 sampling_benchmark_threshold_16 sampling_benchmark_threshold_20 sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
-build-release/sampling_benchmark.exe > sampling-threshold-4.csv
+cmake --build build-release --target sampling_benchmark sampling_benchmark_threshold_1 sampling_benchmark_threshold_2 sampling_benchmark_threshold_4 sampling_benchmark_threshold_8 sampling_benchmark_threshold_12 sampling_benchmark_threshold_16 sampling_benchmark_threshold_20 sampling_benchmark_threshold_24 sampling_benchmark_threshold_28
+build-release/sampling_benchmark.exe > sampling-threshold-32.csv
 build-release/sampling_benchmark_threshold_1.exe > sampling-threshold-1.csv
 build-release/sampling_benchmark_threshold_2.exe > sampling-threshold-2.csv
+build-release/sampling_benchmark_threshold_4.exe > sampling-threshold-4.csv
 build-release/sampling_benchmark_threshold_8.exe > sampling-threshold-8.csv
 build-release/sampling_benchmark_threshold_12.exe > sampling-threshold-12.csv
 build-release/sampling_benchmark_threshold_16.exe > sampling-threshold-16.csv
 build-release/sampling_benchmark_threshold_20.exe > sampling-threshold-20.csv
 build-release/sampling_benchmark_threshold_24.exe > sampling-threshold-24.csv
 build-release/sampling_benchmark_threshold_28.exe > sampling-threshold-28.csv
-build-release/sampling_benchmark_threshold_32.exe > sampling-threshold-32.csv
 ```
 
 Set `POPCOUNT_RANGES_SAMPLING_THRESHOLDS` at configure time to build a different

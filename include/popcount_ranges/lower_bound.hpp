@@ -105,7 +105,7 @@ namespace jrmwng
             static_assert(sizeof(T) <= 8, "Type T must be at most 8 bytes.");
 
             #ifndef POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD
-            #define POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD 4u
+            #define POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD 32u
             #endif
             inline constexpr static std::size_t N0 = (64u * POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD);
             inline constexpr static std::size_t N1 = (N0 / sizeof(T));
