@@ -13,8 +13,15 @@ namespace jrmwng
 {
     namespace popcount_ranges
     {
-        template <typename T, typename Tpredicate>
-        T * lower_bound(T * first, T * last, std::remove_cv_t<T> target, Tpredicate pred) noexcept(noexcept(pred(*first, target)))
+        template <typename T>
+        struct lower_bound_traits
+        {
+            inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 32u * 64u / sizeof(T);
+
+            inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = 128u / sizeof(T);
+        };
+        template <typename T, typename Tpredicate, typename Ttraits = lower_bound_traits<T>>
+        T * lower_bound(T * first, T * last, std::remove_cv_t<T> target, Tpredicate pred, Ttraits = Ttraits{}) noexcept(noexcept(pred(*first, target)))
         {
             #ifdef POPCOUNT_RANGES_LOWER_BOUND_STD
             return std::lower_bound(first, last, target, pred);
@@ -22,30 +29,65 @@ namespace jrmwng
             using type = std::remove_cv_t<T>;
 
             if constexpr (std::is_same_v<Tpredicate, std::greater<type>> || std::is_same_v<Tpredicate, std::ranges::greater>)
-                return lower_bound(first, last, target, std::greater<>{});
+                return lower_bound(first, last, target, std::greater<>{}, Ttraits{});
             else if constexpr (std::is_same_v<Tpredicate, std::less<type>> || std::is_same_v<Tpredicate, std::ranges::less>)
-                return lower_bound(first, last, target, std::less<>{});
+                return lower_bound(first, last, target, std::less<>{}, Ttraits{});
             else
             {
                 if (first == last) [[unlikely]]
                     return last;
 
-                constexpr size_t LANES = (sizeof(T) == 1 ? 64u : 128u) / sizeof(T);
+                // 1. Coarse-grained binary search using branchless or branched approach depending on traits
 
+                if constexpr (requires { Ttraits::BRANCHLESS_BINARY_SEARCH_THRESHOLD; })
+                {
+                    std::ptrdiff_t count = last - first;
+                    while (count >= Ttraits::BRANCHLESS_BINARY_SEARCH_THRESHOLD) [[likely]]
+                    {
+                        std::ptrdiff_t mid = count / 2;
+                        if (pred(first[mid], target))
+                        {
+                            first += mid + 1;
+                            count -= mid + 1;
+                        }
+                        else
+                        {
+                            count = mid;
+                        }
+                    }
+                    last = first + count;
+                }
+                if constexpr (requires { Ttraits::BRANCHED_BINARY_SEARCH_THRESHOLD; })
+                {
+                    while (last - first >= Ttraits::BRANCHED_BINARY_SEARCH_THRESHOLD) [[likely]]
+                    {
+                        T * const mid = first + (last - first) / 2;
+                        if (pred(*mid, target))
+                            first = mid + 1;
+                        else
+                            last = mid;
+                    }
+                    std::ptrdiff_t count = last - first;
+                }
+
+                // 2. Coarse-grained sequential search using the last element of each chunk
+ 
                 if (!pred(*first, target)) [[unlikely]]
                     return first;
 
                 for (T * it = first; it != last; ) [[likely]]
                 {
-                    T * const next = std::min(it + LANES, last);
+                    T * const next = std::min(it + Ttraits::SEQUENTIAL_SEARCH_PITCH, last);
 
                     if (!pred(next[-1], target)) [[unlikely]]
                     {
-                        using traits = data_par::simd_range_traits<
+                        // 3. Fine-grained SIMD-based search within the identified chunk in a single pass (fully unrolled)
+
+                        using Tsimd_traits = data_par::simd_range_traits<
                             type, data_par::simd_bitset_mask<type>>;
-                        using mask_type = typename traits::mask_type;
-                        using range_type = typename traits::short_type;
-                        using simd_type = typename traits::simd_type;
+                        using mask_type = typename Tsimd_traits::mask_type;
+                        using range_type = typename Tsimd_traits::short_type;
+                        using simd_type = typename Tsimd_traits::simd_type;
 
                         return it + []<size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>)->int {
 
@@ -53,7 +95,7 @@ namespace jrmwng
                             std::tuple tuplePair(simd_rng[Is]...);
 
                             // (pred(chunk0, target), pred(chunk1, target), ...)
-                            std::tuple tupleCompare(traits::mask_to_bitset(
+                            std::tuple tupleCompare(Tsimd_traits::mask_to_bitset(
                                 pred(std::get<simd_type>(std::get<Is>(tuplePair)), target))...);
 
                             // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
@@ -61,13 +103,12 @@ namespace jrmwng
                                 std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
                             
                             // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
-                            std::tuple tuplePopcount(traits::reduce_count(std::get<Is>(tupleResult))...);
+                            std::tuple tuplePopcount(Tsimd_traits::reduce_count(std::get<Is>(tupleResult))...);
 
                             // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
                             return (std::get<Is>(tuplePopcount) + ...);
 
-                        }(range_type(it, next),
-                          target, pred, std::make_index_sequence<(LANES + traits::simd_width - 1) / traits::simd_width>{});
+                        }(range_type(it, next), target, pred, std::make_index_sequence<(Ttraits::SEQUENTIAL_SEARCH_PITCH + Tsimd_traits::simd_width - 1) / Tsimd_traits::simd_width>{});
                     }
 
                     it = next;
@@ -76,22 +117,22 @@ namespace jrmwng
             }
             #endif
         }
-        template <typename T, typename U, typename Tpredicate>
-        std::enable_if_t<(std::is_integral_v<T> == std::is_integral_v<U> && std::is_signed_v<T> == std::is_signed_v<U> && sizeof(T) < sizeof(U)), T *> lower_bound(T * first, T * last, U target, Tpredicate pred) noexcept
+        template <typename T, typename U, typename Tpredicate, typename Ttraits = lower_bound_traits<T>>
+        std::enable_if_t<(std::is_integral_v<T> == std::is_integral_v<U> && std::is_signed_v<T> == std::is_signed_v<U> && sizeof(T) < sizeof(U)), T *> lower_bound(T * first, T * last, U target, Tpredicate pred, Ttraits = lower_bound_traits<T>{}) noexcept
         {
             if constexpr (std::is_same_v<Tpredicate, std::greater<>> || std::is_same_v<Tpredicate, std::greater<T>> || std::is_same_v<Tpredicate, std::ranges::greater>)
             {
                 if (target < std::numeric_limits<T>::min())
                     return last;
                 else
-                    return lower_bound(first, last, static_cast<T>(std::min<U>(target, static_cast<U>(std::numeric_limits<T>::max()))), std::greater<>{});
+                    return lower_bound(first, last, static_cast<T>(std::min<U>(target, static_cast<U>(std::numeric_limits<T>::max()))), std::greater<>{}, Ttraits{});
             }
             else if constexpr (std::is_same_v<Tpredicate, std::less<>> || std::is_same_v<Tpredicate, std::less<T>> || std::is_same_v<Tpredicate, std::ranges::less>)
             {
                 if (target > std::numeric_limits<T>::max())
                     return last;
                 else
-                    return lower_bound(first, last, static_cast<T>(std::max<U>(target, static_cast<U>(std::numeric_limits<T>::min()))), std::less<>{});
+                    return lower_bound(first, last, static_cast<T>(std::max<U>(target, static_cast<U>(std::numeric_limits<T>::min()))), std::less<>{}, Ttraits{});
             }
             else
             {
