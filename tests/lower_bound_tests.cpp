@@ -12,15 +12,21 @@
 
 namespace
 {
-template <typename T, typename Predicate>
-bool check_case(std::vector<T> const& values, T target, Predicate predicate, char const* name)
+template <
+    typename T,
+    typename Predicate,
+    typename Traits = jrmwng::popcount_ranges::lower_bound_traits<T>>
+bool check_case(
+    std::vector<T> const& values, T target, Predicate predicate,
+    char const* name, Traits traits = {})
 {
     auto const expected = std::lower_bound(values.begin(), values.end(), target, predicate);
-    auto const actual = jrmwng::popcount_ranges::lower_bound(values.data(), values.data() + values.size(), target, predicate);
-    auto const expected_index = expected - values.begin();
-    auto const actual_index = actual - values.data();
+    auto const actual = jrmwng::popcount_ranges::lower_bound(
+        values.data(), values.data() + values.size(), target, predicate, traits);
+    auto const expected_index = values.empty() ? 0 : expected - values.begin();
+    auto const actual_index = values.empty() ? 0 : actual - values.data();
 
-    if (actual_index != expected_index)
+    if (values.empty() ? actual != values.data() : actual_index != expected_index)
     {
         std::cerr << name << ": target=" << static_cast<long long>(target)
                   << ", expected=" << expected_index << ", actual=" << actual_index << '\n';
@@ -117,11 +123,55 @@ template <typename T, typename U>
 bool check_wider_target()
 {
     std::vector<T> values{-100, -10, 0, 10, 100};
+    auto descending = values;
+    std::reverse(descending.begin(), descending.end());
     for (U target : {static_cast<U>(-1000), static_cast<U>(-10), static_cast<U>(5), static_cast<U>(1000)})
     {
-        auto const actual = jrmwng::popcount_ranges::lower_bound(values.data(), values.data() + values.size(), target, std::less<>{});
-        auto const expected = std::lower_bound(values.begin(), values.end(), target, std::less<>{});
-        if (actual != values.data() + (expected - values.begin()))
+        auto const ascending_actual = jrmwng::popcount_ranges::lower_bound(
+            values.data(), values.data() + values.size(), target, std::less<>{});
+        auto const ascending_expected = std::lower_bound(
+            values.begin(), values.end(), target, std::less<>{});
+        auto const descending_actual = jrmwng::popcount_ranges::lower_bound(
+            descending.data(), descending.data() + descending.size(),
+            target, std::greater<>{});
+        auto const descending_expected = std::lower_bound(
+            descending.begin(), descending.end(), target, std::greater<>{});
+        if (ascending_actual != values.data() + (ascending_expected - values.begin()) ||
+            descending_actual != descending.data() +
+                (descending_expected - descending.begin()))
+            return false;
+    }
+    return true;
+}
+
+template <typename T>
+struct branchless_traits : jrmwng::popcount_ranges::lower_bound_traits<T>
+{
+    inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 16;
+};
+
+template <typename T>
+struct branched_traits
+{
+    inline constexpr static std::size_t BRANCHED_BINARY_SEARCH_THRESHOLD = 16;
+    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
+        128u / sizeof(T);
+};
+
+template <typename Traits>
+bool check_custom_traits(char const* name, Traits traits)
+{
+    auto ascending = make_ascending<std::int32_t>(4097);
+    auto descending = ascending;
+    std::reverse(descending.begin(), descending.end());
+
+    for (std::int32_t target : {
+             std::numeric_limits<std::int32_t>::lowest(),
+             -1, 0, 1, 512, 1024,
+             std::numeric_limits<std::int32_t>::max()})
+    {
+        if (!check_case(ascending, target, std::less<>{}, name, traits) ||
+            !check_case(descending, target, std::greater<>{}, name, traits))
             return false;
     }
     return true;
@@ -144,6 +194,10 @@ int main()
     passed = passed && check_wider_target<std::int8_t, std::int16_t>();
     passed = passed && check_wider_target<std::int16_t, std::int32_t>();
     passed = passed && check_wider_target<std::int32_t, std::int64_t>();
+    passed = passed && check_custom_traits(
+        "custom branchless traits", branchless_traits<std::int32_t>{});
+    passed = passed && check_custom_traits(
+        "custom branched traits", branched_traits<std::int32_t>{});
 
     if (!passed)
         return 1;

@@ -140,6 +140,13 @@ The all-threshold screening is summarized in
 
 ### Isolated lower-bound search
 
+The measurements in this section are archived results from the earlier
+experimental search harness. The current `lower_bound_search_benchmark` is a
+smaller custom-versus-`std::lower_bound` comparison; the former descent,
+hybrid, branch-hint, and cache-state modes are no longer part of that
+executable. See [benchmarks/README.md](benchmarks/README.md) for current
+benchmark usage.
+
 The end-to-end sampling benchmark is not a reliable way to infer per-call search
 latency: rank generation, unranking, and population traversal all contribute to
 each sample. I added a separate lower-bound microbenchmark using uniform search
@@ -244,11 +251,8 @@ Next, test the causes rather than tuning from this one workload:
 4. Inspect optimized assembly for the exact binary and benchmark build, then
    re-run across compiler/STL combinations before considering a dispatch rule.
 
-The latest measurements are in
-`build/sampling_benchmark_results/binary-hybrid-old-vs-new-heads.csv`. Use
-`lower_bound_search_benchmark --hybrid-pair-only` to reproduce the paired
-threshold sweep and head-only measurements; see the
-[benchmark guide](benchmarks/README.md).
+The latest archived measurements are in
+`build/sampling_benchmark_results/binary-hybrid-old-vs-new-heads.csv`.
 
 The corrected head itself can match the standard-library search. For `N=16,384`,
 threshold 1, the four-seed component medians are 19.42 ns for the binary head,
@@ -270,9 +274,7 @@ compiler/STL-specific; inspect optimized output on each target.
 The eight-seed dense sweep is in
 `build/sampling_benchmark_results/binary-hybrid-threshold-dense-consistent.csv`;
 the paired legacy-loop diagnostic is in
-`build/sampling_benchmark_results/binary-hybrid-legacy-head.csv`. Use
-`lower_bound_search_benchmark --hybrid-pair-only` to reproduce the dense
-sweep; see the [benchmark guide](benchmarks/README.md).
+`build/sampling_benchmark_results/binary-hybrid-legacy-head.csv`.
 
 ### Earlier custom SIMD versus C++26 `<simd>` comparison
 

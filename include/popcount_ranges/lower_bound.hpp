@@ -16,7 +16,7 @@ namespace jrmwng
         template <typename T>
         struct lower_bound_traits
         {
-            inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 32u * 64u / sizeof(T);
+            inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 32u * 64u / sizeof(T);
 
             inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = 128u / sizeof(T);
         };
