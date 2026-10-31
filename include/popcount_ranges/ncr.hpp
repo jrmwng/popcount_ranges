@@ -11,6 +11,10 @@
 #include <ranges>
 #include <vector>
 
+#ifndef POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD
+#define POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD 32u
+#endif
+
 #include "lower_bound.hpp"
 
 namespace jrmwng
@@ -99,12 +103,17 @@ namespace jrmwng
                         uintmax_t>>>;
             using Tvalue = min_uint_t<std::get<uintmax_t>(nCr(MAX_N, R))>;
             std::array<Tvalue, MAX_N - R + 2> m_row; // C(MAX_N, R), C(MAX_N-1, R), ..., C(R+1,R)=R+1, C(R, R)=1, C(R-1, R)=0
-            lower_bound_descent<std::array<Tvalue, MAX_N - R + 2>> m_lower_bound_descent = m_row;
+            #ifdef POPCOUNT_RANGES_LOWER_BOUND_DESCENT
+            lower_bound_descent<std::array<Tvalue, MAX_N - R + 2>,
+                                POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD> m_lower_bound_descent = m_row;
+            #endif
         public:
+            #ifdef POPCOUNT_RANGES_LOWER_BOUND_DESCENT
             constexpr void update() noexcept
             {
                 m_lower_bound_descent.update();
             }
+            #endif
 
             using value_type = Tvalue;
             constexpr auto & operator[](size_t n) noexcept
@@ -117,9 +126,13 @@ namespace jrmwng
             }
             constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
             {
-                std::size_t const found = m_lower_bound_descent(
-                    MAX_N - (n_last - 1u), MAX_N - (n_first - 1u), target, std::greater<>{});
+                #ifdef POPCOUNT_RANGES_LOWER_BOUND_DESCENT
+                std::size_t const found = m_lower_bound_descent(MAX_N - (n_last - 1u), MAX_N - (n_first - 1u), target, std::greater<>{});
                 return {MAX_N - found, m_row[found]};
+                #else
+                auto const itFound = lower_bound(m_row.data() + MAX_N - (n_last - 1u), m_row.data() + MAX_N - (n_first - 1u), target, std::greater<>{});
+                return {std::distance(itFound, m_row.data() + MAX_N), *itFound};
+                #endif
             }
         };
         template <size_t MAX_N>
@@ -192,11 +205,13 @@ namespace jrmwng
                         }(std::integral_constant<size_t, R2s + 2>{}), ...);
                     }(std::make_index_sequence<MAX_R - 1>{}));
                 }
+                #ifdef POPCOUNT_RANGES_LOWER_BOUND_DESCENT
                 [&, this]<size_t... R2s>(std::index_sequence<R2s...>){ // R2s = 0, 1, ..., MAX_R-2
                     ([&, this]<size_t R>(std::integral_constant<size_t, R>){
                         std::get<R>(m_tupleRow).update();
                     }(std::integral_constant<size_t, R2s + 2>{}), ...);
                 }(std::make_index_sequence<MAX_R - 1>{});
+                #endif
             }
 
             template <size_t R>

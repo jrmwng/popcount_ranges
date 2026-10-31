@@ -16,6 +16,9 @@ namespace jrmwng
         template <typename T, typename Tpredicate>
         T * lower_bound(T * first, T * last, std::remove_cv_t<T> target, Tpredicate pred) noexcept(noexcept(pred(*first, target)))
         {
+            #ifdef POPCOUNT_RANGES_LOWER_BOUND_STD
+            return std::lower_bound(first, last, target, pred);
+            #else
             using type = std::remove_cv_t<T>;
 
             if constexpr (std::is_same_v<Tpredicate, std::greater<type>> || std::is_same_v<Tpredicate, std::ranges::greater>)
@@ -71,6 +74,7 @@ namespace jrmwng
                 }
                 return last;
             }
+            #endif
         }
         template <typename T, typename U, typename Tpredicate>
         std::enable_if_t<(std::is_integral_v<T> == std::is_integral_v<U> && std::is_signed_v<T> == std::is_signed_v<U> && sizeof(T) < sizeof(U)), T *> lower_bound(T * first, T * last, U target, Tpredicate pred) noexcept
@@ -95,26 +99,24 @@ namespace jrmwng
             }
         }
 
-        template <typename Trange>
+        template <typename Trange, std::size_t THRESHOLD = 32u>
         struct lower_bound_descent;
 
-        template <typename T, std::size_t N>
-        struct lower_bound_descent<std::array<T, N>>
+        template <typename T, std::size_t N, std::size_t THRESHOLD>
+        struct lower_bound_descent<std::array<T, N>, THRESHOLD>
         {
+            static_assert(THRESHOLD > 0, "THRESHOLD must be greater than 0.");
             static_assert(N > 0, "Array size must be greater than 0.");
             static_assert(sizeof(T) <= 8, "Type T must be at most 8 bytes.");
 
-            #ifndef POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD
-            #define POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD 32u
-            #endif
-            inline constexpr static std::size_t N0 = (64u * POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD);
+            inline constexpr static std::size_t N0 = (64u * THRESHOLD);
             inline constexpr static std::size_t N1 = (N0 / sizeof(T));
             inline constexpr static std::size_t N2 = ((N + N1 - 1) / N1);
 
             std::array<T, N> const &range;
             std::array<T, N2> chunks;
 
-            std::conditional_t<(N2 > 1), lower_bound_descent<std::array<T, N2>>, std::array<T, N2>&> next;
+            std::conditional_t<(N2 > 1), lower_bound_descent<std::array<T, N2>, THRESHOLD>, std::array<T, N2>&> next;
 
             constexpr lower_bound_descent(std::array<T, N> const &r) noexcept
                 : range(r), chunks{}, next(chunks)
@@ -128,14 +130,11 @@ namespace jrmwng
             constexpr void update()
             {
                 for (std::size_t i = 0, j = 1; j < N2; ++i, ++j)
-                {
                     chunks[i] = range[j * N1 - 1u];
-                }
                 chunks[N2-1u] = range[N - 1u];
+
                 if constexpr (N2 > 1)
-                {
                     next.update();
-                }
             }
 
             template <typename Tpredicate>

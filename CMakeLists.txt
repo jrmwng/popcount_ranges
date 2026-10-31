@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(POPCOUNT_RANGES_SIMD "Use the C++26 <simd> implementation" OFF)
+option(POPCOUNT_RANGES_BUILD_BENCHMARKS "Build the sampling benchmarks" ON)
 
 include(CTest)
 include(GNUInstallDirs)
@@ -23,7 +24,7 @@ if(POPCOUNT_RANGES_SIMD)
     if(MSVC)
         target_compile_options(popcount_ranges INTERFACE /std:c++latest)
     else()
-        target_compile_options(popcount_ranges INTERFACE -std=c++2c)
+        target_compile_options(popcount_ranges INTERFACE -std=c++26)
     endif()
 endif()
 target_compile_definitions(popcount_ranges INTERFACE
@@ -42,6 +43,13 @@ endif()
 
 function(configure_popcount_target target)
     target_link_libraries(${target} PRIVATE jrmwng::popcount_ranges)
+endfunction()
+
+function(configure_sampling_benchmark target)
+    configure_popcount_target(${target})
+    target_compile_definitions(${target} PRIVATE
+        "POPCOUNT_RANGES_BENCHMARK_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\""
+    )
 endfunction()
 
 set(popcount_ranges_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/popcount_ranges")
@@ -114,6 +122,11 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
 
     configure_popcount_target(lower_bound_benchmark)
 
+    add_executable(lower_bound_search_benchmark
+        benchmarks/lower_bound_search_benchmark.cpp
+    )
+    configure_sampling_benchmark(lower_bound_search_benchmark)
+
     add_executable(popcount_set_benchmark
         benchmarks/popcount_set_benchmark.cpp
     )
@@ -124,8 +137,7 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
         benchmarks/sampling_benchmark.cpp
     )
 
-    configure_popcount_target(sampling_benchmark)
-    target_compile_definitions(sampling_benchmark PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=32u)
+    configure_sampling_benchmark(sampling_benchmark)
 
     add_executable(simd_adapter_benchmark
         benchmarks/simd_adapter_benchmark.cpp
@@ -138,15 +150,22 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
             message(FATAL_ERROR "Invalid sampling benchmark threshold: ${threshold}")
         endif()
 
-        if(threshold STREQUAL "32")
-            continue()
-        endif()
-
         set(target sampling_benchmark_threshold_${threshold})
         add_executable(${target}
             benchmarks/sampling_benchmark.cpp
         )
-        configure_popcount_target(${target})
-        target_compile_definitions(${target} PRIVATE POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=${threshold}u)
+        configure_sampling_benchmark(${target})
+        target_compile_definitions(${target} PRIVATE
+            POPCOUNT_RANGES_LOWER_BOUND_DESCENT
+            POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD=${threshold}u
+        )
     endforeach()
+
+    add_executable(sampling_benchmark_std_lower_bound
+        benchmarks/sampling_benchmark.cpp
+    )
+    configure_sampling_benchmark(sampling_benchmark_std_lower_bound)
+    target_compile_definitions(sampling_benchmark_std_lower_bound PRIVATE
+        POPCOUNT_RANGES_LOWER_BOUND_STD
+    )
 endif()

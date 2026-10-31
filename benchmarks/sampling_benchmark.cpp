@@ -12,9 +12,21 @@
 #include <string_view>
 #include <vector>
 
+#ifndef POPCOUNT_RANGES_BENCHMARK_COMPILER
+#define POPCOUNT_RANGES_BENCHMARK_COMPILER "unknown"
+#endif
+
 namespace
 {
 std::uint64_t volatile sink = 0;
+
+#if defined(POPCOUNT_RANGES_LOWER_BOUND_STD)
+constexpr std::string_view lower_bound_implementation = "std_lower_bound";
+#elif defined(POPCOUNT_RANGES_LOWER_BOUND_DESCENT)
+constexpr std::string_view lower_bound_implementation = "custom_with_descent";
+#else
+constexpr std::string_view lower_bound_implementation = "custom_without_descent";
+#endif
 
 class counting_mt19937
 {
@@ -123,16 +135,21 @@ void run_case(std::string_view type_name, std::size_t repetitions)
         measure_mt19937_ns_per_sample(standard_calls, repetitions);
 
     sink += popcount_checksum + standard_checksum;
-    std::cout << type_name << ',' << N << ',' << static_cast<std::size_t>(R) << ','
-              << POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD << ",popcount_ranges,"
-              << std::fixed << std::setprecision(2)
+    std::cout << POPCOUNT_RANGES_BENCHMARK_COMPILER << ',' << type_name << ',' << N << ','
+              << static_cast<std::size_t>(R) << ',';
+#ifdef POPCOUNT_RANGES_LOWER_BOUND_DESCENT
+    std::cout << POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD;
+#endif
+    std::cout << ',' << lower_bound_implementation << ','
+              << std::fixed << std::setprecision(3)
               << popcount_elapsed / static_cast<double>(repetitions) << ','
               << popcount_mt19937_elapsed << ','
               << (popcount_elapsed / static_cast<double>(repetitions) - popcount_mt19937_elapsed) << ','
               << static_cast<double>(popcount_calls) / static_cast<double>(repetitions) << ','
               << popcount_checksum << '\n';
-    std::cout << type_name << ',' << N << ',' << static_cast<std::size_t>(R) << ",,std_sample,"
-              << std::fixed << std::setprecision(2)
+    std::cout << POPCOUNT_RANGES_BENCHMARK_COMPILER << ',' << type_name << ',' << N << ','
+              << static_cast<std::size_t>(R) << ",,std_sample,"
+              << std::fixed << std::setprecision(3)
               << standard_elapsed / static_cast<double>(repetitions) << ','
               << standard_mt19937_elapsed << ','
               << (standard_elapsed / static_cast<double>(repetitions) - standard_mt19937_elapsed) << ','
@@ -143,9 +160,9 @@ void run_case(std::string_view type_name, std::size_t repetitions)
 template <typename T, T R,
           typename Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
                                                        static_cast<std::size_t>(R), T>>
-void benchmark_case(std::string_view type_name, bool quick)
+void benchmark_case(std::string_view type_name, std::size_t repetitions)
 {
-    run_case<T, R, Set>(type_name, quick ? 1'000u : 100'000u);
+    run_case<T, R, Set>(type_name, repetitions);
 }
 
 template <typename T, std::size_t R>
@@ -173,7 +190,7 @@ bool decompose_case(std::string_view type_name, std::size_t repetitions)
     auto report = [&](std::string_view phase, double elapsed, std::uint64_t checksum)
     {
         sink += checksum;
-        std::cout << type_name << ',' << N << ',' << popcount << ','
+        std::cout << POPCOUNT_RANGES_BENCHMARK_COMPILER << ',' << type_name << ',' << N << ',' << popcount << ','
                   << POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD << ',' << phase << ','
                   << std::fixed << std::setprecision(2)
                   << elapsed / static_cast<double>(repetitions) << ',' << checksum << '\n';
@@ -289,63 +306,70 @@ bool decompose_case(std::string_view type_name, std::size_t repetitions)
 }
 
 template <typename T, std::size_t... Rs>
-void benchmark_representable_popcounts(std::string_view type_name, bool quick,
+void benchmark_representable_popcounts(std::string_view type_name, std::size_t repetitions,
                                        std::index_sequence<Rs...>)
 {
     constexpr std::size_t N = static_cast<std::size_t>(std::numeric_limits<T>::digits);
-    (benchmark_case<T, T{Rs}>(type_name, quick), ...);
+    (benchmark_case<T, T{Rs}>(type_name, repetitions), ...);
     ((Rs != N - Rs
-          ? (benchmark_case<T, T{N - Rs}>(type_name, quick), void())
+          ? (benchmark_case<T, T{N - Rs}>(type_name, repetitions), void())
           : void()), ...);
 }
 
 template <typename T>
-void benchmark_type(std::string_view type_name, bool quick)
+void benchmark_type(std::string_view type_name, std::size_t repetitions)
 {
     constexpr std::size_t max_r =
         jrmwng::popcount_ranges::nCr_max_R(std::numeric_limits<T>::digits);
     benchmark_representable_popcounts<T>(
-        type_name, quick, std::make_index_sequence<max_r + 1>{});
+        type_name, repetitions, std::make_index_sequence<max_r + 1>{});
 }
 
 template <std::size_t N, std::size_t R>
-void benchmark_sparse_case(std::string_view type_name, bool quick)
+void benchmark_sparse_case(std::string_view type_name, std::size_t repetitions)
 {
     using sparse_type = jrmwng::popcount_ranges::stdx::uint_indices<N, R>;
-    benchmark_case<sparse_type, sparse_type{}>(type_name, quick);
+    benchmark_case<sparse_type, sparse_type{}>(type_name, repetitions);
 }
 
 template <std::size_t N, std::size_t HoleCount>
-void benchmark_sparse_complement_case(std::string_view type_name, bool quick)
+void benchmark_sparse_complement_case(std::string_view type_name, std::size_t repetitions)
 {
     using sparse_type = jrmwng::popcount_ranges::stdx::uint_complement_indices<N, HoleCount>;
-    benchmark_case<sparse_type, sparse_type{}>(type_name, quick);
+    benchmark_case<sparse_type, sparse_type{}>(type_name, repetitions);
 }
 
 template <std::size_t N, std::size_t... Rs>
-void benchmark_sparse_representable_popcounts(std::string_view type_name, bool quick,
+void benchmark_sparse_representable_popcounts(std::string_view type_name, std::size_t repetitions,
                                               std::index_sequence<Rs...>)
 {
-    (benchmark_sparse_case<N, Rs>(type_name, quick), ...);
-    (benchmark_sparse_complement_case<N, Rs>(type_name, quick), ...);
+    (benchmark_sparse_case<N, Rs>(type_name, repetitions), ...);
+    (benchmark_sparse_complement_case<N, Rs>(type_name, repetitions), ...);
 }
 
 template <std::size_t N>
-void benchmark_sparse_type(std::string_view type_name, bool quick)
+void benchmark_sparse_type(std::string_view type_name, std::size_t repetitions)
 {
     constexpr std::size_t max_r = jrmwng::popcount_ranges::nCr_max_R(N);
     benchmark_sparse_representable_popcounts<N>(
-        type_name, quick, std::make_index_sequence<max_r + 1>{});
+        type_name, repetitions, std::make_index_sequence<max_r + 1>{});
 }
 }
 
 int main(int argc, char const* argv[])
 {
     bool const quick = argc > 1 && std::string_view(argv[1]) == "--quick";
+    bool const medium = argc > 1 && std::string_view(argv[1]) == "--medium";
     bool const decompose = argc > 1 && std::string_view(argv[1]) == "--decompose";
+    bool const full = argc <= 1 || std::string_view(argv[1]) == "--full";
+    if (!quick && !medium && !decompose && !full)
+    {
+        std::cerr << "usage: sampling_benchmark [--quick|--medium|--full|--decompose]\n";
+        return 2;
+    }
     if (decompose)
     {
-        std::cout << "type,N,R,lower_bound_threshold,phase,ns_per_sample,checksum\n";
+        std::cout << "compiler,type,N,R,lower_bound_threshold,phase,ns_per_sample,checksum\n";
         using uint8192 = jrmwng::popcount_ranges::stdx::uint<8192>;
         using sparse_uint8192_r1 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 1>;
         using sparse_uint8192_r2 = jrmwng::popcount_ranges::stdx::uint_indices<8192, 2>;
@@ -379,13 +403,14 @@ int main(int argc, char const* argv[])
         return 0;
     }
 
-    std::cout << "type,N,R,lower_bound_threshold,implementation,sample_ns_per_sample,mt19937_ns_per_sample,"
+    std::cout << "compiler,type,N,R,lower_bound_threshold,implementation,sample_ns_per_sample,mt19937_ns_per_sample,"
                  "non_mt19937_ns_per_sample,mt19937_calls_per_sample,checksum\n";
 
-    benchmark_type<std::uint8_t>("uint8", quick);
-    benchmark_type<std::uint16_t>("uint16", quick);
-    benchmark_type<std::uint32_t>("uint32", quick);
-    benchmark_type<std::uint64_t>("uint64", quick);
+    std::size_t const repetitions = quick ? 1'000u : medium ? 10'000u : 100'000u;
+    benchmark_type<std::uint8_t>("uint8", repetitions);
+    benchmark_type<std::uint16_t>("uint16", repetitions);
+    benchmark_type<std::uint32_t>("uint32", repetitions);
+    benchmark_type<std::uint64_t>("uint64", repetitions);
 
     using uint128 = jrmwng::popcount_ranges::stdx::uint<128>;
     using uint256 = jrmwng::popcount_ranges::stdx::uint<256>;
@@ -394,20 +419,20 @@ int main(int argc, char const* argv[])
     using uint2048 = jrmwng::popcount_ranges::stdx::uint<2048>;
     using uint4096 = jrmwng::popcount_ranges::stdx::uint<4096>;
     using uint8192 = jrmwng::popcount_ranges::stdx::uint<8192>;
-    benchmark_type<uint128>("uint128", quick);
-    benchmark_type<uint256>("uint256", quick);
-    benchmark_type<uint512>("uint512", quick);
-    benchmark_type<uint1024>("uint1024", quick);
-    benchmark_type<uint2048>("uint2048", quick);
-    benchmark_type<uint4096>("uint4096", quick);
-    benchmark_type<uint8192>("uint8192", quick);
-    benchmark_sparse_type<128>("sparse_uint128", quick);
-    benchmark_sparse_type<256>("sparse_uint256", quick);
-    benchmark_sparse_type<512>("sparse_uint512", quick);
-    benchmark_sparse_type<1024>("sparse_uint1024", quick);
-    benchmark_sparse_type<2048>("sparse_uint2048", quick);
-    benchmark_sparse_type<4096>("sparse_uint4096", quick);
-    benchmark_sparse_type<8192>("sparse_uint8192", quick);
+    benchmark_type<uint128>("uint128", repetitions);
+    benchmark_type<uint256>("uint256", repetitions);
+    benchmark_type<uint512>("uint512", repetitions);
+    benchmark_type<uint1024>("uint1024", repetitions);
+    benchmark_type<uint2048>("uint2048", repetitions);
+    benchmark_type<uint4096>("uint4096", repetitions);
+    benchmark_type<uint8192>("uint8192", repetitions);
+    benchmark_sparse_type<128>("sparse_uint128", repetitions);
+    benchmark_sparse_type<256>("sparse_uint256", repetitions);
+    benchmark_sparse_type<512>("sparse_uint512", repetitions);
+    benchmark_sparse_type<1024>("sparse_uint1024", repetitions);
+    benchmark_sparse_type<2048>("sparse_uint2048", repetitions);
+    benchmark_sparse_type<4096>("sparse_uint4096", repetitions);
+    benchmark_sparse_type<8192>("sparse_uint8192", repetitions);
 
     std::cerr << "sink=" << sink << '\n';
 }
