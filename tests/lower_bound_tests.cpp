@@ -148,22 +148,19 @@ bool check_wider_target()
 template <typename T>
 struct branchless_traits : jrmwng::popcount_ranges::lower_bound_traits<T>
 {
-    inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 16;
+    inline constexpr static jrmwng::popcount_ranges::binary_search_algorithm
+        BINARY_SEARCH_ALGORITHM =
+            jrmwng::popcount_ranges::binary_search_algorithm::branchless;
+    inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 16;
 };
 
 template <typename T>
 struct branched_traits
 {
-    inline constexpr static std::size_t BRANCHED_BINARY_SEARCH_THRESHOLD = 16;
-    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
-        128u / sizeof(T);
-};
-
-template <typename T>
-struct both_binary_traits
-{
-    inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 16;
-    inline constexpr static std::size_t BRANCHED_BINARY_SEARCH_THRESHOLD = 8;
+    inline constexpr static jrmwng::popcount_ranges::binary_search_algorithm
+        BINARY_SEARCH_ALGORITHM =
+            jrmwng::popcount_ranges::binary_search_algorithm::branched;
+    inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 16;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
         128u / sizeof(T);
 };
@@ -171,7 +168,10 @@ struct both_binary_traits
 template <typename T>
 struct threshold_one_branchless_traits
 {
-    inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 1;
+    inline constexpr static jrmwng::popcount_ranges::binary_search_algorithm
+        BINARY_SEARCH_ALGORITHM =
+            jrmwng::popcount_ranges::binary_search_algorithm::branchless;
+    inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 1;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
         128u / sizeof(T);
 };
@@ -179,7 +179,10 @@ struct threshold_one_branchless_traits
 template <typename T>
 struct threshold_one_branched_traits
 {
-    inline constexpr static std::size_t BRANCHED_BINARY_SEARCH_THRESHOLD = 1;
+    inline constexpr static jrmwng::popcount_ranges::binary_search_algorithm
+        BINARY_SEARCH_ALGORITHM =
+            jrmwng::popcount_ranges::binary_search_algorithm::branched;
+    inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 1;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
         128u / sizeof(T);
 };
@@ -187,6 +190,9 @@ struct threshold_one_branched_traits
 template <std::size_t Pitch>
 struct pitch_only_traits
 {
+    inline constexpr static jrmwng::popcount_ranges::binary_search_algorithm
+        BINARY_SEARCH_ALGORITHM =
+            jrmwng::popcount_ranges::binary_search_algorithm::none;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
 };
 
@@ -207,37 +213,6 @@ bool check_custom_traits(char const* name, Traits traits)
             return false;
     }
     return true;
-}
-
-bool check_binary_strategies_are_exclusive()
-{
-    auto values = make_ascending<std::int32_t>(4097);
-    auto count_comparisons = [&](auto traits)
-    {
-        std::size_t comparisons = 0;
-        auto const counted_less = [&](auto const& left, auto const& right)
-        {
-            ++comparisons;
-            return left < right;
-        };
-        auto const result = jrmwng::popcount_ranges::lower_bound(
-            values.data(), values.data() + values.size(), 512,
-            counted_less, traits);
-        auto const expected =
-            values.data() +
-            (std::lower_bound(values.begin(), values.end(), 512) -
-             values.begin());
-        if (result != expected)
-            return std::pair{false, comparisons};
-        return std::pair{true, comparisons};
-    };
-
-    auto const [branchless_passed, branchless_comparisons] =
-        count_comparisons(branchless_traits<std::int32_t>{});
-    auto const [both_passed, both_comparisons] =
-        count_comparisons(both_binary_traits<std::int32_t>{});
-    return branchless_passed && both_passed &&
-           branchless_comparisons == both_comparisons;
 }
 
 bool check_threshold_one_end_position()
@@ -303,7 +278,6 @@ int main()
         "custom branchless traits", branchless_traits<std::int32_t>{});
     passed = passed && check_custom_traits(
         "custom branched traits", branched_traits<std::int32_t>{});
-    passed = passed && check_binary_strategies_are_exclusive();
     passed = passed && check_threshold_one_end_position();
     passed = passed && check_custom_pitches<std::uint8_t>("uint8_t pitches");
     passed = passed && check_custom_pitches<std::uint16_t>("uint16_t pitches");

@@ -280,22 +280,32 @@ struct Measurement
 template <std::size_t Pitch>
 struct pitch_traits
 {
+    inline constexpr static
+        jrmwng::popcount_ranges::binary_search_algorithm
+            BINARY_SEARCH_ALGORITHM =
+                jrmwng::popcount_ranges::binary_search_algorithm::none;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
 };
 
 template <std::size_t Threshold, std::size_t Pitch>
 struct branchless_traits
 {
-    inline constexpr static std::size_t
-        BRANCHLESS_BINARY_SEARCH_THRESHOLD = Threshold;
+    inline constexpr static
+        jrmwng::popcount_ranges::binary_search_algorithm
+            BINARY_SEARCH_ALGORITHM =
+                jrmwng::popcount_ranges::binary_search_algorithm::branchless;
+    inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = Threshold;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
 };
 
 template <std::size_t Threshold, std::size_t Pitch>
 struct branched_traits
 {
-    inline constexpr static std::size_t
-        BRANCHED_BINARY_SEARCH_THRESHOLD = Threshold;
+    inline constexpr static
+        jrmwng::popcount_ranges::binary_search_algorithm
+            BINARY_SEARCH_ALGORITHM =
+                jrmwng::popcount_ranges::binary_search_algorithm::branched;
+    inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = Threshold;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
 };
 

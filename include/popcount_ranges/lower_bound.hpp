@@ -13,10 +13,18 @@ namespace jrmwng
 {
     namespace popcount_ranges
     {
+        enum class binary_search_algorithm
+        {
+            none,
+            branchless,
+            branched,
+        };
+
         template <typename T>
         struct lower_bound_traits
         {
-            inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 32u * 64u / sizeof(T);
+            inline constexpr static binary_search_algorithm BINARY_SEARCH_ALGORITHM = binary_search_algorithm::none;
+            inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 32u * 64u / sizeof(T);
 
             inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = 128u / sizeof(T);
         };
@@ -34,49 +42,47 @@ namespace jrmwng
                 return lower_bound(first, last, target, std::less<>{}, Ttraits{});
             else
             {
-                if (first == last) [[unlikely]]
+                if (first == last) [[unlikely]] // empty domain
                     return last;
 
-                if (!pred(*first, target)) [[unlikely]]
+                if (!pred(*first, target)) [[unlikely]] // Elements from `first` satisfy the condition
                     return first;
+                if (pred(*(last - 1), target)) [[unlikely]] // Elements before `last` do not satisfy the condition
+                    return last;
 
                 // 1. Coarse-grained binary search using branchless or branched approach depending on traits
 
-                if constexpr (requires { Ttraits::BRANCHLESS_BINARY_SEARCH_THRESHOLD; })
+                if constexpr (Ttraits::BINARY_SEARCH_ALGORITHM != binary_search_algorithm::none)
                 {
-                    std::ptrdiff_t count = last - first;
-                    while (count >= Ttraits::BRANCHLESS_BINARY_SEARCH_THRESHOLD) [[likely]]
+                    if constexpr (Ttraits::BINARY_SEARCH_ALGORITHM == binary_search_algorithm::branchless)
                     {
-                        std::ptrdiff_t mid = count / 2;
-                        if (pred(first[mid], target))
+                        std::ptrdiff_t count = last - first;
+                        while (count >= Ttraits::BINARY_SEARCH_THRESHOLD) [[likely]]
                         {
-                            first += mid + 1;
-                            count -= mid + 1;
+                            std::ptrdiff_t mid = count / 2;
+                            if (pred(first[mid], target))
+                            {
+                                first += mid + 1;
+                                count -= mid + 1;
+                            }
+                            else
+                            {
+                                count = mid;
+                            }
                         }
-                        else
+                        last = first + count;
+                    }
+                    else if constexpr (Ttraits::BINARY_SEARCH_ALGORITHM == binary_search_algorithm::branched)
+                    {
+                        while (last - first >= Ttraits::BINARY_SEARCH_THRESHOLD) [[likely]]
                         {
-                            count = mid;
+                            T * const mid = first + (last - first) / 2;
+                            if (pred(*mid, target))
+                                first = mid + 1;
+                            else
+                                last = mid;
                         }
                     }
-                    last = first + count;
-
-                    if (first == last) [[unlikely]]
-                        return last;
-                }
-                if constexpr (requires { Ttraits::BRANCHED_BINARY_SEARCH_THRESHOLD; })
-                {
-                    while (last - first >= Ttraits::BRANCHED_BINARY_SEARCH_THRESHOLD) [[likely]]
-                    {
-                        T * const mid = first + (last - first) / 2;
-                        if (pred(*mid, target))
-                            first = mid + 1;
-                        else
-                            last = mid;
-                    }
-                    std::ptrdiff_t count = last - first;
-
-                    if (first == last) [[unlikely]]
-                        return last;
                 }
 
                 // 2. Coarse-grained sequential search using the last element of each chunk
