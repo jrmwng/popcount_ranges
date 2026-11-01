@@ -37,6 +37,9 @@ namespace jrmwng
                 if (first == last) [[unlikely]]
                     return last;
 
+                if (!pred(*first, target)) [[unlikely]]
+                    return first;
+
                 // 1. Coarse-grained binary search using branchless or branched approach depending on traits
 
                 if constexpr (requires { Ttraits::BRANCHLESS_BINARY_SEARCH_THRESHOLD; })
@@ -56,6 +59,9 @@ namespace jrmwng
                         }
                     }
                     last = first + count;
+
+                    if (first == last) [[unlikely]]
+                        return last;
                 }
                 if constexpr (requires { Ttraits::BRANCHED_BINARY_SEARCH_THRESHOLD; })
                 {
@@ -68,13 +74,13 @@ namespace jrmwng
                             last = mid;
                     }
                     std::ptrdiff_t count = last - first;
+
+                    if (first == last) [[unlikely]]
+                        return last;
                 }
 
                 // 2. Coarse-grained sequential search using the last element of each chunk
  
-                if (!pred(*first, target)) [[unlikely]]
-                    return first;
-
                 for (T * it = first; it != last; ) [[likely]]
                 {
                     T * const next = std::min(it + Ttraits::SEQUENTIAL_SEARCH_PITCH, last);
