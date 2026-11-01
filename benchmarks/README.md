@@ -126,23 +126,88 @@ build-release/lower_bound_tuning.exe --stage all --seed 24301 > tuning.csv
 
 The pitch stage tests binary-search-disabled implementations at pitches 1, 2,
 4, 8, 16, 32, 64, 128, 256, 512, and 1,024 elements. It chooses the
-lowest-latency pitch independently for each unsigned element width and array
-length. The threshold stage uses that pitch to test branchless and branched
-binary-search thresholds independently at 1 through 1,024 elements (powers of
-two), plus the binary-search-disabled result and `std::lower_bound`. Thresholds
-larger than the array are omitted because they disable the coarse search.
-The tested widths are 8, 16, 32, and 64 bits. Array sizes are powers of two
-from 8 through 262,144, capped at the largest range with unique values for
-each width.
+lowest-latency pitch independently for each primitive type and array length.
+The threshold stage uses that pitch to test branchless and branched
+binary-search thresholds at powers of two from 1 through 1,048,576, plus the
+binary-search-disabled result and `std::lower_bound`. The coarse binary search runs while the
+remaining range is larger than the threshold. Thresholds smaller than the
+sequential pitch and larger than the array are omitted; a threshold equal to
+the array size corresponds to the binary-search-disabled baseline.
+The supported types are `uint8_t`, `uint16_t`, `uint32_t`, `uint64_t`, `float`,
+and `double`. The tested array sizes are 16, 32, 64, 128, 256, 512, 1,024,
+2,048, 4,096, 8,196, 16,384, 32,768, 65,536, and 262,144. Integer arrays
+larger than the type's distinct value count contain repeated sorted values.
 
 Use `--stage pitch` to emit only pitch results or `--stage threshold` to rerun
-the pitch selection and emit only threshold results. `--type-bits 8|16|32|64`
-and `--size N` restrict a run to any supported positive array length. Pass
-`--pitch N` with `--stage pitch` to test one candidate or with
+the pitch selection and emit only threshold results. `--type uint8_t|uint16_t|uint32_t|uint64_t|float|double`
+selects one primitive type; `--type-bits 8|16|32|64` remains available for
+selecting unsigned integer widths. `--size N` restricts a run to any positive
+array length. Pass `--pitch N` with `--stage pitch` to test one candidate or with
 `--stage threshold` to reuse a pitch selected from a multi-seed sweep.
-`--repetitions N` sets the number of measured query batches (overriding the
-default, including in quick mode); `--seed N` changes the deterministic uniform
-rank queries, and `--quick` reduces the query set for a correctness smoke test.
+The benchmark uses up to 16,384 unique, evenly spaced lower-bound positions
+per workload, selected from the distinct values in the sorted input; integer
+types with fewer representable values use fewer queries. `--repetitions N`
+sets the number of measured query batches (overriding the default, including
+in quick mode); `--seed N` changes the measurement order, and `--quick` reduces
+the unique query set to at most 64 positions for a correctness smoke test.
+Each timed batch cycles through the unique query set enough times to execute
+at least 16,384 searches. The CSV reports both the number of unique positions
+and the number of passes per timed batch.
+For the defaults, the binary-search threshold is selected from the original
+input range length and type. For an untested range length, the next larger
+tested size is used; lengths outside the tested interval use the nearest
+endpoint. A `std::bit_width` bucket calculation selects the table entry
+without a runtime `std::lower_bound`:
+
+| Input range | `uint8_t` | `uint16_t` | `uint32_t` | `uint64_t` | `float` | `double` |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 32 | 16 | 16 | 16 | 16 | 16 |
+| 32 | 32 | 32 | 32 | 32 | 32 | 32 |
+| 64 | 64 | 64 | 64 | 64 | 64 | 64 |
+| 128 | 128 | 128 | 128 | 128 | 128 | 128 |
+| 256 | 256 | 256 | 256 | 256 | 256 | 128 |
+| 512 | 512 | 512 | 256 | 128 | 512 | 256 |
+| 1,024 | 1,024 | 512 | 1,024 | 256 | 512 | 256 |
+| 2,048 | 1,024 | 1,024 | 1,024 | 512 | 512 | 512 |
+| 4,096 | 2,048 | 1,024 | 1,024 | 512 | 1,024 | 512 |
+| 8,196 | 4,096 | 4,096 | 1,024 | 1,024 | 1,024 | 1,024 |
+| 16,384 | 4,096 | 2,048 | 2,048 | 2,048 | 2,048 | 2,048 |
+| 32,768 | 4,096 | 4,096 | 4,096 | 2,048 | 4,096 | 2,048 |
+| 65,536 | 8,192 | 4,096 | 4,096 | 2,048 | 2,048 | 2,048 |
+| 262,144 | 8,192 | 4,096 | 4,096 | 16,384 | 4,096 | 4,096 |
+
+The sequential pitch is looked up by the selected threshold, not by the input
+length, using the same bit-width bucket calculation. The pitch table uses the best pitch measured for the matching type and
+threshold-sized workload (or the next larger tested size):
+
+| Threshold | `uint8_t` | `uint16_t` | `uint32_t` | `uint64_t` | `float` | `double` |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 32 | 16 | 8 | 4 | 8 | 4 |
+| 32 | 32 | 16 | 8 | 8 | 8 | 8 |
+| 64 | 32 | 16 | 16 | 16 | 16 | 16 |
+| 128 | 32 | 32 | 32 | 16 | 32 | 16 |
+| 256 | 64 | 64 | 32 | 32 | 32 | 16 |
+| 512 | 128 | 64 | 32 | 32 | 64 | 32 |
+| 1,024 | 128 | 64 | 64 | 32 | 64 | 32 |
+| 2,048 | 128 | 128 | 64 | 64 | 64 | 64 |
+| 4,096 | 256 | 128 | 128 | 64 | 128 | 64 |
+| 8,196 | 256 | 256 | 128 | 128 | 128 | 128 |
+| 16,384 | 512 | 256 | 256 | 256 | 256 | 256 |
+| 32,768 | 512 | 512 | 512 | 256 | 512 | 256 |
+| 65,536 | 1,024 | 512 | 512 | 256 | 512 | 256 |
+| 262,144 | 1,024 | 1,024 | 512 | 1,024 | 512 | 1,024 |
+
+Threshold choices minimize the measured geometric mean of the branchless and
+branched strategies per `(type, input size)` using the expanded threshold
+sweeps. Where needed to keep the threshold at least as large as its
+threshold-selected pitch, the selected threshold was raised to that pitch.
+Those sweeps used a pitch selected for the input size, not the
+threshold-selected pitch shown above. Thus these are data-driven defaults, but
+the exact threshold/pitch pairs have not been benchmarked together and do not
+establish that the custom implementation beats `std::lower_bound` in every
+case. `BINARY_SEARCH_ALGORITHM` remains `none`; algorithm selection remains
+separate.
+
 `--processor N` pins runs to one logical processor (group-local on Windows,
 system CPU index on Linux), which is useful when comparing separate runs.
 Before each measured batch, the utility streams through a buffer twice the

@@ -13,10 +13,10 @@
 #include <iostream>
 #include <limits>
 #include <memory>
-#include <random>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #if defined(_WIN32)
@@ -53,6 +53,23 @@ KAFFINITY benchmark_processor_mask = 0;
 int benchmark_processor_index = -1;
 #endif
 std::size_t benchmark_processor_number = 0;
+
+template <typename T>
+constexpr std::string_view primitive_type_name()
+{
+    if constexpr (std::is_same_v<T, std::uint8_t>)
+        return "uint8_t";
+    else if constexpr (std::is_same_v<T, std::uint16_t>)
+        return "uint16_t";
+    else if constexpr (std::is_same_v<T, std::uint32_t>)
+        return "uint32_t";
+    else if constexpr (std::is_same_v<T, std::uint64_t>)
+        return "uint64_t";
+    else if constexpr (std::is_same_v<T, float>)
+        return "float";
+    else
+        return "double";
+}
 
 std::size_t detected_llc_bytes()
 {
@@ -258,9 +275,11 @@ struct Result
 {
     std::string_view stage;
     std::string_view strategy;
+    std::string_view type;
     std::size_t type_bits;
     std::size_t size;
     std::size_t query_count;
+    std::size_t query_passes;
     std::size_t threshold;
     std::size_t pitch;
     double custom_ns_per_query;
@@ -275,6 +294,7 @@ struct Measurement
     double ns_per_query;
     double ns_per_sample;
     std::uint64_t checksum;
+    std::size_t query_passes;
 };
 
 template <std::size_t Pitch>
@@ -334,6 +354,11 @@ Measurement measure(
     std::vector<T> const& values, std::vector<T> const& queries,
     Search search, std::size_t repetitions)
 {
+    std::size_t const query_passes = std::max<std::size_t>(
+        1u, (16'384u + queries.size() - 1u) / queries.size());
+    std::size_t const measured_query_count =
+        queries.size() * query_passes;
+
     std::uint64_t warmup = 0;
     for (T query : queries)
         warmup += search(values, query);
@@ -347,8 +372,9 @@ Measurement measure(
         std::uint64_t result = 0;
         cache_flusher->flush();
         auto const started = std::chrono::steady_clock::now();
-        for (T query : queries)
-            result += search(values, query);
+        for (std::size_t pass = 0; pass < query_passes; ++pass)
+            for (T query : queries)
+                result += search(values, query);
         samples.push_back(std::chrono::duration<double, std::nano>(
                               std::chrono::steady_clock::now() - started)
                               .count());
@@ -358,8 +384,9 @@ Measurement measure(
 
     std::sort(samples.begin(), samples.end());
     double const median_ns_per_sample = samples[samples.size() / 2u];
-    return {median_ns_per_sample / static_cast<double>(queries.size()),
-            median_ns_per_sample, checksum};
+    return {median_ns_per_sample /
+                static_cast<double>(measured_query_count),
+            median_ns_per_sample, checksum, query_passes};
 }
 
 template <typename T, typename Traits>
@@ -400,13 +427,17 @@ Result measure_configuration(
         std::cerr << "checksum mismatch: strategy=" << strategy
                   << ", threshold=" << threshold << ", pitch=" << pitch
                   << ", N=" << typed_values.size() << '\n';
-        return {stage, strategy, sizeof(T) * 8u, typed_values.size(),
-                typed_queries.size(), threshold, pitch, -1.0, -1.0,
+        return {stage, strategy, primitive_type_name<T>(),
+                sizeof(T) * 8u, typed_values.size(),
+                typed_queries.size(), custom_result.query_passes,
+                threshold, pitch, -1.0, -1.0,
                 -1.0, -1.0, 0};
     }
 
-    return {stage, strategy, sizeof(T) * 8u, typed_values.size(),
-            typed_queries.size(), threshold, pitch,
+    return {stage, strategy, primitive_type_name<T>(),
+            sizeof(T) * 8u, typed_values.size(),
+            typed_queries.size(), custom_result.query_passes,
+            threshold, pitch,
             custom_result.ns_per_query, standard_result.ns_per_query,
             custom_result.ns_per_sample, standard_result.ns_per_sample,
             custom_result.checksum};
@@ -422,8 +453,10 @@ void print_result(Result const& result)
 #endif
               << benchmark_processor_number << ','
               << llc_bytes << ',' << cache_flush_bytes << ','
-              << result.type_bits << ',' << result.size << ','
-              << result.query_count << ',' << result.strategy << ',';
+              << result.type << ',' << result.type_bits << ','
+              << result.size << ','
+              << result.query_count << ',' << result.query_passes << ','
+              << result.strategy << ',';
     if (result.threshold != 0)
         std::cout << result.threshold;
     std::cout << ',' << result.pitch << ',' << std::fixed
@@ -441,42 +474,19 @@ bool valid(Result const& result)
 }
 
 template <typename T>
-constexpr std::size_t max_unique_values()
-{
-    if constexpr (sizeof(T) >= sizeof(std::size_t))
-        return std::numeric_limits<std::size_t>::max();
-    else
-        return static_cast<std::size_t>(
-                   std::numeric_limits<T>::max()) +
-               1u;
-}
-
-template <typename T>
 std::vector<std::size_t> sizes_for_type(std::size_t selected_size)
 {
     constexpr std::array candidate_sizes{
         std::size_t{8}, std::size_t{16}, std::size_t{32},
         std::size_t{64}, std::size_t{128}, std::size_t{256},
         std::size_t{512}, std::size_t{1024}, std::size_t{2048},
-        std::size_t{4096}, std::size_t{8192}, std::size_t{16384},
+        std::size_t{4096}, std::size_t{8196}, std::size_t{16384},
         std::size_t{32768}, std::size_t{65536}, std::size_t{131072},
         std::size_t{262144}};
     if (selected_size != 0)
-    {
-        if (selected_size > max_unique_values<T>())
-        {
-            std::cerr << "N=" << selected_size << " exceeds the unique-value "
-                      << "limit for " << sizeof(T) * 8u << "-bit data\n";
-            return {};
-        }
         return {selected_size};
-    }
 
-    std::vector<std::size_t> result;
-    for (std::size_t size : candidate_sizes)
-        if (size <= max_unique_values<T>())
-            result.push_back(size);
-    return result;
+    return {candidate_sizes.begin(), candidate_sizes.end()};
 }
 
 template <typename T, std::size_t Pitch>
@@ -551,7 +561,17 @@ bool for_each_threshold(Function&& function)
            function.template operator()<128, Pitch>() &&
            function.template operator()<256, Pitch>() &&
            function.template operator()<512, Pitch>() &&
-           function.template operator()<1024, Pitch>();
+           function.template operator()<1024, Pitch>() &&
+           function.template operator()<2048, Pitch>() &&
+           function.template operator()<4096, Pitch>() &&
+           function.template operator()<8192, Pitch>() &&
+           function.template operator()<16384, Pitch>() &&
+           function.template operator()<32768, Pitch>() &&
+           function.template operator()<65536, Pitch>() &&
+           function.template operator()<131072, Pitch>() &&
+           function.template operator()<262144, Pitch>() &&
+           function.template operator()<524288, Pitch>() &&
+           function.template operator()<1048576, Pitch>();
 }
 
 template <typename T>
@@ -581,21 +601,57 @@ bool benchmark_type(
     for (std::size_t size : sizes_for_type<T>(selected_size))
     {
         std::vector<T> values(size);
-        for (std::size_t index = 0; index < size; ++index)
-            values[index] = static_cast<T>(index);
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            for (std::size_t index = 0; index < size; ++index)
+                values[index] = static_cast<T>(index);
+        }
+        else
+        {
+            auto const maximum =
+                static_cast<std::uint64_t>(std::numeric_limits<T>::max());
+            if (size - 1u <= maximum)
+            {
+                for (std::size_t index = 0; index < size; ++index)
+                    values[index] = static_cast<T>(index);
+            }
+            else
+            {
+                auto const denominator =
+                    static_cast<std::uint64_t>(size - 1u);
+                auto const quotient = maximum / denominator;
+                auto const remainder = maximum % denominator;
+                for (std::size_t index = 0; index < size; ++index)
+                {
+                    auto const position =
+                        static_cast<std::uint64_t>(index);
+                    values[index] = static_cast<T>(
+                        quotient * position +
+                        remainder * position / denominator);
+                }
+            }
+        }
 
-        std::size_t const query_count = quick
-            ? std::min<std::size_t>(64u, size)
-            : std::min<std::size_t>(
-                  1024u, std::max<std::size_t>(64u, 16'384u / size));
-        std::mt19937 generator(
-            benchmark_seed + static_cast<std::uint32_t>(size) +
-            static_cast<std::uint32_t>(sizeof(T) * 0x10001u));
-        std::uniform_int_distribution<std::size_t> position(0, size - 1u);
+        std::vector<std::size_t> distinct_positions;
+        distinct_positions.reserve(size);
+        for (std::size_t index = 0; index < size; ++index)
+            if (index == 0 || values[index - 1] != values[index])
+                distinct_positions.push_back(index);
+
+        std::size_t const query_count = std::min(
+            quick ? std::size_t{64} : std::size_t{16'384},
+            distinct_positions.size());
         std::vector<T> queries;
         queries.reserve(query_count);
-        for (std::size_t index = 0; index < query_count; ++index)
-            queries.push_back(values[position(generator)]);
+        for (std::size_t query_index = 0;
+             query_index < query_count; ++query_index)
+        {
+            std::size_t const position = query_count == 1
+                ? distinct_positions.size() / 2u
+                : query_index * (distinct_positions.size() - 1u) /
+                      (query_count - 1u);
+            queries.push_back(values[distinct_positions[position]]);
+        }
 
         std::size_t const repetitions = repetitions_override != 0
             ? repetitions_override
@@ -646,7 +702,7 @@ bool benchmark_type(
         {
             auto run_branchless = [&]<std::size_t Threshold, std::size_t P>()
             {
-                if (Threshold > values.size())
+                if (Threshold < P || Threshold > values.size())
                     return true;
                 Result const result = ::run_branchless<T, Threshold, P>(
                     values, queries, repetitions, run_index++);
@@ -657,7 +713,7 @@ bool benchmark_type(
             };
             auto run_branched = [&]<std::size_t Threshold, std::size_t P>()
             {
-                if (Threshold > values.size())
+                if (Threshold < P || Threshold > values.size())
                     return true;
                 Result const result = ::run_branched<T, Threshold, P>(
                     values, queries, repetitions, run_index++);
@@ -714,6 +770,7 @@ bool benchmark_type(
 int main(int argc, char const* argv[])
 {
     std::string_view stage = "all";
+    std::string_view selected_type;
     std::size_t type_bits = 0;
     std::size_t selected_size = 0;
     std::size_t forced_pitch = 0;
@@ -726,8 +783,9 @@ int main(int argc, char const* argv[])
         {
             quick = true;
         }
-        else if ((argument == "--stage" || argument == "--type-bits" ||
-                  argument == "--size" || argument == "--seed" ||
+        else if ((argument == "--stage" || argument == "--type" ||
+                  argument == "--type-bits" || argument == "--size" ||
+                  argument == "--seed" ||
                   argument == "--pitch" || argument == "--repetitions" ||
                   argument == "--cache-flush-bytes" ||
                   argument == "--processor") &&
@@ -744,6 +802,11 @@ int main(int argc, char const* argv[])
                               << " (expected all, pitch, or threshold)\n";
                     return 2;
                 }
+                continue;
+            }
+            if (argument == "--type")
+            {
+                selected_type = value;
                 continue;
             }
 
@@ -800,8 +863,10 @@ int main(int argc, char const* argv[])
         else
         {
             std::cerr << "usage: lower_bound_tuning "
-                         "[--stage all|pitch|threshold] [--type-bits 8|16|32|64] "
-                         "[--size N] [--pitch N] [--seed N] "
+                         "[--stage all|pitch|threshold] "
+                         "[--type uint8_t|uint16_t|uint32_t|uint64_t|float|double] "
+                         "[--type-bits 8|16|32|64] [--size N] [--pitch N] "
+                         "[--seed N] "
                          "[--repetitions N] [--cache-flush-bytes N] "
                          "[--processor N] "
                          "[--quick]\n";
@@ -809,17 +874,23 @@ int main(int argc, char const* argv[])
         }
     }
 
+    if (!selected_type.empty() &&
+        selected_type != "uint8_t" && selected_type != "uint16_t" &&
+        selected_type != "uint32_t" && selected_type != "uint64_t" &&
+        selected_type != "float" && selected_type != "double")
+    {
+        std::cerr << "unknown primitive type: " << selected_type << '\n';
+        return 2;
+    }
+    if (!selected_type.empty() && type_bits != 0)
+    {
+        std::cerr << "use either --type or --type-bits, not both\n";
+        return 2;
+    }
     if (type_bits != 0 && type_bits != 8 && type_bits != 16 &&
         type_bits != 32 && type_bits != 64)
     {
         std::cerr << "type width must be 8, 16, 32, or 64\n";
-        return 2;
-    }
-    if ((type_bits == 8 && selected_size > 256u) ||
-        (type_bits == 16 && selected_size > 65536u) ||
-        (type_bits == 32 && selected_size > 4294967296ull))
-    {
-        std::cerr << "N exceeds the unique-value limit for the selected type\n";
         return 2;
     }
     if (forced_pitch != 0 &&
@@ -880,22 +951,35 @@ int main(int argc, char const* argv[])
     std::cerr << '\n';
 
     std::cout << "stage,seed,processor_group,processor,llc_bytes,"
-                 "cache_flush_bytes,type_bits,N,"
-                 "query_count,strategy,threshold,sequential_pitch,"
+                 "cache_flush_bytes,type,type_bits,N,"
+                 "unique_query_count,query_passes,strategy,threshold,"
+                 "sequential_pitch,"
                  "custom_ns_per_query,std_ns_per_query,"
                  "custom_ns_per_sample,std_ns_per_sample,checksum\n";
     bool passed = true;
-    if (type_bits == 0 || type_bits == 8)
+    if (selected_type == "uint8_t" ||
+        (selected_type.empty() && (type_bits == 0 || type_bits == 8)))
         passed = benchmark_type<std::uint8_t>(
             stage, quick, selected_size, forced_pitch) && passed;
-    if (type_bits == 0 || type_bits == 16)
+    if (selected_type == "uint16_t" ||
+        (selected_type.empty() && (type_bits == 0 || type_bits == 16)))
         passed = benchmark_type<std::uint16_t>(
             stage, quick, selected_size, forced_pitch) && passed;
-    if (type_bits == 0 || type_bits == 32)
+    if (selected_type == "uint32_t" ||
+        (selected_type.empty() && (type_bits == 0 || type_bits == 32)))
         passed = benchmark_type<std::uint32_t>(
             stage, quick, selected_size, forced_pitch) && passed;
-    if (type_bits == 0 || type_bits == 64)
+    if (selected_type == "uint64_t" ||
+        (selected_type.empty() && (type_bits == 0 || type_bits == 64)))
         passed = benchmark_type<std::uint64_t>(
+            stage, quick, selected_size, forced_pitch) && passed;
+    if (selected_type == "float" ||
+        (selected_type.empty() && type_bits == 0))
+        passed = benchmark_type<float>(
+            stage, quick, selected_size, forced_pitch) && passed;
+    if (selected_type == "double" ||
+        (selected_type.empty() && type_bits == 0))
+        passed = benchmark_type<double>(
             stage, quick, selected_size, forced_pitch) && passed;
 
     if (!passed)

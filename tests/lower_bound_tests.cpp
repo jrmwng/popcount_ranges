@@ -13,6 +13,87 @@
 
 namespace
 {
+using jrmwng::popcount_ranges::binary_search_algorithm;
+using jrmwng::popcount_ranges::lower_bound_traits;
+
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(0) == 0);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(16) == 0);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(17) == 1);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(4096) == 8);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(4097) == 9);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(8196) == 9);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(8197) == 10);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(262144) == 13);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(262145) == 13);
+
+static_assert(lower_bound_traits<std::uint8_t>::BINARY_SEARCH_ALGORITHM ==
+              binary_search_algorithm::none);
+static_assert(lower_bound_traits<std::uint8_t>::BINARY_SEARCH_THRESHOLD == 2048);
+static_assert(lower_bound_traits<std::uint8_t>::binary_search_threshold(16) == 32);
+static_assert(lower_bound_traits<std::uint8_t>::binary_search_threshold(4096) == 2048);
+static_assert(lower_bound_traits<std::uint8_t>::sequential_search_pitch(16) == 32);
+static_assert(lower_bound_traits<std::uint8_t>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<std::uint16_t>::BINARY_SEARCH_THRESHOLD == 2048);
+static_assert(lower_bound_traits<std::uint16_t>::binary_search_threshold(8196) == 4096);
+static_assert(lower_bound_traits<std::uint16_t>::sequential_search_pitch(16) == 16);
+static_assert(lower_bound_traits<std::uint16_t>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<std::uint32_t>::BINARY_SEARCH_THRESHOLD == 1024);
+static_assert(lower_bound_traits<std::uint32_t>::binary_search_threshold(512) == 256);
+static_assert(lower_bound_traits<std::uint32_t>::sequential_search_pitch(16) == 8);
+static_assert(lower_bound_traits<std::uint32_t>::sequential_search_pitch(262144) == 512);
+static_assert(lower_bound_traits<std::uint64_t>::BINARY_SEARCH_THRESHOLD == 1024);
+static_assert(lower_bound_traits<std::uint64_t>::binary_search_threshold(262144) == 16384);
+static_assert(lower_bound_traits<std::uint64_t>::sequential_search_pitch(16) == 4);
+static_assert(lower_bound_traits<std::uint64_t>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<float>::BINARY_SEARCH_THRESHOLD == 1024);
+static_assert(lower_bound_traits<float>::binary_search_threshold(65536) == 2048);
+static_assert(lower_bound_traits<float>::sequential_search_pitch(16) == 8);
+static_assert(lower_bound_traits<float>::sequential_search_pitch(262144) == 512);
+static_assert(lower_bound_traits<double>::BINARY_SEARCH_THRESHOLD == 1024);
+static_assert(lower_bound_traits<double>::binary_search_threshold(32768) == 2048);
+static_assert(lower_bound_traits<double>::sequential_search_pitch(16) == 4);
+static_assert(lower_bound_traits<double>::sequential_search_pitch(262144) == 1024);
+
+template <typename T>
+bool check_default_thresholds(std::array<std::size_t, 14> const& expected)
+{
+    constexpr std::array<std::size_t, 14> range_sizes{
+        16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8196,
+        16384, 32768, 65536, 262144};
+    for (std::size_t index = 0; index < range_sizes.size(); ++index)
+    {
+        std::size_t const threshold =
+            lower_bound_traits<T>::binary_search_threshold(range_sizes[index]);
+        if (threshold != expected[index] ||
+            threshold < lower_bound_traits<T>::sequential_search_pitch(threshold))
+            return false;
+        if (index + 1 < range_sizes.size() &&
+            lower_bound_traits<T>::binary_search_threshold(range_sizes[index] + 1) !=
+                expected[index + 1])
+            return false;
+    }
+    return true;
+}
+
+template <typename T>
+bool check_default_pitches(std::array<std::size_t, 14> const& expected)
+{
+    constexpr std::array<std::size_t, 14> range_sizes{
+        16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8196,
+        16384, 32768, 65536, 262144};
+    for (std::size_t index = 0; index < range_sizes.size(); ++index)
+    {
+        if (lower_bound_traits<T>::sequential_search_pitch(range_sizes[index]) !=
+            expected[index])
+            return false;
+        if (index + 1 < range_sizes.size() &&
+            lower_bound_traits<T>::sequential_search_pitch(range_sizes[index] + 1) !=
+                expected[index + 1])
+            return false;
+    }
+    return true;
+}
+
 template <
     typename T,
     typename Predicate,
@@ -261,6 +342,30 @@ bool check_custom_pitches(char const* name)
 int main()
 {
     bool passed = true;
+    passed = passed && check_default_thresholds<std::uint8_t>(
+        {32, 32, 64, 128, 256, 512, 1024, 1024, 2048, 4096, 4096, 4096, 8192, 8192});
+    passed = passed && check_default_thresholds<std::uint16_t>(
+        {16, 32, 64, 128, 256, 512, 512, 1024, 1024, 4096, 2048, 4096, 4096, 4096});
+    passed = passed && check_default_thresholds<std::uint32_t>(
+        {16, 32, 64, 128, 256, 256, 1024, 1024, 1024, 1024, 2048, 4096, 4096, 4096});
+    passed = passed && check_default_thresholds<std::uint64_t>(
+        {16, 32, 64, 128, 256, 128, 256, 512, 512, 1024, 2048, 2048, 2048, 16384});
+    passed = passed && check_default_thresholds<float>(
+        {16, 32, 64, 128, 256, 512, 512, 512, 1024, 1024, 2048, 4096, 2048, 4096});
+    passed = passed && check_default_thresholds<double>(
+        {16, 32, 64, 128, 128, 256, 256, 512, 512, 1024, 2048, 2048, 2048, 4096});
+    passed = passed && check_default_pitches<std::uint8_t>(
+        {32, 32, 32, 32, 64, 128, 128, 128, 256, 256, 512, 512, 1024, 1024});
+    passed = passed && check_default_pitches<std::uint16_t>(
+        {16, 16, 16, 32, 64, 64, 64, 128, 128, 256, 256, 512, 512, 1024});
+    passed = passed && check_default_pitches<std::uint32_t>(
+        {8, 8, 16, 32, 32, 32, 64, 64, 128, 128, 256, 512, 512, 512});
+    passed = passed && check_default_pitches<std::uint64_t>(
+        {4, 8, 16, 16, 32, 32, 32, 64, 64, 128, 256, 256, 256, 1024});
+    passed = passed && check_default_pitches<float>(
+        {8, 8, 16, 32, 32, 64, 64, 64, 128, 128, 256, 512, 512, 512});
+    passed = passed && check_default_pitches<double>(
+        {4, 8, 16, 16, 16, 32, 32, 64, 64, 128, 256, 256, 256, 1024});
     passed = passed && check_width<std::int8_t>("int8_t");
     passed = passed && check_width<std::uint8_t>("uint8_t");
     passed = passed && check_width<std::int16_t>("int16_t");
