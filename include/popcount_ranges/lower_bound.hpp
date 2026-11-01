@@ -92,7 +92,7 @@ namespace jrmwng
                         return it + []<size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>)->int {
 
                             // (chunk0, mask0), (chunk1, mask1), ...
-                            std::tuple tuplePair(simd_rng[Is]...);
+                            auto const tuplePair = std::make_tuple(simd_rng[Is]...);
 
                             // (pred(chunk0, target), pred(chunk1, target), ...)
                             std::tuple tupleCompare(Tsimd_traits::mask_to_bitset(
