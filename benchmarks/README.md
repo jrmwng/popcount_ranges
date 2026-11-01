@@ -28,6 +28,17 @@ against `std::lower_bound`. Use `--seed <integer>` to reproduce or vary the
 query sequence. Its CSV columns are
 `compiler,query_seed,type_bits,N,query_distribution,query_count,implementation,median_ns_per_query,checksum`.
 
+Use `--traits-sweep` to compare independently enabled branchless and branched
+binary search thresholds (8 through 1024) with sequential pitches (8, 16, 32,
+and 64 elements) on 64-bit arrays of 4,096, 32,768, and 262,144 elements.
+Each configuration uses the same uniform queries for a given size and checks
+its checksum against `std::lower_bound`. The traits CSV reports strategy,
+threshold, pitch, and median nanoseconds per query. Run several `--seed`
+values to reduce sensitivity to query sequence and compare geometric means
+across the tested sizes; the strategy measurement order alternates with seed
+parity to reduce order bias. The best values are workload- and
+machine-dependent.
+
 Both lower-bound executables accept `--quick` for a shorter correctness
 smoke test; omit it for the longer timing run. The search microbenchmark
 isolates lookup cost from sampling and rank generation. It is a controlled
@@ -102,6 +113,48 @@ custom-versus-`<simd>` comparison, Clang 23.1 and MSVC 19.51 for
 custom-backend comparisons, and an AMD Ryzen 9 5950X. On that machine, the
 installed Clang and Visual Studio 2026 standard libraries did not include
 `<simd>`.
+
+### Tuning lower-bound traits
+
+`lower_bound_tuning` searches for faster compile-time traits against
+`std::lower_bound`. Build and run it in Release mode:
+
+```text
+cmake --build build-release --target lower_bound_tuning
+build-release/lower_bound_tuning.exe --stage all --seed 24301 > tuning.csv
+```
+
+The pitch stage tests binary-search-disabled implementations at pitches 1, 2,
+4, 8, 16, 32, 64, 128, 256, 512, and 1,024 elements. It chooses the
+lowest-latency pitch independently for each unsigned element width and array
+length. The threshold stage uses that pitch to test branchless and branched
+binary-search thresholds independently at 1 through 1,024 elements (powers of
+two), plus the binary-search-disabled result and `std::lower_bound`. Thresholds
+larger than the array are omitted because they disable the coarse search.
+The tested widths are 8, 16, 32, and 64 bits. Array sizes are powers of two
+from 8 through 262,144, capped at the largest range with unique values for
+each width.
+
+Use `--stage pitch` to emit only pitch results or `--stage threshold` to rerun
+the pitch selection and emit only threshold results. `--type-bits 8|16|32|64`
+and `--size N` restrict a run to any supported positive array length. Pass
+`--pitch N` with `--stage pitch` to test one candidate or with
+`--stage threshold` to reuse a pitch selected from a multi-seed sweep.
+`--repetitions N` sets the number of measured query batches (overriding the
+default, including in quick mode); `--seed N` changes the deterministic uniform
+rank queries, and `--quick` reduces the query set for a correctness smoke test.
+`--processor N` pins runs to one logical processor (group-local on Windows,
+system CPU index on Linux), which is useful when comparing separate runs.
+Before each measured batch, the utility streams through a buffer twice the
+detected LLC size to evict cached data. Windows and Linux use system cache
+information for automatic sizing. On other platforms, provide
+`--cache-flush-bytes N` with an eviction buffer larger than that machine's LLC.
+The CSV records the detected LLC and eviction-buffer sizes, median nanoseconds
+per query, and median elapsed nanoseconds for one query batch (`*_ns_per_sample`).
+Eviction itself is outside the timed interval; queries within each batch may
+still warm the data. Run multiple seeds and compare geometric means before
+selecting constants. Rows with different widths, lengths, or seeds should not
+be combined as if they were the same workload.
 
 The `simd_adapter_benchmark` executable measures bitset-to-mask construction,
 native comparison-mask copying, reduction of preconstructed comparison masks,

@@ -8,6 +8,7 @@
 #include <limits>
 #include <random>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace
@@ -158,6 +159,37 @@ struct branched_traits
         128u / sizeof(T);
 };
 
+template <typename T>
+struct both_binary_traits
+{
+    inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 16;
+    inline constexpr static std::size_t BRANCHED_BINARY_SEARCH_THRESHOLD = 8;
+    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
+        128u / sizeof(T);
+};
+
+template <typename T>
+struct threshold_one_branchless_traits
+{
+    inline constexpr static std::size_t BRANCHLESS_BINARY_SEARCH_THRESHOLD = 1;
+    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
+        128u / sizeof(T);
+};
+
+template <typename T>
+struct threshold_one_branched_traits
+{
+    inline constexpr static std::size_t BRANCHED_BINARY_SEARCH_THRESHOLD = 1;
+    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
+        128u / sizeof(T);
+};
+
+template <std::size_t Pitch>
+struct pitch_only_traits
+{
+    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+};
+
 template <typename Traits>
 bool check_custom_traits(char const* name, Traits traits)
 {
@@ -175,6 +207,79 @@ bool check_custom_traits(char const* name, Traits traits)
             return false;
     }
     return true;
+}
+
+bool check_binary_strategies_are_exclusive()
+{
+    auto values = make_ascending<std::int32_t>(4097);
+    auto count_comparisons = [&](auto traits)
+    {
+        std::size_t comparisons = 0;
+        auto const counted_less = [&](auto const& left, auto const& right)
+        {
+            ++comparisons;
+            return left < right;
+        };
+        auto const result = jrmwng::popcount_ranges::lower_bound(
+            values.data(), values.data() + values.size(), 512,
+            counted_less, traits);
+        auto const expected =
+            values.data() +
+            (std::lower_bound(values.begin(), values.end(), 512) -
+             values.begin());
+        if (result != expected)
+            return std::pair{false, comparisons};
+        return std::pair{true, comparisons};
+    };
+
+    auto const [branchless_passed, branchless_comparisons] =
+        count_comparisons(branchless_traits<std::int32_t>{});
+    auto const [both_passed, both_comparisons] =
+        count_comparisons(both_binary_traits<std::int32_t>{});
+    return branchless_passed && both_passed &&
+           branchless_comparisons == both_comparisons;
+}
+
+bool check_threshold_one_end_position()
+{
+    std::vector<std::uint32_t> values{1, 3, 5, 7};
+    auto const target = std::numeric_limits<std::uint32_t>::max();
+    auto const expected = values.data() + values.size();
+    auto const branchless = jrmwng::popcount_ranges::lower_bound(
+        values.data(), expected, target, std::less<>{},
+        threshold_one_branchless_traits<std::uint32_t>{});
+    auto const branched = jrmwng::popcount_ranges::lower_bound(
+        values.data(), expected, target, std::less<>{},
+        threshold_one_branched_traits<std::uint32_t>{});
+    return branchless == expected && branched == expected;
+}
+
+template <typename T, std::size_t Pitch>
+bool check_pitch_variant(char const* name)
+{
+    auto ascending = make_ascending<T>(257);
+    auto descending = ascending;
+    std::reverse(descending.begin(), descending.end());
+    for (T target : {
+             std::numeric_limits<T>::lowest(), static_cast<T>(0),
+             static_cast<T>(1), std::numeric_limits<T>::max()})
+        if (!check_case(
+                ascending, target, std::less<>{}, name,
+                pitch_only_traits<Pitch>{}) ||
+            !check_case(
+                descending, target, std::greater<>{}, name,
+                pitch_only_traits<Pitch>{}))
+            return false;
+    return true;
+}
+
+template <typename T>
+bool check_custom_pitches(char const* name)
+{
+    return check_pitch_variant<T, 1>(name) &&
+           check_pitch_variant<T, 4>(name) &&
+           check_pitch_variant<T, 16>(name) &&
+           check_pitch_variant<T, 128>(name);
 }
 }
 
@@ -198,6 +303,12 @@ int main()
         "custom branchless traits", branchless_traits<std::int32_t>{});
     passed = passed && check_custom_traits(
         "custom branched traits", branched_traits<std::int32_t>{});
+    passed = passed && check_binary_strategies_are_exclusive();
+    passed = passed && check_threshold_one_end_position();
+    passed = passed && check_custom_pitches<std::uint8_t>("uint8_t pitches");
+    passed = passed && check_custom_pitches<std::uint16_t>("uint16_t pitches");
+    passed = passed && check_custom_pitches<std::uint32_t>("uint32_t pitches");
+    passed = passed && check_custom_pitches<std::uint64_t>("uint64_t pitches");
 
     if (!passed)
         return 1;
