@@ -159,7 +159,7 @@ bool check_bitset_range_mask()
     long_range_type const long_range(std::span<T const>(first, count));
     std::size_t long_valid_count = 0;
     for (auto const &chunk : long_range)
-        long_valid_count += chunk.second.count();
+        long_valid_count += std::get<1>(chunk).count();
     if (long_valid_count != count)
         return false;
 
@@ -167,7 +167,7 @@ bool check_bitset_range_mask()
     std::size_t default_long_valid_count = 0;
     for (auto const &chunk : default_long_range)
         default_long_valid_count +=
-            jrmwng::data_par::reduce_count(chunk.second);
+            jrmwng::data_par::reduce_count(std::get<1>(chunk));
     return default_long_valid_count == count;
 }
 }

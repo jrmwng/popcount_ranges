@@ -286,7 +286,7 @@ namespace jrmwng
 
             public:
                 using difference_type = std::ptrdiff_t;
-                using value_type = std::pair<simd_type, mask_type>;
+                using value_type = std::tuple<simd_type, mask_type>;
                 
                 iterator(iterator_tuple_type const& tupleIterator) noexcept
                     : m_tupleIterator(tupleIterator)
