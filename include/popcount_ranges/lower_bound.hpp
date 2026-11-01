@@ -101,15 +101,13 @@ namespace jrmwng
                             auto const tuplePair = std::make_tuple(simd_rng[Is]...);
 
                             // (pred(chunk0, target), pred(chunk1, target), ...)
-                            std::tuple tupleCompare(Tsimd_traits::mask_to_bitset(
-                                pred(std::get<simd_type>(std::get<Is>(tuplePair)), target))...);
+                            std::tuple const tupleCompare(Tsimd_traits::mask_to_bitset(pred(std::get<simd_type>(std::get<Is>(tuplePair)), target))...);
 
                             // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
-                            std::tuple tupleResult((std::get<mask_type>(
-                                std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
+                            std::tuple const tupleResult((std::get<mask_type>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
                             
                             // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
-                            std::tuple tuplePopcount(Tsimd_traits::reduce_count(std::get<Is>(tupleResult))...);
+                            std::tuple const tuplePopcount(Tsimd_traits::reduce_count(std::get<Is>(tupleResult))...);
 
                             // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
                             return (std::get<Is>(tuplePopcount) + ...);
