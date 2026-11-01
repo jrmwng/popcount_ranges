@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -17,42 +18,41 @@ using jrmwng::popcount_ranges::binary_search_algorithm;
 using jrmwng::popcount_ranges::lower_bound_traits;
 
 static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(0) == 0);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(16) == 0);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(17) == 1);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(4096) == 8);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(4097) == 9);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(8196) == 9);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(8197) == 10);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(262144) == 13);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(262145) == 13);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(5) == 0);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(6) == 1);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(13) == 8);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(14) == 9);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(15) == 10);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(18) == 13);
+static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(32) == 13);
 
 static_assert(lower_bound_traits<std::uint8_t>::BINARY_SEARCH_ALGORITHM ==
               binary_search_algorithm::none);
 static_assert(lower_bound_traits<std::uint8_t>::BINARY_SEARCH_THRESHOLD == 2048);
-static_assert(lower_bound_traits<std::uint8_t>::binary_search_threshold(16) == 32);
-static_assert(lower_bound_traits<std::uint8_t>::binary_search_threshold(4096) == 2048);
-static_assert(lower_bound_traits<std::uint8_t>::sequential_search_pitch(16) == 32);
-static_assert(lower_bound_traits<std::uint8_t>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<std::uint8_t>::lookup_params(5).first == 32);
+static_assert(lower_bound_traits<std::uint8_t>::lookup_params(13).first == 2048);
+static_assert(lower_bound_traits<std::uint8_t>::lookup_params(5).second == 32);
+static_assert(lower_bound_traits<std::uint8_t>::lookup_params(19).second == 1024);
 static_assert(lower_bound_traits<std::uint16_t>::BINARY_SEARCH_THRESHOLD == 2048);
-static_assert(lower_bound_traits<std::uint16_t>::binary_search_threshold(8196) == 4096);
-static_assert(lower_bound_traits<std::uint16_t>::sequential_search_pitch(16) == 16);
-static_assert(lower_bound_traits<std::uint16_t>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<std::uint16_t>::lookup_params(14).first == 4096);
+static_assert(lower_bound_traits<std::uint16_t>::lookup_params(5).second == 16);
+static_assert(lower_bound_traits<std::uint16_t>::lookup_params(19).second == 1024);
 static_assert(lower_bound_traits<std::uint32_t>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<std::uint32_t>::binary_search_threshold(512) == 256);
-static_assert(lower_bound_traits<std::uint32_t>::sequential_search_pitch(16) == 8);
-static_assert(lower_bound_traits<std::uint32_t>::sequential_search_pitch(262144) == 512);
+static_assert(lower_bound_traits<std::uint32_t>::lookup_params(9).first == 256);
+static_assert(lower_bound_traits<std::uint32_t>::lookup_params(5).second == 8);
+static_assert(lower_bound_traits<std::uint32_t>::lookup_params(19).second == 512);
 static_assert(lower_bound_traits<std::uint64_t>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<std::uint64_t>::binary_search_threshold(262144) == 16384);
-static_assert(lower_bound_traits<std::uint64_t>::sequential_search_pitch(16) == 4);
-static_assert(lower_bound_traits<std::uint64_t>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<std::uint64_t>::lookup_params(19).first == 16384);
+static_assert(lower_bound_traits<std::uint64_t>::lookup_params(5).second == 4);
+static_assert(lower_bound_traits<std::uint64_t>::lookup_params(19).second == 1024);
 static_assert(lower_bound_traits<float>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<float>::binary_search_threshold(65536) == 2048);
-static_assert(lower_bound_traits<float>::sequential_search_pitch(16) == 8);
-static_assert(lower_bound_traits<float>::sequential_search_pitch(262144) == 512);
+static_assert(lower_bound_traits<float>::lookup_params(17).first == 2048);
+static_assert(lower_bound_traits<float>::lookup_params(5).second == 8);
+static_assert(lower_bound_traits<float>::lookup_params(19).second == 512);
 static_assert(lower_bound_traits<double>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<double>::binary_search_threshold(32768) == 2048);
-static_assert(lower_bound_traits<double>::sequential_search_pitch(16) == 4);
-static_assert(lower_bound_traits<double>::sequential_search_pitch(262144) == 1024);
+static_assert(lower_bound_traits<double>::lookup_params(16).first == 2048);
+static_assert(lower_bound_traits<double>::lookup_params(5).second == 4);
+static_assert(lower_bound_traits<double>::lookup_params(19).second == 1024);
 
 template <typename T>
 bool check_default_thresholds(std::array<std::size_t, 14> const& expected)
@@ -62,14 +62,10 @@ bool check_default_thresholds(std::array<std::size_t, 14> const& expected)
         16384, 32768, 65536, 262144};
     for (std::size_t index = 0; index < range_sizes.size(); ++index)
     {
-        std::size_t const threshold =
-            lower_bound_traits<T>::binary_search_threshold(range_sizes[index]);
-        if (threshold != expected[index] ||
-            threshold < lower_bound_traits<T>::sequential_search_pitch(threshold))
-            return false;
-        if (index + 1 < range_sizes.size() &&
-            lower_bound_traits<T>::binary_search_threshold(range_sizes[index] + 1) !=
-                expected[index + 1])
+        auto const [threshold, pitch] =
+            lower_bound_traits<T>::lookup_params(
+                std::bit_width(range_sizes[index]));
+        if (threshold != expected[index] || threshold < pitch)
             return false;
     }
     return true;
@@ -83,12 +79,8 @@ bool check_default_pitches(std::array<std::size_t, 14> const& expected)
         16384, 32768, 65536, 262144};
     for (std::size_t index = 0; index < range_sizes.size(); ++index)
     {
-        if (lower_bound_traits<T>::sequential_search_pitch(range_sizes[index]) !=
-            expected[index])
-            return false;
-        if (index + 1 < range_sizes.size() &&
-            lower_bound_traits<T>::sequential_search_pitch(range_sizes[index] + 1) !=
-                expected[index + 1])
+        if (lower_bound_traits<T>::lookup_params(
+                std::bit_width(range_sizes[index])).second != expected[index])
             return false;
     }
     return true;

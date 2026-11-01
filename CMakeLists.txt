@@ -132,6 +132,11 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
     )
     configure_sampling_benchmark(lower_bound_tuning)
 
+    add_executable(lower_bound_simd_unroll_benchmark
+        benchmarks/lower_bound_simd_unroll_benchmark.cpp
+    )
+    configure_sampling_benchmark(lower_bound_simd_unroll_benchmark)
+
     add_executable(popcount_set_benchmark
         benchmarks/popcount_set_benchmark.cpp
     )

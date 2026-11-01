@@ -154,10 +154,10 @@ Each timed batch cycles through the unique query set enough times to execute
 at least 16,384 searches. The CSV reports both the number of unique positions
 and the number of passes per timed batch.
 For the defaults, the binary-search threshold is selected from the original
-input range length and type. For an untested range length, the next larger
-tested size is used; lengths outside the tested interval use the nearest
-endpoint. A `std::bit_width` bucket calculation selects the table entry
-without a runtime `std::lower_bound`:
+input range length and type. `std::bit_width(range_size)` selects the table
+entry without a runtime `std::lower_bound`; each row is the representative
+tested size for that bit-width bucket. The first and last entries also cover
+smaller and larger sizes, respectively.
 
 | Input range | `uint8_t` | `uint16_t` | `uint32_t` | `uint64_t` | `float` | `double` |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -177,8 +177,9 @@ without a runtime `std::lower_bound`:
 | 262,144 | 8,192 | 4,096 | 4,096 | 16,384 | 4,096 | 4,096 |
 
 The sequential pitch is looked up by the selected threshold, not by the input
-length, using the same bit-width bucket calculation. The pitch table uses the best pitch measured for the matching type and
-threshold-sized workload (or the next larger tested size):
+length, using the same bit-width bucket calculation. The pitch table uses the
+best pitch measured for the matching type and representative threshold-sized
+workload:
 
 | Threshold | `uint8_t` | `uint16_t` | `uint32_t` | `uint64_t` | `float` | `double` |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -229,6 +230,18 @@ backends. Standard SIMD range masks use the library's native mask type by
 default; range templates can explicitly select `std::bitset` when desired.
 Keep compiler, optimization level, CPU, and run conditions the same when
 comparing CSV rows.
+
+The `lower_bound_simd_unroll_benchmark` compares the compile-time unrolled
+SIMD fine-search path (`UNROLL_SIMD_LOOP = true`) against the explicit loop
+over SIMD chunks (`UNROLL_SIMD_LOOP = false`). It runs the six supported
+primitive types at N=256, 4,096, 16,384, and 262,144, with three query-order
+seeds, seven LLC-flushed samples per variant, and matching correctness
+checksums. Build and run it with:
+
+```text
+cmake --build build-release --target lower_bound_simd_unroll_benchmark
+build-release/lower_bound_simd_unroll_benchmark.exe > lower-bound-simd-unroll.csv
+```
 
 The sampling executable reports the implementation on each `popcount_ranges`
 row; descent rows also report their compiled

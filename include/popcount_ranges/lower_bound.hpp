@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <exception>
 #include <type_traits>
+#include <utility>
 
 #include <data_par/simd_range.hpp>
 
@@ -31,89 +32,110 @@ namespace jrmwng
             using type = std::remove_cv_t<T>;
 
             inline constexpr static binary_search_algorithm BINARY_SEARCH_ALGORITHM = binary_search_algorithm::none;
-            inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = []
+            inline constexpr static std::uint_fast16_t BINARY_SEARCH_THRESHOLD = []
             {
                 if constexpr (std::is_same_v<type, std::uint8_t>)
-                    return std::size_t{2048};
+                    return std::uint_fast16_t{2048};
                 else if constexpr (std::is_same_v<type, std::uint16_t>)
-                    return std::size_t{2048};
+                    return std::uint_fast16_t{2048};
                 else if constexpr (std::is_same_v<type, std::uint32_t>)
-                    return std::size_t{1024};
+                    return std::uint_fast16_t{1024};
                 else if constexpr (std::is_same_v<type, std::uint64_t>)
-                    return std::size_t{1024};
+                    return std::uint_fast16_t{1024};
                 else if constexpr (std::is_same_v<type, float>)
-                    return std::size_t{1024};
+                    return std::uint_fast16_t{1024};
                 else if constexpr (std::is_same_v<type, double>)
-                    return std::size_t{1024};
+                    return std::uint_fast16_t{1024};
                 else
-                    return std::size_t{32u * 64u / sizeof(T)};
+                    return std::uint_fast16_t{32u * 64u / sizeof(T)};
             }();
 
-            inline constexpr static std::array<std::size_t, 14> BINARY_SEARCH_THRESHOLDS = []
+            using lookup_param = std::pair<std::uint16_t, std::uint16_t>;
+
+            inline constexpr static std::array<lookup_param, 14> LOOKUP_PARAMS = []
             {
                 if constexpr (std::is_same_v<type, std::uint8_t>)
-                    return std::array<std::size_t, 14>{32, 32, 64, 128, 256, 512, 1024, 1024, 2048, 4096, 4096, 4096, 8192, 8192};
+                    return std::array<lookup_param, 14>{
+                        lookup_param{32, 32}, lookup_param{32, 32},
+                        lookup_param{64, 32}, lookup_param{128, 32},
+                        lookup_param{256, 64}, lookup_param{512, 128},
+                        lookup_param{1024, 128}, lookup_param{1024, 128},
+                        lookup_param{2048, 256}, lookup_param{4096, 256},
+                        lookup_param{4096, 512}, lookup_param{4096, 512},
+                        lookup_param{8192, 1024}, lookup_param{8192, 1024}};
                 else if constexpr (std::is_same_v<type, std::uint16_t>)
-                    return std::array<std::size_t, 14>{16, 32, 64, 128, 256, 512, 512, 1024, 1024, 4096, 2048, 4096, 4096, 4096};
+                    return std::array<lookup_param, 14>{
+                        lookup_param{16, 16}, lookup_param{32, 16},
+                        lookup_param{64, 16}, lookup_param{128, 32},
+                        lookup_param{256, 64}, lookup_param{512, 64},
+                        lookup_param{512, 64}, lookup_param{1024, 128},
+                        lookup_param{1024, 128}, lookup_param{4096, 256},
+                        lookup_param{2048, 256}, lookup_param{4096, 512},
+                        lookup_param{4096, 512}, lookup_param{4096, 1024}};
                 else if constexpr (std::is_same_v<type, std::uint32_t>)
-                    return std::array<std::size_t, 14>{16, 32, 64, 128, 256, 256, 1024, 1024, 1024, 1024, 2048, 4096, 4096, 4096};
+                    return std::array<lookup_param, 14>{
+                        lookup_param{16, 8}, lookup_param{32, 8},
+                        lookup_param{64, 16}, lookup_param{128, 32},
+                        lookup_param{256, 32}, lookup_param{256, 32},
+                        lookup_param{1024, 64}, lookup_param{1024, 64},
+                        lookup_param{1024, 128}, lookup_param{1024, 128},
+                        lookup_param{2048, 256}, lookup_param{4096, 512},
+                        lookup_param{4096, 512}, lookup_param{4096, 512}};
                 else if constexpr (std::is_same_v<type, std::uint64_t>)
-                    return std::array<std::size_t, 14>{16, 32, 64, 128, 256, 128, 256, 512, 512, 1024, 2048, 2048, 2048, 16384};
+                    return std::array<lookup_param, 14>{
+                        lookup_param{16, 4}, lookup_param{32, 8},
+                        lookup_param{64, 16}, lookup_param{128, 16},
+                        lookup_param{256, 32}, lookup_param{128, 32},
+                        lookup_param{256, 32}, lookup_param{512, 64},
+                        lookup_param{512, 64}, lookup_param{1024, 128},
+                        lookup_param{2048, 256}, lookup_param{2048, 256},
+                        lookup_param{2048, 256}, lookup_param{16384, 1024}};
                 else if constexpr (std::is_same_v<type, float>)
-                    return std::array<std::size_t, 14>{16, 32, 64, 128, 256, 512, 512, 512, 1024, 1024, 2048, 4096, 2048, 4096};
+                    return std::array<lookup_param, 14>{
+                        lookup_param{16, 8}, lookup_param{32, 8},
+                        lookup_param{64, 16}, lookup_param{128, 32},
+                        lookup_param{256, 32}, lookup_param{512, 64},
+                        lookup_param{512, 64}, lookup_param{512, 64},
+                        lookup_param{1024, 128}, lookup_param{1024, 128},
+                        lookup_param{2048, 256}, lookup_param{4096, 512},
+                        lookup_param{2048, 512}, lookup_param{4096, 512}};
                 else if constexpr (std::is_same_v<type, double>)
-                    return std::array<std::size_t, 14>{16, 32, 64, 128, 128, 256, 256, 512, 512, 1024, 2048, 2048, 2048, 4096};
+                    return std::array<lookup_param, 14>{
+                        lookup_param{16, 4}, lookup_param{32, 8},
+                        lookup_param{64, 16}, lookup_param{128, 16},
+                        lookup_param{128, 16}, lookup_param{256, 32},
+                        lookup_param{256, 32}, lookup_param{512, 64},
+                        lookup_param{512, 64}, lookup_param{1024, 128},
+                        lookup_param{2048, 256}, lookup_param{2048, 256},
+                        lookup_param{2048, 256}, lookup_param{4096, 1024}};
                 else
                 {
-                    std::array<std::size_t, 14> thresholds{};
-                    thresholds.fill(BINARY_SEARCH_THRESHOLD);
-                    return thresholds;
+                    std::array<lookup_param, 14> params{};
+                    params.fill(lookup_param{
+                        static_cast<std::uint16_t>(BINARY_SEARCH_THRESHOLD),
+                        static_cast<std::uint16_t>(128u / sizeof(T))});
+                    return params;
                 }
             }();
 
-            inline constexpr static std::array<std::size_t, 14> SEQUENTIAL_SEARCH_PITCHES = []
+            inline constexpr static std::uint_fast16_t SEQUENTIAL_SEARCH_PITCH =
+                128u / sizeof(T);
+
+            static constexpr std::size_t range_bucket_index(
+                int range_size_bit_width) noexcept
             {
-                if constexpr (std::is_same_v<type, std::uint8_t>)
-                    return std::array<std::size_t, 14>{32, 32, 32, 32, 64, 128, 128, 128, 256, 256, 512, 512, 1024, 1024};
-                else if constexpr (std::is_same_v<type, std::uint16_t>)
-                    return std::array<std::size_t, 14>{16, 16, 16, 32, 64, 64, 64, 128, 128, 256, 256, 512, 512, 1024};
-                else if constexpr (std::is_same_v<type, std::uint32_t>)
-                    return std::array<std::size_t, 14>{8, 8, 16, 32, 32, 32, 64, 64, 128, 128, 256, 512, 512, 512};
-                else if constexpr (std::is_same_v<type, std::uint64_t>)
-                    return std::array<std::size_t, 14>{4, 8, 16, 16, 32, 32, 32, 64, 64, 128, 256, 256, 256, 1024};
-                else if constexpr (std::is_same_v<type, float>)
-                    return std::array<std::size_t, 14>{8, 8, 16, 32, 32, 64, 64, 64, 128, 128, 256, 512, 512, 512};
-                else if constexpr (std::is_same_v<type, double>)
-                    return std::array<std::size_t, 14>{4, 8, 16, 16, 16, 32, 32, 64, 64, 128, 256, 256, 256, 1024};
-                else
-                {
-                    std::array<std::size_t, 14> pitches{};
-                    pitches.fill(128u / sizeof(T));
-                    return pitches;
-                }
-            }();
-
-            inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = 128u / sizeof(T);
-
-            static constexpr std::size_t range_bucket_index(std::size_t value) noexcept
-            {
-                if (value <= 16)
-                    return 0;
-                if (value <= 8196 && value > 4096)
-                    return 9;
-
-                std::size_t const index = static_cast<std::size_t>(std::bit_width(value - 1)) - 4;
+                std::size_t const index = range_size_bit_width <= 4
+                    ? 0
+                    : static_cast<std::size_t>(range_size_bit_width - 5);
                 return std::min(index, std::size_t{13});
             }
 
-            static constexpr std::size_t binary_search_threshold(std::size_t range_size) noexcept
+            static constexpr std::pair<std::uint_fast16_t, std::uint_fast16_t>
+            lookup_params(int range_size_bit_width) noexcept
             {
-                return BINARY_SEARCH_THRESHOLDS[range_bucket_index(range_size)];
-            }
-
-            static constexpr std::size_t sequential_search_pitch(std::size_t binary_search_threshold) noexcept
-            {
-                return SEQUENTIAL_SEARCH_PITCHES[range_bucket_index(binary_search_threshold)];
+                std::size_t const index =
+                    range_bucket_index(range_size_bit_width);
+                return LOOKUP_PARAMS[index];
             }
         };
         template <typename T, typename Tpredicate, typename Ttraits = lower_bound_traits<T>>
@@ -138,28 +160,67 @@ namespace jrmwng
                 if (pred(*(last - 1), target)) [[unlikely]] // Elements before `last` do not satisfy the condition
                     return last;
 
-                std::size_t const binary_search_threshold = [&]
-                {
-                    if constexpr (std::is_same_v<Ttraits, lower_bound_traits<T>>)
-                        return Ttraits::binary_search_threshold(static_cast<std::size_t>(last - first));
-                    else if constexpr (requires { Ttraits::BINARY_SEARCH_THRESHOLD; })
-                        return Ttraits::BINARY_SEARCH_THRESHOLD;
-                    else if constexpr (requires { Ttraits::binary_search_threshold(std::size_t{}); })
-                        return Ttraits::binary_search_threshold(static_cast<std::size_t>(last - first));
-                    else if constexpr (requires { Ttraits::BINARY_SEARCH_THRESHOLD; })
-                        return Ttraits::BINARY_SEARCH_THRESHOLD;
-                    else
-                        return std::size_t{};
-                }();
+                using Tsimd_traits = data_par::simd_range_traits<type, data_par::simd_bitset_mask<type>>;
+                using mask_type = typename Tsimd_traits::mask_type;
+                using range_type = typename Tsimd_traits::short_type;
+                using simd_type = typename Tsimd_traits::simd_type;
 
-                std::size_t const sequential_search_pitch = [&]
+                auto const [binary_search_threshold, sequential_search_pitch] = [&]
                 {
-                    if constexpr (!std::is_same_v<Ttraits, lower_bound_traits<T>> && requires { Ttraits::SEQUENTIAL_SEARCH_PITCH; })
-                        return Ttraits::SEQUENTIAL_SEARCH_PITCH;
-                    else if constexpr (requires { Ttraits::sequential_search_pitch(std::size_t{}); })
-                        return Ttraits::sequential_search_pitch(binary_search_threshold);
+                    if constexpr (
+                        requires
+                        {
+                            Ttraits::lookup_params(
+                                std::bit_width(std::size_t{}));
+                        } &&
+                        (!std::is_base_of_v<lower_bound_traits<T>, Ttraits> ||
+                         std::is_same_v<lower_bound_traits<T>, Ttraits>))
+                        return Ttraits::lookup_params(std::bit_width(
+                            static_cast<std::size_t>(last - first)));
                     else
-                        return Ttraits::SEQUENTIAL_SEARCH_PITCH;
+                    {
+                        std::size_t const threshold = [&]
+                        {
+                            if constexpr (requires
+                            {
+                                Ttraits::binary_search_threshold(
+                                    std::size_t{});
+                            })
+                                return static_cast<std::size_t>(
+                                    Ttraits::binary_search_threshold(
+                                        static_cast<std::size_t>(last - first)));
+                            else if constexpr (requires
+                            {
+                                Ttraits::BINARY_SEARCH_THRESHOLD;
+                            })
+                                return static_cast<std::size_t>(
+                                    Ttraits::BINARY_SEARCH_THRESHOLD);
+                            else
+                                return static_cast<std::size_t>(
+                                    simd_type::size());
+                        }();
+                        std::size_t const pitch = [&]
+                        {
+                            if constexpr (requires
+                            {
+                                Ttraits::sequential_search_pitch(
+                                    std::size_t{});
+                            })
+                                return static_cast<std::size_t>(
+                                    Ttraits::sequential_search_pitch(
+                                        threshold));
+                            else if constexpr (requires
+                            {
+                                Ttraits::SEQUENTIAL_SEARCH_PITCH;
+                            })
+                                return static_cast<std::size_t>(
+                                    Ttraits::SEQUENTIAL_SEARCH_PITCH);
+                            else
+                                return static_cast<std::size_t>(
+                                    simd_type::size());
+                        }();
+                        return std::pair{threshold, pitch};
+                    }
                 }();
 
                 // 1. Coarse-grained binary search using branchless or branched approach depending on traits
@@ -207,57 +268,67 @@ namespace jrmwng
                     {
                         // 3. Fine-grained SIMD-based search within the identified chunk in a single pass (fully unrolled)
 
-                        using Tsimd_traits = data_par::simd_range_traits<type, data_par::simd_bitset_mask<type>>;
-                        using mask_type = typename Tsimd_traits::mask_type;
-                        using range_type = typename Tsimd_traits::short_type;
-                        using simd_type = typename Tsimd_traits::simd_type;
-
-                        auto const simd_find = [&]<std::size_t Pitch>() -> T *
+                        if constexpr (requires { Ttraits::UNROLL_SIMD_LOOP; })
+                        if constexpr (Ttraits::UNROLL_SIMD_LOOP)
                         {
-                            return it + []<std::size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>) -> int
+                            auto const simd_find = [&]<std::size_t Pitch>() -> T *
                             {
-                                // (chunk0, mask0), (chunk1, mask1), ...
-                                auto const tuplePair = std::make_tuple(simd_rng[Is]...);
+                                return it + []<std::size_t... Is>(auto simd_rng, auto target, auto pred, std::index_sequence<Is...>) -> int
+                                {
+                                    // (chunk0, mask0), (chunk1, mask1), ...
+                                    auto const tuplePair = std::make_tuple(simd_rng[Is]...);
 
-                                // (pred(chunk0, target), pred(chunk1, target), ...)
-                                std::tuple const tupleCompare(Tsimd_traits::mask_to_bitset(pred(std::get<simd_type>(std::get<Is>(tuplePair)), target))...);
+                                    // (pred(chunk0, target), pred(chunk1, target), ...)
+                                    std::tuple const tupleCompare(Tsimd_traits::mask_to_bitset(pred(std::get<simd_type>(std::get<Is>(tuplePair)), target))...);
 
-                                // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
-                                std::tuple const tupleResult((std::get<mask_type>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
+                                    // (mask0 & pred(chunk0, target), mask1 & pred(chunk1, target), ...)
+                                    std::tuple const tupleResult((std::get<mask_type>(std::get<Is>(tuplePair)) & std::get<Is>(tupleCompare))...);
 
-                                // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
-                                std::tuple const tuplePopcount(Tsimd_traits::reduce_count(std::get<Is>(tupleResult))...);
+                                    // (reduce_count(mask0 & pred(chunk0, target)), reduce_count(mask1 & pred(chunk1, target)), ...)
+                                    std::tuple const tuplePopcount(Tsimd_traits::reduce_count(std::get<Is>(tupleResult))...);
 
-                                // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
-                                return (std::get<Is>(tuplePopcount) + ...);
+                                    // (reduce_count(mask0 & pred(chunk0, target)) + reduce_count(mask1 & pred(chunk1, target)) + ...)
+                                    return (std::get<Is>(tuplePopcount) + ...);
 
-                            }(range_type(it, next), target, pred, std::make_index_sequence<(Pitch + Tsimd_traits::simd_width - 1) / Tsimd_traits::simd_width>{});
-                        };
+                                }(range_type(it, next), target, pred, std::make_index_sequence<(Pitch + Tsimd_traits::simd_width - 1) / Tsimd_traits::simd_width>{});
+                            };
 
-                        if constexpr (requires
-                        {
-                            Ttraits::sequential_search_pitch(std::size_t{});
-                        })
-                        {
-                            switch (sequential_search_pitch)
+                            if constexpr (requires
                             {
-                            case 1: return simd_find.template operator()<1>();
-                            case 2: return simd_find.template operator()<2>();
-                            case 4: return simd_find.template operator()<4>();
-                            case 8: return simd_find.template operator()<8>();
-                            case 16: return simd_find.template operator()<16>();
-                            case 32: return simd_find.template operator()<32>();
-                            case 64: return simd_find.template operator()<64>();
-                            case 128: return simd_find.template operator()<128>();
-                            case 256: return simd_find.template operator()<256>();
-                            case 512: return simd_find.template operator()<512>();
-                            case 1024: return simd_find.template operator()<1024>();
-                            default: std::terminate();
+                                Ttraits::sequential_search_pitch(std::size_t{});
+                            })
+                            {
+                                switch (sequential_search_pitch)
+                                {
+                                case 1: return simd_find.template operator()<1>();
+                                case 2: return simd_find.template operator()<2>();
+                                case 4: return simd_find.template operator()<4>();
+                                case 8: return simd_find.template operator()<8>();
+                                case 16: return simd_find.template operator()<16>();
+                                case 32: return simd_find.template operator()<32>();
+                                case 64: return simd_find.template operator()<64>();
+                                case 128: return simd_find.template operator()<128>();
+                                case 256: return simd_find.template operator()<256>();
+                                case 512: return simd_find.template operator()<512>();
+                                case 1024: return simd_find.template operator()<1024>();
+                                default: std::terminate();
+                                }
+                            }
+                            else
+                            {
+                                return simd_find.template operator()<Ttraits::SEQUENTIAL_SEARCH_PITCH>();
                             }
                         }
-                        else
-                            return simd_find.template operator()<
-                                Ttraits::SEQUENTIAL_SEARCH_PITCH>();
+
+                        range_type const simd_range(it, next);
+                        int offset = 0;
+                        for (std::size_t i = 0; i < simd_range.size(); ++i)
+                        {
+                            auto const [vec, msk] = simd_range[i];
+
+                            offset += Tsimd_traits::reduce_count(msk & Tsimd_traits::mask_to_bitset(pred(vec, target)));
+                        }
+                        return it + offset;
                     }
 
                     it = next;
