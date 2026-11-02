@@ -235,8 +235,20 @@ The `lower_bound_simd_unroll_benchmark` compares the compile-time unrolled
 SIMD fine-search path (`UNROLL_SIMD_LOOP = true`) against the explicit loop
 over SIMD chunks (`UNROLL_SIMD_LOOP = false`). It runs the six supported
 primitive types at N=256, 4,096, 16,384, and 262,144, with three query-order
-seeds, seven LLC-flushed samples per variant, and matching correctness
-checksums. Build and run it with:
+seeds, and seven samples per variant for each of three cache conditions:
+
+1. `llc_cold`: stream through an eviction buffer twice the detected LLC size.
+2. `prefetched_target`: evict first, then touch every cache line in the target
+   array before timing the searches.
+3. `dirty_writeback_pressure`: evict first, then write one byte per cache line
+   of an LLC-sized buffer before timing. Search reads can evict these dirty
+   lines, creating writeback pressure; the hardware cache policy determines
+   which lines are evicted and when writebacks complete.
+
+The executable detects LLC size on Windows and Linux and includes it in each
+CSV row. Cache preparation is outside the timed interval; repeated queries
+within a sample can warm the target array. Matching checksums are verified
+against `std::lower_bound`. Build and run it with:
 
 ```text
 cmake --build build-release --target lower_bound_simd_unroll_benchmark
