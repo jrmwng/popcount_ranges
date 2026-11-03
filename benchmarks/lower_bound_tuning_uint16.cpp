@@ -1,0 +1,3 @@
+#define POPCOUNT_RANGES_TUNING_SHARD_TYPE std::uint16_t
+#define POPCOUNT_RANGES_TUNING_SHARD_FUNCTION run_lower_bound_tuning_uint16
+#include "lower_bound_tuning_impl.hpp"

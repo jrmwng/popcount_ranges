@@ -129,8 +129,19 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
 
     add_executable(lower_bound_tuning
         benchmarks/lower_bound_tuning.cpp
+        benchmarks/lower_bound_tuning_uint8.cpp
+        benchmarks/lower_bound_tuning_uint16.cpp
+        benchmarks/lower_bound_tuning_uint32.cpp
+        benchmarks/lower_bound_tuning_uint64.cpp
+        benchmarks/lower_bound_tuning_float.cpp
+        benchmarks/lower_bound_tuning_double.cpp
     )
     configure_sampling_benchmark(lower_bound_tuning)
+    if(CMAKE_GENERATOR MATCHES "Ninja")
+        set_property(GLOBAL APPEND PROPERTY JOB_POOLS lower_bound_tuning_compile=3)
+        set_property(TARGET lower_bound_tuning
+            PROPERTY JOB_POOL_COMPILE lower_bound_tuning_compile)
+    endif()
 
     add_executable(popcount_set_benchmark
         benchmarks/popcount_set_benchmark.cpp

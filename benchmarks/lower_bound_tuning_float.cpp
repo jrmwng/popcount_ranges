@@ -1,0 +1,3 @@
+#define POPCOUNT_RANGES_TUNING_SHARD_TYPE float
+#define POPCOUNT_RANGES_TUNING_SHARD_FUNCTION run_lower_bound_tuning_float
+#include "lower_bound_tuning_impl.hpp"

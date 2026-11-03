@@ -120,9 +120,16 @@ installed Clang and Visual Studio 2026 standard libraries did not include
 `std::lower_bound`. Build and run it in Release mode:
 
 ```text
-cmake --build build-release --target lower_bound_tuning
+cmake --build build-release --target lower_bound_tuning --parallel 3
 build-release/lower_bound_tuning.exe --stage all --seed 24301 > tuning.csv
 ```
+
+The tuning target compiles its driver separately from six type-specific
+translation units, allowing the compiler to process independent type
+instantiations in parallel. Ninja builds cap this target at three concurrent
+compile jobs to balance CPU use against the high memory cost of template
+instantiation. Compile-time-invalid threshold/pitch combinations are discarded
+before instantiating a benchmark configuration.
 
 Use `--stage default` to compare the current `lower_bound_traits<T>` defaults
 directly with `std::lower_bound` for every supported type and array size. This
