@@ -11,6 +11,8 @@
 #include <limits>
 #include <random>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #if defined(_MSC_VER)
@@ -140,6 +142,14 @@ struct branchless_traits
                 jrmwng::popcount_ranges::binary_search_algorithm::branchless;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = Threshold;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+
+    template <typename T>
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Threshold>{}};
+    }
 };
 
 template <std::size_t Threshold, std::size_t Pitch>
@@ -151,6 +161,14 @@ struct branched_traits
                 jrmwng::popcount_ranges::binary_search_algorithm::branched;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = Threshold;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+
+    template <typename T>
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Threshold>{}};
+    }
 };
 
 template <typename Traits>

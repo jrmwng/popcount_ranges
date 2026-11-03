@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -46,6 +47,7 @@ std::size_t repetitions_override = 0;
 std::size_t selected_processor = std::numeric_limits<std::size_t>::max();
 std::size_t llc_bytes = 0;
 std::size_t cache_flush_bytes = 0;
+bool dirty_cache_mode = false;
 #if defined(_WIN32)
 WORD benchmark_processor_group = 0;
 KAFFINITY benchmark_processor_mask = 0;
@@ -253,7 +255,10 @@ private:
 class CacheFlusher
 {
 public:
-    explicit CacheFlusher(std::size_t bytes) : buffer_(bytes) {}
+    CacheFlusher(std::size_t bytes, std::size_t dirty_bytes)
+        : buffer_(bytes), dirty_buffer_(dirty_bytes)
+    {
+    }
 
     void flush() const
     {
@@ -265,8 +270,18 @@ public:
         sink += checksum;
     }
 
+    void make_dirty(std::size_t repetition) const
+    {
+        auto* data =
+            reinterpret_cast<volatile std::uint8_t*>(dirty_buffer_.data());
+        for (std::size_t offset = 0; offset < dirty_buffer_.size(); offset += 64u)
+            data[offset] = static_cast<std::uint8_t>(
+                data[offset] + repetition + 1u);
+    }
+
 private:
     std::vector<std::uint8_t> buffer_;
+    mutable std::vector<std::uint8_t> dirty_buffer_;
 };
 
 CacheFlusher* cache_flusher = nullptr;
@@ -305,6 +320,14 @@ struct pitch_traits
             BINARY_SEARCH_ALGORITHM =
                 jrmwng::popcount_ranges::binary_search_algorithm::none;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+
+    template <typename T>
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Pitch * 2>{}};
+    }
 };
 
 template <std::size_t Threshold, std::size_t Pitch>
@@ -316,6 +339,14 @@ struct branchless_traits
                 jrmwng::popcount_ranges::binary_search_algorithm::branchless;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = Threshold;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+
+    template <typename T>
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Threshold>{}};
+    }
 };
 
 template <std::size_t Threshold, std::size_t Pitch>
@@ -327,6 +358,14 @@ struct branched_traits
                 jrmwng::popcount_ranges::binary_search_algorithm::branched;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = Threshold;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+
+    template <typename T>
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Threshold>{}};
+    }
 };
 
 template <typename T, typename Traits>
@@ -345,8 +384,10 @@ POPCOUNT_RANGES_NOINLINE std::size_t standard_search(
     std::vector<T> const& values, T query)
 {
     return static_cast<std::size_t>(
-        std::lower_bound(values.begin(), values.end(), query) -
-        values.begin());
+        std::lower_bound(
+            values.data(), values.data() + values.size(), query,
+            std::less<>{}) -
+        values.data());
 }
 
 template <typename T, typename Search>
@@ -371,6 +412,8 @@ Measurement measure(
     {
         std::uint64_t result = 0;
         cache_flusher->flush();
+        if (dirty_cache_mode)
+            cache_flusher->make_dirty(repetition);
         auto const started = std::chrono::steady_clock::now();
         for (std::size_t pass = 0; pass < query_passes; ++pass)
             for (T query : queries)
@@ -661,6 +704,21 @@ bool benchmark_type(
         double best_pitch_time = std::numeric_limits<double>::infinity();
         bool passed = true;
 
+        if (stage == "default")
+        {
+            auto const [pitch, threshold] =
+                jrmwng::popcount_ranges::lower_bound_traits<T>::lookup_params(
+                    values.data(), values.data() + values.size());
+            Result const result = measure_configuration<
+                T, jrmwng::popcount_ranges::lower_bound_traits<T>>(
+                values, queries, repetitions, "default", "default",
+                threshold, pitch, run_index++);
+            if (!valid(result))
+                return false;
+            print_result(result);
+            continue;
+        }
+
         if (stage == "pitch" && forced_pitch != 0)
         {
             Result const result = run_selected_pitch<T>(
@@ -796,10 +854,10 @@ int main(int argc, char const* argv[])
             {
                 stage = value;
                 if (stage != "all" && stage != "pitch" &&
-                    stage != "threshold")
+                    stage != "threshold" && stage != "default")
                 {
                     std::cerr << "invalid stage: " << value
-                              << " (expected all, pitch, or threshold)\n";
+                              << " (expected all, pitch, threshold, or default)\n";
                     return 2;
                 }
                 continue;
@@ -860,15 +918,19 @@ int main(int argc, char const* argv[])
                 benchmark_seed = static_cast<std::uint32_t>(parsed);
             }
         }
+        else if (argument == "--dirty-cache")
+        {
+            dirty_cache_mode = true;
+        }
         else
         {
             std::cerr << "usage: lower_bound_tuning "
-                         "[--stage all|pitch|threshold] "
+                         "[--stage all|pitch|threshold|default] "
                          "[--type uint8_t|uint16_t|uint32_t|uint64_t|float|double] "
                          "[--type-bits 8|16|32|64] [--size N] [--pitch N] "
                          "[--seed N] "
                          "[--repetitions N] [--cache-flush-bytes N] "
-                         "[--processor N] "
+                         "[--processor N] [--dirty-cache] "
                          "[--quick]\n";
             return 2;
         }
@@ -938,10 +1000,13 @@ int main(int argc, char const* argv[])
         return 2;
     }
 #endif
-    CacheFlusher flusher(cache_flush_bytes);
+    CacheFlusher flusher(cache_flush_bytes, llc_bytes);
     cache_flusher = &flusher;
     std::cerr << "LLC=" << llc_bytes << " bytes; eviction buffer="
               << cache_flush_bytes << " bytes";
+    if (dirty_cache_mode)
+        std::cerr << "; LLC-sized dirty-write buffer=" << llc_bytes
+                  << " bytes";
 #if defined(_WIN32)
     std::cerr << "; pinned to processor group " << benchmark_processor_group
               << ", processor " << benchmark_processor_number;

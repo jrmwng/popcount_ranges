@@ -124,6 +124,15 @@ cmake --build build-release --target lower_bound_tuning
 build-release/lower_bound_tuning.exe --stage all --seed 24301 > tuning.csv
 ```
 
+Use `--stage default` to compare the current `lower_bound_traits<T>` defaults
+directly with `std::lower_bound` for every supported type and array size. This
+mode uses the same LLC-eviction setup as the tuning sweeps; it is not a dirty
+cache/writeback-pressure test unless `--dirty-cache` is supplied. With that
+option, the benchmark first evicts cached data, then dirties one byte in each
+cache line of an LLC-sized buffer before each timed batch. The dirty buffer is
+shared by the custom and standard measurements; actual eviction and writeback
+remain hardware-managed.
+
 The pitch stage tests binary-search-disabled implementations at pitches 1, 2,
 4, 8, 16, 32, 64, 128, 256, 512, and 1,024 elements. It chooses the
 lowest-latency pitch independently for each primitive type and array length.
@@ -153,61 +162,14 @@ the unique query set to at most 64 positions for a correctness smoke test.
 Each timed batch cycles through the unique query set enough times to execute
 at least 16,384 searches. The CSV reports both the number of unique positions
 and the number of passes per timed batch.
-For the defaults, the binary-search threshold is selected from the original
-input range length and type. `std::bit_width(range_size)` selects the table
-entry without a runtime `std::lower_bound`; each row is the representative
-tested size for that bit-width bucket. The first and last entries also cover
-smaller and larger sizes, respectively.
-
-| Input range | `uint8_t` | `uint16_t` | `uint32_t` | `uint64_t` | `float` | `double` |
-|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 32 | 16 | 16 | 16 | 16 | 16 |
-| 32 | 32 | 32 | 32 | 32 | 32 | 32 |
-| 64 | 64 | 64 | 64 | 64 | 64 | 64 |
-| 128 | 128 | 128 | 128 | 128 | 128 | 128 |
-| 256 | 256 | 256 | 256 | 256 | 256 | 128 |
-| 512 | 512 | 512 | 256 | 128 | 512 | 256 |
-| 1,024 | 1,024 | 512 | 1,024 | 256 | 512 | 256 |
-| 2,048 | 1,024 | 1,024 | 1,024 | 512 | 512 | 512 |
-| 4,096 | 2,048 | 1,024 | 1,024 | 512 | 1,024 | 512 |
-| 8,196 | 4,096 | 4,096 | 1,024 | 1,024 | 1,024 | 1,024 |
-| 16,384 | 4,096 | 2,048 | 2,048 | 2,048 | 2,048 | 2,048 |
-| 32,768 | 4,096 | 4,096 | 4,096 | 2,048 | 4,096 | 2,048 |
-| 65,536 | 8,192 | 4,096 | 4,096 | 2,048 | 2,048 | 2,048 |
-| 262,144 | 8,192 | 4,096 | 4,096 | 16,384 | 4,096 | 4,096 |
-
-The sequential pitch is looked up by the selected threshold, not by the input
-length, using the same bit-width bucket calculation. The pitch table uses the
-best pitch measured for the matching type and representative threshold-sized
-workload:
-
-| Threshold | `uint8_t` | `uint16_t` | `uint32_t` | `uint64_t` | `float` | `double` |
-|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 32 | 16 | 8 | 4 | 8 | 4 |
-| 32 | 32 | 16 | 8 | 8 | 8 | 8 |
-| 64 | 32 | 16 | 16 | 16 | 16 | 16 |
-| 128 | 32 | 32 | 32 | 16 | 32 | 16 |
-| 256 | 64 | 64 | 32 | 32 | 32 | 16 |
-| 512 | 128 | 64 | 32 | 32 | 64 | 32 |
-| 1,024 | 128 | 64 | 64 | 32 | 64 | 32 |
-| 2,048 | 128 | 128 | 64 | 64 | 64 | 64 |
-| 4,096 | 256 | 128 | 128 | 64 | 128 | 64 |
-| 8,196 | 256 | 256 | 128 | 128 | 128 | 128 |
-| 16,384 | 512 | 256 | 256 | 256 | 256 | 256 |
-| 32,768 | 512 | 512 | 512 | 256 | 512 | 256 |
-| 65,536 | 1,024 | 512 | 512 | 256 | 512 | 256 |
-| 262,144 | 1,024 | 1,024 | 512 | 1,024 | 512 | 1,024 |
-
-Threshold choices minimize the measured geometric mean of the branchless and
-branched strategies per `(type, input size)` using the expanded threshold
-sweeps. Where needed to keep the threshold at least as large as its
-threshold-selected pitch, the selected threshold was raised to that pitch.
-Those sweeps used a pitch selected for the input size, not the
-threshold-selected pitch shown above. Thus these are data-driven defaults, but
-the exact threshold/pitch pairs have not been benchmarked together and do not
-establish that the custom implementation beats `std::lower_bound` in every
-case. `BINARY_SEARCH_ALGORITHM` remains `none`; algorithm selection remains
-separate.
+The production defaults are fixed compile-time values:
+`SEQUENTIAL_SEARCH_PITCH = 64 / sizeof(T)` (one 64-byte cache line) and
+`BINARY_SEARCH_THRESHOLD = 2 * SEQUENTIAL_SEARCH_PITCH` (two cache lines).
+Types of size 1 use branched binary search, types of size 2 use branchless
+binary search, and types of size 4 or larger dispatch to
+`std::lower_bound`. The `default` stage measures these exact defaults; the
+`all`, `pitch`, and `threshold` stages benchmark explicit alternative custom
+traits and do not redefine production defaults.
 
 `--processor N` pins runs to one logical processor (group-local on Windows,
 system CPU index on Linux), which is useful when comparing separate runs.
@@ -230,30 +192,6 @@ backends. Standard SIMD range masks use the library's native mask type by
 default; range templates can explicitly select `std::bitset` when desired.
 Keep compiler, optimization level, CPU, and run conditions the same when
 comparing CSV rows.
-
-The `lower_bound_simd_unroll_benchmark` compares the compile-time unrolled
-SIMD fine-search path (`UNROLL_SIMD_LOOP = true`) against the explicit loop
-over SIMD chunks (`UNROLL_SIMD_LOOP = false`). It runs the six supported
-primitive types at N=256, 4,096, 16,384, and 262,144, with three query-order
-seeds, and seven samples per variant for each of three cache conditions:
-
-1. `llc_cold`: stream through an eviction buffer twice the detected LLC size.
-2. `prefetched_target`: evict first, then touch every cache line in the target
-   array before timing the searches.
-3. `dirty_writeback_pressure`: evict first, then write one byte per cache line
-   of an LLC-sized buffer before timing. Search reads can evict these dirty
-   lines, creating writeback pressure; the hardware cache policy determines
-   which lines are evicted and when writebacks complete.
-
-The executable detects LLC size on Windows and Linux and includes it in each
-CSV row. Cache preparation is outside the timed interval; repeated queries
-within a sample can warm the target array. Matching checksums are verified
-against `std::lower_bound`. Build and run it with:
-
-```text
-cmake --build build-release --target lower_bound_simd_unroll_benchmark
-build-release/lower_bound_simd_unroll_benchmark.exe > lower-bound-simd-unroll.csv
-```
 
 The sampling executable reports the implementation on each `popcount_ranges`
 row; descent rows also report their compiled

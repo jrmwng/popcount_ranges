@@ -305,8 +305,12 @@ for those toolchains on this machine.
 - When using the standard SIMD backend, a C++26 compiler and standard library
   providing `<simd>`.
 
-By default, `lower_bound` uses the existing `data_par` SIMD implementation. The
-`data_par` SIMD facility has no scalar backend. Including
+By default, `lower_bound` uses the custom search for 1-byte and 2-byte types,
+with a one-cache-line sequential pitch (`64 / sizeof(T)`) and a two-cache-line
+binary-search threshold (`128 / sizeof(T)`). The default binary-search
+algorithm is branched for 1-byte types and branchless for 2-byte types. Types
+of 4 bytes or larger use `std::lower_bound`. The custom path uses the existing
+`data_par` SIMD implementation, which has no scalar backend. Including
 `data_par/simd_native.hpp` without an AVX2 or SSE4.1/4.2 compiler target produces
 a compile-time error. The normal CMake target builds for AVX2.
 

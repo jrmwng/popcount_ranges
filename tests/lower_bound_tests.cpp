@@ -2,13 +2,13 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <cstdint>
 #include <functional>
 #include <iostream>
 #include <limits>
 #include <random>
 #include <type_traits>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -17,74 +17,38 @@ namespace
 using jrmwng::popcount_ranges::binary_search_algorithm;
 using jrmwng::popcount_ranges::lower_bound_traits;
 
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(0) == 0);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(5) == 0);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(6) == 1);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(13) == 8);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(14) == 9);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(15) == 10);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(18) == 13);
-static_assert(lower_bound_traits<std::uint8_t>::range_bucket_index(32) == 13);
-
 static_assert(lower_bound_traits<std::uint8_t>::BINARY_SEARCH_ALGORITHM ==
-              binary_search_algorithm::none);
-static_assert(lower_bound_traits<std::uint8_t>::BINARY_SEARCH_THRESHOLD == 2048);
-static_assert(lower_bound_traits<std::uint8_t>::lookup_params(5).first == 32);
-static_assert(lower_bound_traits<std::uint8_t>::lookup_params(13).first == 2048);
-static_assert(lower_bound_traits<std::uint8_t>::lookup_params(5).second == 32);
-static_assert(lower_bound_traits<std::uint8_t>::lookup_params(19).second == 1024);
-static_assert(lower_bound_traits<std::uint16_t>::BINARY_SEARCH_THRESHOLD == 2048);
-static_assert(lower_bound_traits<std::uint16_t>::lookup_params(14).first == 4096);
-static_assert(lower_bound_traits<std::uint16_t>::lookup_params(5).second == 16);
-static_assert(lower_bound_traits<std::uint16_t>::lookup_params(19).second == 1024);
-static_assert(lower_bound_traits<std::uint32_t>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<std::uint32_t>::lookup_params(9).first == 256);
-static_assert(lower_bound_traits<std::uint32_t>::lookup_params(5).second == 8);
-static_assert(lower_bound_traits<std::uint32_t>::lookup_params(19).second == 512);
-static_assert(lower_bound_traits<std::uint64_t>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<std::uint64_t>::lookup_params(19).first == 16384);
-static_assert(lower_bound_traits<std::uint64_t>::lookup_params(5).second == 4);
-static_assert(lower_bound_traits<std::uint64_t>::lookup_params(19).second == 1024);
-static_assert(lower_bound_traits<float>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<float>::lookup_params(17).first == 2048);
-static_assert(lower_bound_traits<float>::lookup_params(5).second == 8);
-static_assert(lower_bound_traits<float>::lookup_params(19).second == 512);
-static_assert(lower_bound_traits<double>::BINARY_SEARCH_THRESHOLD == 1024);
-static_assert(lower_bound_traits<double>::lookup_params(16).first == 2048);
-static_assert(lower_bound_traits<double>::lookup_params(5).second == 4);
-static_assert(lower_bound_traits<double>::lookup_params(19).second == 1024);
+              binary_search_algorithm::branched);
+static_assert(lower_bound_traits<std::uint16_t>::BINARY_SEARCH_ALGORITHM ==
+              binary_search_algorithm::branchless);
+static_assert(lower_bound_traits<std::uint32_t>::BINARY_SEARCH_ALGORITHM ==
+              binary_search_algorithm::std);
+static_assert(lower_bound_traits<std::uint64_t>::BINARY_SEARCH_ALGORITHM ==
+              binary_search_algorithm::std);
+static_assert(lower_bound_traits<float>::BINARY_SEARCH_ALGORITHM ==
+              binary_search_algorithm::std);
+static_assert(lower_bound_traits<double>::BINARY_SEARCH_ALGORITHM ==
+              binary_search_algorithm::std);
 
 template <typename T>
-bool check_default_thresholds(std::array<std::size_t, 14> const& expected)
+constexpr auto default_lookup_params()
 {
-    constexpr std::array<std::size_t, 14> range_sizes{
-        16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8196,
-        16384, 32768, 65536, 262144};
-    for (std::size_t index = 0; index < range_sizes.size(); ++index)
-    {
-        auto const [threshold, pitch] =
-            lower_bound_traits<T>::lookup_params(
-                std::bit_width(range_sizes[index]));
-        if (threshold != expected[index] || threshold < pitch)
-            return false;
-    }
-    return true;
+    T const* const empty = nullptr;
+    return lower_bound_traits<T>::lookup_params(empty, empty);
 }
 
-template <typename T>
-bool check_default_pitches(std::array<std::size_t, 14> const& expected)
-{
-    constexpr std::array<std::size_t, 14> range_sizes{
-        16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8196,
-        16384, 32768, 65536, 262144};
-    for (std::size_t index = 0; index < range_sizes.size(); ++index)
-    {
-        if (lower_bound_traits<T>::lookup_params(
-                std::bit_width(range_sizes[index])).second != expected[index])
-            return false;
-    }
-    return true;
-}
+static_assert(std::get<0>(default_lookup_params<std::uint8_t>()) == 64);
+static_assert(std::get<1>(default_lookup_params<std::uint8_t>()) == 128);
+static_assert(std::get<0>(default_lookup_params<std::uint16_t>()) == 32);
+static_assert(std::get<1>(default_lookup_params<std::uint16_t>()) == 64);
+static_assert(std::get<0>(default_lookup_params<std::uint32_t>()) == 16);
+static_assert(std::get<1>(default_lookup_params<std::uint32_t>()) == 32);
+static_assert(std::get<0>(default_lookup_params<std::uint64_t>()) == 8);
+static_assert(std::get<1>(default_lookup_params<std::uint64_t>()) == 16);
+static_assert(std::get<0>(default_lookup_params<float>()) == 16);
+static_assert(std::get<1>(default_lookup_params<float>()) == 32);
+static_assert(std::get<0>(default_lookup_params<double>()) == 8);
+static_assert(std::get<1>(default_lookup_params<double>()) == 16);
 
 template <
     typename T,
@@ -225,6 +189,17 @@ struct branchless_traits : jrmwng::popcount_ranges::lower_bound_traits<T>
         BINARY_SEARCH_ALGORITHM =
             jrmwng::popcount_ranges::binary_search_algorithm::branchless;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 16;
+    inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
+        64u / sizeof(T);
+
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<
+                std::size_t, SEQUENTIAL_SEARCH_PITCH>{},
+            std::integral_constant<
+                std::size_t, BINARY_SEARCH_THRESHOLD>{}};
+    }
 };
 
 template <typename T>
@@ -235,7 +210,16 @@ struct branched_traits
             jrmwng::popcount_ranges::binary_search_algorithm::branched;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 16;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
-        128u / sizeof(T);
+        64u / sizeof(T);
+
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<
+                std::size_t, SEQUENTIAL_SEARCH_PITCH>{},
+            std::integral_constant<
+                std::size_t, BINARY_SEARCH_THRESHOLD>{}};
+    }
 };
 
 template <typename T>
@@ -246,7 +230,16 @@ struct threshold_one_branchless_traits
             jrmwng::popcount_ranges::binary_search_algorithm::branchless;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 1;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
-        128u / sizeof(T);
+        64u / sizeof(T);
+
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<
+                std::size_t, SEQUENTIAL_SEARCH_PITCH>{},
+            std::integral_constant<
+                std::size_t, BINARY_SEARCH_THRESHOLD>{}};
+    }
 };
 
 template <typename T>
@@ -257,7 +250,16 @@ struct threshold_one_branched_traits
             jrmwng::popcount_ranges::binary_search_algorithm::branched;
     inline constexpr static std::size_t BINARY_SEARCH_THRESHOLD = 1;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH =
-        128u / sizeof(T);
+        64u / sizeof(T);
+
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<
+                std::size_t, SEQUENTIAL_SEARCH_PITCH>{},
+            std::integral_constant<
+                std::size_t, BINARY_SEARCH_THRESHOLD>{}};
+    }
 };
 
 template <std::size_t Pitch>
@@ -267,6 +269,14 @@ struct pitch_only_traits
         BINARY_SEARCH_ALGORITHM =
             jrmwng::popcount_ranges::binary_search_algorithm::none;
     inline constexpr static std::size_t SEQUENTIAL_SEARCH_PITCH = Pitch;
+
+    template <typename T>
+    static constexpr auto lookup_params(T const*, T const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Pitch * 2>{}};
+    }
 };
 
 template <typename Traits>
@@ -334,30 +344,6 @@ bool check_custom_pitches(char const* name)
 int main()
 {
     bool passed = true;
-    passed = passed && check_default_thresholds<std::uint8_t>(
-        {32, 32, 64, 128, 256, 512, 1024, 1024, 2048, 4096, 4096, 4096, 8192, 8192});
-    passed = passed && check_default_thresholds<std::uint16_t>(
-        {16, 32, 64, 128, 256, 512, 512, 1024, 1024, 4096, 2048, 4096, 4096, 4096});
-    passed = passed && check_default_thresholds<std::uint32_t>(
-        {16, 32, 64, 128, 256, 256, 1024, 1024, 1024, 1024, 2048, 4096, 4096, 4096});
-    passed = passed && check_default_thresholds<std::uint64_t>(
-        {16, 32, 64, 128, 256, 128, 256, 512, 512, 1024, 2048, 2048, 2048, 16384});
-    passed = passed && check_default_thresholds<float>(
-        {16, 32, 64, 128, 256, 512, 512, 512, 1024, 1024, 2048, 4096, 2048, 4096});
-    passed = passed && check_default_thresholds<double>(
-        {16, 32, 64, 128, 128, 256, 256, 512, 512, 1024, 2048, 2048, 2048, 4096});
-    passed = passed && check_default_pitches<std::uint8_t>(
-        {32, 32, 32, 32, 64, 128, 128, 128, 256, 256, 512, 512, 1024, 1024});
-    passed = passed && check_default_pitches<std::uint16_t>(
-        {16, 16, 16, 32, 64, 64, 64, 128, 128, 256, 256, 512, 512, 1024});
-    passed = passed && check_default_pitches<std::uint32_t>(
-        {8, 8, 16, 32, 32, 32, 64, 64, 128, 128, 256, 512, 512, 512});
-    passed = passed && check_default_pitches<std::uint64_t>(
-        {4, 8, 16, 16, 32, 32, 32, 64, 64, 128, 256, 256, 256, 1024});
-    passed = passed && check_default_pitches<float>(
-        {8, 8, 16, 32, 32, 64, 64, 64, 128, 128, 256, 512, 512, 512});
-    passed = passed && check_default_pitches<double>(
-        {4, 8, 16, 16, 16, 32, 32, 64, 64, 128, 256, 256, 256, 1024});
     passed = passed && check_width<std::int8_t>("int8_t");
     passed = passed && check_width<std::uint8_t>("uint8_t");
     passed = passed && check_width<std::int16_t>("int16_t");
@@ -366,6 +352,8 @@ int main()
     passed = passed && check_width<std::uint32_t>("uint32_t");
     passed = passed && check_width<std::int64_t>("int64_t");
     passed = passed && check_width<std::uint64_t>("uint64_t");
+    passed = passed && check_width<float>("float");
+    passed = passed && check_width<double>("double");
     passed = passed && check_random<std::int32_t>("random int32_t");
     passed = passed && check_random<std::uint64_t>("random uint64_t");
     passed = passed && check_wider_target<std::int8_t, std::int16_t>();
