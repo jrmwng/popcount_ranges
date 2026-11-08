@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(POPCOUNT_RANGES_SIMD "Use the C++26 <simd> implementation" OFF)
-option(POPCOUNT_RANGES_BUILD_BENCHMARKS "Build the sampling benchmarks" ON)
+option(POPCOUNT_RANGES_BUILD_BENCHMARKS "Build the benchmarks" ON)
 
 include(CTest)
 include(GNUInstallDirs)
@@ -113,6 +113,14 @@ if(BUILD_TESTING)
 
     add_test(NAME data_par_simd_tests
              COMMAND $<TARGET_FILE:data_par_simd_tests>)
+
+    add_executable(ncr_tests tests/ncr_tests.cpp)
+    configure_popcount_target(ncr_tests)
+    add_test(NAME ncr_tests COMMAND $<TARGET_FILE:ncr_tests>)
+
+    add_executable(set_application_tests tests/set_application_tests.cpp)
+    configure_popcount_target(set_application_tests)
+    add_test(NAME set_application_tests COMMAND $<TARGET_FILE:set_application_tests>)
 endif()
 
 if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
@@ -122,12 +130,12 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
 
     configure_popcount_target(lower_bound_benchmark)
 
-    add_executable(lower_bound_search_benchmark
+    add_executable(lower_bound_search_benchmark EXCLUDE_FROM_ALL
         benchmarks/lower_bound_search_benchmark.cpp
     )
     configure_sampling_benchmark(lower_bound_search_benchmark)
 
-    add_executable(lower_bound_tuning
+    add_executable(lower_bound_tuning EXCLUDE_FROM_ALL
         benchmarks/lower_bound_tuning.cpp
         benchmarks/lower_bound_tuning_uint8.cpp
         benchmarks/lower_bound_tuning_uint16.cpp
@@ -149,13 +157,29 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
 
     configure_popcount_target(popcount_set_benchmark)
 
+    add_executable(set_operations_benchmark benchmarks/set_operations_benchmark.cpp)
+    configure_popcount_target(set_operations_benchmark)
+
     add_executable(sampling_benchmark
         benchmarks/sampling_benchmark.cpp
     )
 
     configure_sampling_benchmark(sampling_benchmark)
 
-    add_executable(simd_adapter_benchmark
+    add_executable(sampling_benchmark_experimental EXCLUDE_FROM_ALL
+        benchmarks/sampling_benchmark.cpp
+    )
+    configure_sampling_benchmark(sampling_benchmark_experimental)
+    target_compile_definitions(sampling_benchmark_experimental PRIVATE
+        POPCOUNT_RANGES_SAMPLING_EXPERIMENTAL
+    )
+
+    add_executable(subset_sum_benchmark
+        benchmarks/subset_sum_benchmark.cpp
+    )
+    configure_popcount_target(subset_sum_benchmark)
+
+    add_executable(simd_adapter_benchmark EXCLUDE_FROM_ALL
         benchmarks/simd_adapter_benchmark.cpp
     )
 
@@ -167,7 +191,7 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
         endif()
 
         set(target sampling_benchmark_threshold_${threshold})
-        add_executable(${target}
+        add_executable(${target} EXCLUDE_FROM_ALL
             benchmarks/sampling_benchmark.cpp
         )
         configure_sampling_benchmark(${target})
@@ -177,7 +201,7 @@ if(POPCOUNT_RANGES_BUILD_BENCHMARKS)
         )
     endforeach()
 
-    add_executable(sampling_benchmark_std_lower_bound
+    add_executable(sampling_benchmark_std_lower_bound EXCLUDE_FROM_ALL
         benchmarks/sampling_benchmark.cpp
     )
     configure_sampling_benchmark(sampling_benchmark_std_lower_bound)

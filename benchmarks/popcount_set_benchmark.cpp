@@ -23,7 +23,7 @@ inline void do_not_optimize(T& value) noexcept
 }
 
 template <typename Set, typename Operation>
-void run_case(std::string_view type_name, std::size_t reduce_count, std::string_view direction,
+std::uint64_t run_case(std::string_view type_name, std::size_t reduce_count, std::string_view direction,
               std::size_t distance, std::size_t repetitions, Operation operation,
               std::string_view implementation)
 {
@@ -47,10 +47,11 @@ void run_case(std::string_view type_name, std::size_t reduce_count, std::string_
     std::cout << type_name << ',' << reduce_count << ',' << direction << ',' << distance << ','
               << implementation << ',' << std::fixed << std::setprecision(2)
               << elapsed / static_cast<double>(repetitions) << ',' << result << '\n';
+    return result;
 }
 
 template <typename T, T Popcount>
-void benchmark_set(std::string_view type_name, bool quick)
+bool benchmark_set(std::string_view type_name, bool quick)
 {
     using Set = jrmwng::popcount_ranges::set<std::numeric_limits<T>::digits,
                                               static_cast<std::size_t>(Popcount), T>;
@@ -65,37 +66,52 @@ void benchmark_set(std::string_view type_name, bool quick)
         if (distance >= total)
             continue;
         auto const repetitions = quick ? 1000u : 10000u;
-        run_case<Set>(type_name, Popcount, "increment", distance, repetitions,
+        auto const increment = run_case<Set>(type_name, Popcount, "increment", distance, repetitions,
             [](auto& iterator, std::size_t offset) { for (std::size_t i = 0; i < offset; ++i) ++iterator; },
             "repeated_gosper");
-        run_case<Set>(type_name, Popcount, "increment", distance, repetitions,
+        auto const advance = run_case<Set>(type_name, Popcount, "increment", distance, repetitions,
             [](auto& iterator, std::size_t offset) { iterator.advance(static_cast<std::ptrdiff_t>(offset)); },
             "unrank_advance");
-        run_case<Set>(type_name, Popcount, "decrement", distance, repetitions,
+        auto const decrement = run_case<Set>(type_name, Popcount, "decrement", distance, repetitions,
             [](auto& iterator, std::size_t offset) { for (std::size_t i = 0; i < offset; ++i) --iterator; },
             "repeated_gosper");
-        run_case<Set>(type_name, Popcount, "decrement", distance, repetitions,
+        auto const retreat = run_case<Set>(type_name, Popcount, "decrement", distance, repetitions,
             [](auto& iterator, std::size_t offset) { iterator.advance(-static_cast<std::ptrdiff_t>(offset)); },
             "unrank_advance");
+        if (increment != advance || decrement != retreat)
+        {
+            std::cerr << "advance checksum mismatch for " << type_name
+                      << " R=" << static_cast<std::size_t>(Popcount)
+                      << " distance=" << distance << '\n';
+            return false;
+        }
     }
+    return true;
 }
 }
 
 int main(int argc, char const* argv[])
 {
     bool const quick = argc > 1 && std::string_view(argv[1]) == "--quick";
+    if (argc > 2 || (argc == 2 && !quick))
+    {
+        std::cerr << "usage: popcount_set_benchmark [--quick]\n";
+        return 2;
+    }
     std::cout << "type,reduce_count,direction,distance,implementation,ns_per_operation,checksum\n";
-    benchmark_set<std::uint8_t, std::uint8_t{1}>("uint8", quick);
-    benchmark_set<std::uint8_t, std::uint8_t{2}>("uint8", quick);
-    benchmark_set<std::uint8_t, std::uint8_t{3}>("uint8", quick);
-    benchmark_set<std::uint8_t, std::uint8_t{4}>("uint8", quick);
-    benchmark_set<std::uint16_t, std::uint16_t{1}>("uint16", quick);
-    benchmark_set<std::uint16_t, std::uint16_t{2}>("uint16", quick);
-    benchmark_set<std::uint16_t, std::uint16_t{3}>("uint16", quick);
-    benchmark_set<std::uint16_t, std::uint16_t{8}>("uint16", quick);
-    benchmark_set<std::uint32_t, std::uint32_t{1}>("uint32", quick);
-    benchmark_set<std::uint32_t, std::uint32_t{2}>("uint32", quick);
-    benchmark_set<std::uint32_t, std::uint32_t{3}>("uint32", quick);
-    benchmark_set<std::uint32_t, std::uint32_t{16}>("uint32", quick);
+    bool const passed =
+        benchmark_set<std::uint8_t, std::uint8_t{1}>("uint8", quick) &&
+        benchmark_set<std::uint8_t, std::uint8_t{2}>("uint8", quick) &&
+        benchmark_set<std::uint8_t, std::uint8_t{3}>("uint8", quick) &&
+        benchmark_set<std::uint8_t, std::uint8_t{4}>("uint8", quick) &&
+        benchmark_set<std::uint16_t, std::uint16_t{1}>("uint16", quick) &&
+        benchmark_set<std::uint16_t, std::uint16_t{2}>("uint16", quick) &&
+        benchmark_set<std::uint16_t, std::uint16_t{3}>("uint16", quick) &&
+        benchmark_set<std::uint16_t, std::uint16_t{8}>("uint16", quick) &&
+        benchmark_set<std::uint32_t, std::uint32_t{1}>("uint32", quick) &&
+        benchmark_set<std::uint32_t, std::uint32_t{2}>("uint32", quick) &&
+        benchmark_set<std::uint32_t, std::uint32_t{3}>("uint32", quick) &&
+        benchmark_set<std::uint32_t, std::uint32_t{16}>("uint32", quick);
     std::cerr << "sink=" << sink << '\n';
+    return passed ? 0 : 1;
 }

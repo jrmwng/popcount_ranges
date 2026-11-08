@@ -72,7 +72,23 @@ This is useful when the result is naturally a fixed-size subset or bitmask.
 Unlike `std::sample`, it does not take an arbitrary input range or runtime
 sample count; `N` and `R` are compile-time parameters.
 
+### Other applications
+
+The same range can enumerate fixed-cardinality candidates for subset-sum or
+knapsack searches, feature selection, or exhaustive testing of configurations
+with exactly `R` enabled options. Rank intervals can divide that work into
+disjoint shards: start at `choices.begin() + first_rank` and stop at
+`choices.begin() + last_rank`. The application tests compare subset-sum
+results with independent bitmask enumeration, including sharded traversal and
+a sparse wide set. The subset-sum benchmark compares this approach with
+brute-force bitmask filtering; it is not a comparison with optimized solvers.
+
 ## Sampling benchmark results
+
+The results below are historical measurements of the earlier, larger
+benchmark matrix. The current default build uses a smaller representative
+matrix; the exhaustive sampling experiment remains an explicit target. See
+the [benchmark guide](benchmarks/README.md) for current workloads and commands.
 
 The sampling benchmark compares selecting `R` positions from `N` using
 `std::sample` with drawing a uniform rank in `popcount_ranges::set<N, R>` and
@@ -306,8 +322,8 @@ for those toolchains on this machine.
   providing `<simd>`.
 
 By default, `lower_bound` uses the custom search for 1-byte and 2-byte types,
-with a one-cache-line sequential pitch (`64 / sizeof(T)`) and a two-cache-line
-binary-search threshold (`128 / sizeof(T)`). The default binary-search
+with a one-cache-line sequential pitch (`64 / sizeof(T)`) and a four-cache-line
+binary-search threshold (`256 / sizeof(T)`). The default binary-search
 algorithm is branched for 1-byte types and branchless for 2-byte types. Types
 of 4 bytes or larger use `std::lower_bound`. The custom path uses the existing
 `data_par` SIMD implementation, which has no scalar backend. Including
@@ -355,6 +371,10 @@ cmake -S . -B build -DBUILD_TESTING=ON -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=OFF
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
+
+Run both Release and Debug configurations: the main set test runs its
+exhaustive cases in Release and its exception checks when `_DEBUG` is defined.
+The application and helper tests run in both configurations.
 
 ## Use from another CMake project
 

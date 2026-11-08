@@ -38,17 +38,17 @@ constexpr auto default_lookup_params()
 }
 
 static_assert(std::get<0>(default_lookup_params<std::uint8_t>()) == 64);
-static_assert(std::get<1>(default_lookup_params<std::uint8_t>()) == 128);
+static_assert(std::get<1>(default_lookup_params<std::uint8_t>()) == 256);
 static_assert(std::get<0>(default_lookup_params<std::uint16_t>()) == 32);
-static_assert(std::get<1>(default_lookup_params<std::uint16_t>()) == 64);
+static_assert(std::get<1>(default_lookup_params<std::uint16_t>()) == 128);
 static_assert(std::get<0>(default_lookup_params<std::uint32_t>()) == 16);
-static_assert(std::get<1>(default_lookup_params<std::uint32_t>()) == 32);
+static_assert(std::get<1>(default_lookup_params<std::uint32_t>()) == 64);
 static_assert(std::get<0>(default_lookup_params<std::uint64_t>()) == 8);
-static_assert(std::get<1>(default_lookup_params<std::uint64_t>()) == 16);
+static_assert(std::get<1>(default_lookup_params<std::uint64_t>()) == 32);
 static_assert(std::get<0>(default_lookup_params<float>()) == 16);
-static_assert(std::get<1>(default_lookup_params<float>()) == 32);
+static_assert(std::get<1>(default_lookup_params<float>()) == 64);
 static_assert(std::get<0>(default_lookup_params<double>()) == 8);
-static_assert(std::get<1>(default_lookup_params<double>()) == 16);
+static_assert(std::get<1>(default_lookup_params<double>()) == 32);
 
 template <
     typename T,

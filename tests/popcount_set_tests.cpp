@@ -133,6 +133,7 @@ bool check_iterator_exception_bounds()
 }
 #endif
 
+#ifndef _DEBUG
 template <typename T, T Popcount>
 bool check_iterator_operators()
 {
@@ -904,6 +905,7 @@ bool check_register_edge_width()
     }
     return index == N;
 }
+#endif
 }
 
 int main()

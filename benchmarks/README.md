@@ -1,234 +1,105 @@
 # Benchmarks
 
-Configure a Release build with benchmarks enabled:
+The default benchmarks focus on `popcount_ranges::set` and its applications.
+Configure an optimized build on a machine with AVX2:
 
 ```text
 cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=ON
-cmake --build build-release --target lower_bound_benchmark lower_bound_search_benchmark popcount_set_benchmark sampling_benchmark
-build-release/lower_bound_benchmark.exe --quick
-build-release/lower_bound_search_benchmark.exe --quick
+cmake --build build-release
+ctest --test-dir build-release --output-on-failure
+build-release/set_operations_benchmark.exe --quick
 build-release/popcount_set_benchmark.exe --quick
 build-release/sampling_benchmark.exe --quick
+build-release/subset_sum_benchmark.exe --quick
+build-release/lower_bound_benchmark.exe --quick
 ```
 
-## Lower-bound benchmarks
+Omit `--quick` for timing runs. Times depend on the CPU, compiler, standard
+library and system load. `--quick` is for correctness and smoke testing, not
+performance conclusions. Output is CSV on stdout; diagnostics go to stderr.
 
-`lower_bound_benchmark` compares `jrmwng::popcount_ranges::lower_bound` with
-`std::lower_bound` for 8-, 16-, 32-, and 64-bit integers. It covers ascending
-and descending data at several range sizes. Its CSV columns are
-`type,direction,size,implementation,ns_per_query,checksum`. Each custom and
-standard-library pair must produce the same checksum.
+## Set operations
 
-`lower_bound_search_benchmark` measures the same two implementations on
-uniform insertion positions in evenly spaced 64-bit arrays, for sizes 32
-through 262,144. The query count scales down for large arrays to bound runtime.
-Each reported time is the median of five batches over precomputed queries;
-search calls pass through no-inline wrappers, and each checksum is verified
-against `std::lower_bound`. Use `--seed <integer>` to reproduce or vary the
-query sequence. Its CSV columns are
-`compiler,query_seed,type_bits,N,query_distribution,query_count,implementation,median_ns_per_query,checksum`.
+`set_operations_benchmark` measures forward and backward traversal, sequential
+rank lookup and random rank lookup. It includes native, sparse, dense wide and
+complement-index representations. The fixed window is checked element by
+element against indexed values and reverse traversal before timing; the three
+corresponding timed checksums must agree. Random ranks are precomputed from a
+fixed seed. Times include set-bit-position traversal to consume each value.
+Columns are `representation,N,R,operation,values,repetitions,ns_per_value,checksum`.
 
-Use `--traits-sweep` to compare independently enabled branchless and branched
-binary search thresholds (8 through 1024) with sequential pitches (8, 16, 32,
-and 64 elements) on 64-bit arrays of 4,096, 32,768, and 262,144 elements.
-Each configuration uses the same uniform queries for a given size and checks
-its checksum against `std::lower_bound`. The traits CSV reports strategy,
-threshold, pitch, and median nanoseconds per query. Run several `--seed`
-values to reduce sensitivity to query sequence and compare geometric means
-across the tested sizes; the strategy measurement order alternates with seed
-parity to reduce order bias. The best values are workload- and
-machine-dependent.
+`popcount_set_benchmark` compares repeated increments or decrements with
+`advance()` for different distances and native widths. Columns are
+`type,reduce_count,direction,distance,implementation,ns_per_operation,checksum`.
+Compare checksums for matching type, count, direction and distance.
+The benchmark fails if the paired checksums differ.
+The normal run uses 10,000 repetitions and `--quick` uses 1,000.
 
-Both lower-bound executables accept `--quick` for a shorter correctness
-smoke test; omit it for the longer timing run. The search microbenchmark
-isolates lookup cost from sampling and rank generation. It is a controlled
-workload, not a substitute for measuring the key distribution of an
-application.
+## Applications
 
-## Other benchmarks
+`sampling_benchmark` compares `std::sample` with selecting a uniform rank and
+enumerating the corresponding set-bit positions. Its default matrix covers
+native 8/16/32/64-bit and dense and sparse 128/256/8192-bit representations,
+including empty, sparse, near-full and full selections; dense types also include
+the largest representable middle popcount. It is intentionally smaller than
+the historical exhaustive sweep. Use `--quick`, `--medium` or `--full` for
+1,000, 10,000 or 100,000 repetitions, respectively (`--full` is the default).
+CSV rows include elapsed time, the separately measured raw `mt19937` baseline,
+engine calls per sample and a checksum. The two sampling methods do not
+produce the same random samples, so their checksums need not match. Raw
+engine-call counts depend on the implementation of the distribution.
 
-The `popcount_set` executable prints
-`type,popcount,direction,distance,implementation,ns_per_operation,checksum`.
-It compares repeated Gosper-based `++`/`--` with direct `advance()` calls,
-which use `unrank` for the requested offset. Compare rows with the same type,
-popcount, direction, and distance; the first distance where `unrank_advance`
-is faster is the observed break-even point for that case.
+`subset_sum_benchmark` enumerates fixed-cardinality subsets whose weights sum
+to a target. It compares set traversal against filtering every bitmask by
+popcount, using the same weights and four targets for both. It checks match
+counts and mask checksums before and during timing. Sparse, middle and
+near-full cardinalities show how the enumeration strategy depends on the
+workload. Columns are
+`N,R,implementation,repetitions,ns_per_search,matches,mask_checksum`.
+The comparison is against brute-force mask filtering, not an optimized
+subset-sum algorithm.
 
-For sparse wide sets, `jrmwng::popcount_ranges::stdx::uint_indices<N, R>`
-stores the positions of the `R` set bits instead of an `N`-bit value. It can
-be used as the value type for `set`, for example:
+## Supporting helpers
 
-```cpp
-using sparse_value = jrmwng::popcount_ranges::stdx::uint_indices<8192, 2>;
-using sparse_set = jrmwng::popcount_ranges::set<8192, 2>;
-```
+`lower_bound_benchmark` compares the helper with `std::lower_bound` on
+ascending and descending unsigned integer arrays of several widths and sizes;
+paired checksums must match. Columns are
+`type,direction,size,implementation,ns_per_query,checksum`.
+The default traits use a sequential pitch of `64 / sizeof(T)` and a binary
+search threshold of `256 / sizeof(T)`; types of four bytes or more dispatch
+to `std::lower_bound`.
 
-`stdx::uint_indices<N, R>` exposes sorted set-bit positions through `indices`.
-Use `uint<N>` for dense popcounts, where storing the set-bit positions would
-take more space. For high popcounts, `stdx::uint_complement_indices<N, H>`
-stores the `H` unset positions instead; its set-bit-position iterator yields
-every other position.
+## Experimental targets
 
-Use `--quick` (1,000 repetitions) for a smoke test, `--medium` (10,000
-repetitions) for broader comparisons, or omit the option/choose `--full`
-(100,000 repetitions) for the full `popcount_set` run. Use Release or
-RelWithDebInfo for timing; Debug results are useful only for correctness and
-diagnostics. Timing results depend on the compiler, CPU, and system load, so
-capture them locally rather than committing CSV output.
+These are excluded from the default build but remain available by name:
 
-The `sampling` executable compares `std::sample` with sampling a uniformly
-selected `popcount_ranges::set<N, R>` rank and then enumerating its set-bit
-positions. Each CSV row reports total sample time, a separately measured
-raw-`std::mt19937` baseline for the observed number of engine calls, the
-difference, and actual engine invocations per sample. The popcount-ranges
-path makes one logical uniform-rank request per sample. That request can
-require multiple raw engine calls when its range needs more than 32 random
-bits (because `std::mt19937` produces 32-bit results) and can require
-additional calls for distribution rejection. The standard library's
-engine-call count is implementation-dependent, so the benchmark measures it
-instead of assuming it equals `N`.
+* `lower_bound_search_benchmark`: isolated search and `--traits-sweep`
+  experiments; supports `--quick` and `--seed <integer>`.
+* `lower_bound_tuning`: large type, pitch and threshold sweeps. For example,
+  use `--stage default --quick`; build with limited parallelism because its
+  template instantiations consume substantial memory.
+* `simd_adapter_benchmark`: mask, reduction and load microbenchmarks.
+* `sampling_benchmark_experimental`: the former exhaustive sampling matrix,
+  including `--decompose` for component timing. This target can take
+  considerably longer to compile and run.
+* `sampling_benchmark_threshold_<value>` and
+  `sampling_benchmark_std_lower_bound`: lower-bound strategy comparisons
+  using the smaller default sampling matrix. Threshold targets are generated
+  from `POPCOUNT_RANGES_SAMPLING_THRESHOLDS`, which defaults to
+  `1;2;4;8;12;16;20;24;28;32`.
 
-The fixed-popcount path reaches `lower_bound` while unranking the sampled
-rank, so it is affected by both `POPCOUNT_RANGES_SIMD` and
-`POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD`. The `std_sample` path is independent
-of both settings. For a C++26 backend comparison, use GCC 16 with a libstdc++
-that provides `<simd>` and keep separate build directories for the two
-backends:
-
-```text
-cmake -S . -B build-gcc16-custom -G Ninja -DCMAKE_CXX_COMPILER=g++-16 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=ON -DPOPCOUNT_RANGES_SIMD=OFF
-cmake -S . -B build-gcc16-simd -G Ninja -DCMAKE_CXX_COMPILER=g++-16 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=ON -DPOPCOUNT_RANGES_SIMD=ON
-cmake --build build-gcc16-custom --target sampling_benchmark sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
-cmake --build build-gcc16-simd --target sampling_benchmark sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
-build-gcc16-custom/sampling_benchmark_threshold_28 > custom-28.csv
-build-gcc16-simd/sampling_benchmark_threshold_28 > simd-28.csv
-```
-
-Use the same compiler version, standard library, CPU, build type, and threshold
-for each backend. Compare `popcount_ranges` rows by workload and verify their
-checksums; compare absolute `std_sample` times as well as speedup ratios when
-comparing toolchains, since `std::sample`'s engine-call strategy varies by
-standard library. The local results in the root README use GCC 16.0.1 for the
-custom-versus-`<simd>` comparison, Clang 23.1 and MSVC 19.51 for
-custom-backend comparisons, and an AMD Ryzen 9 5950X. On that machine, the
-installed Clang and Visual Studio 2026 standard libraries did not include
-`<simd>`.
-
-### Tuning lower-bound traits
-
-`lower_bound_tuning` searches for faster compile-time traits against
-`std::lower_bound`. Build and run it in Release mode:
+For example:
 
 ```text
 cmake --build build-release --target lower_bound_tuning --parallel 3
-build-release/lower_bound_tuning.exe --stage all --seed 24301 > tuning.csv
+cmake --build build-release --target sampling_benchmark_threshold_32 sampling_benchmark_std_lower_bound
+build-release/sampling_benchmark_threshold_32.exe --quick
+build-release/sampling_benchmark_std_lower_bound.exe --quick
 ```
 
-The tuning target compiles its driver separately from six type-specific
-translation units, allowing the compiler to process independent type
-instantiations in parallel. Ninja builds cap this target at three concurrent
-compile jobs to balance CPU use against the high memory cost of template
-instantiation. Compile-time-invalid threshold/pitch combinations are discarded
-before instantiating a benchmark configuration.
-
-Use `--stage default` to compare the current `lower_bound_traits<T>` defaults
-directly with `std::lower_bound` for every supported type and array size. This
-mode uses the same LLC-eviction setup as the tuning sweeps; it is not a dirty
-cache/writeback-pressure test unless `--dirty-cache` is supplied. With that
-option, the benchmark first evicts cached data, then dirties one byte in each
-cache line of an LLC-sized buffer before each timed batch. The dirty buffer is
-shared by the custom and standard measurements; actual eviction and writeback
-remain hardware-managed.
-
-Use `--stage trait-thresholds` to compare thresholds 64, 128, 192, 256, 384,
-and 512 while retaining each type's `lower_bound_traits<T>` algorithm and
-sequential pitch. This isolates the threshold parameter from the existing
-per-type trait defaults.
-
-The pitch stage tests binary-search-disabled implementations at pitches 1, 2,
-4, 8, 16, 32, 64, 128, 256, 512, and 1,024 elements. It chooses the
-lowest-latency pitch independently for each primitive type and array length.
-The threshold stage uses that pitch to test branchless and branched
-binary-search thresholds at powers of two from 1 through 1,048,576, plus the
-binary-search-disabled result and `std::lower_bound`. The coarse binary search runs while the
-remaining range is larger than the threshold. Thresholds smaller than the
-sequential pitch and larger than the array are omitted; a threshold equal to
-the array size corresponds to the binary-search-disabled baseline.
-The supported types are `uint8_t`, `uint16_t`, `uint32_t`, `uint64_t`, `float`,
-and `double`. The tested array sizes are 16, 32, 64, 128, 256, 512, 1,024,
-2,048, 4,096, 8,196, 16,384, 32,768, 65,536, and 262,144. Integer arrays
-larger than the type's distinct value count contain repeated sorted values.
-
-Use `--stage pitch` to emit only pitch results or `--stage threshold` to rerun
-the pitch selection and emit only threshold results. `--type uint8_t|uint16_t|uint32_t|uint64_t|float|double`
-selects one primitive type; `--type-bits 8|16|32|64` remains available for
-selecting unsigned integer widths. `--size N` restricts a run to any positive
-array length. Pass `--pitch N` with `--stage pitch` to test one candidate or with
-`--stage threshold` to reuse a pitch selected from a multi-seed sweep.
-The benchmark uses up to 16,384 unique, evenly spaced lower-bound positions
-per workload, selected from the distinct values in the sorted input; integer
-types with fewer representable values use fewer queries. `--repetitions N`
-sets the number of measured query batches (overriding the default, including
-in quick mode); `--seed N` changes the measurement order, and `--quick` reduces
-the unique query set to at most 64 positions for a correctness smoke test.
-Each timed batch cycles through the unique query set enough times to execute
-at least 16,384 searches. The CSV reports both the number of unique positions
-and the number of passes per timed batch.
-The production defaults are fixed compile-time values:
-`SEQUENTIAL_SEARCH_PITCH = 64 / sizeof(T)` (one 64-byte cache line) and
-`BINARY_SEARCH_THRESHOLD = 2 * SEQUENTIAL_SEARCH_PITCH` (two cache lines).
-Types of size 1 use branched binary search, types of size 2 use branchless
-binary search, and types of size 4 or larger dispatch to
-`std::lower_bound`. The `default` stage measures these exact defaults; the
-`all`, `pitch`, and `threshold` stages benchmark explicit alternative custom
-traits and do not redefine production defaults.
-
-`--processor N` pins runs to one logical processor (group-local on Windows,
-system CPU index on Linux), which is useful when comparing separate runs.
-Before each measured batch, the utility streams through a buffer twice the
-detected LLC size to evict cached data. Windows and Linux use system cache
-information for automatic sizing. On other platforms, provide
-`--cache-flush-bytes N` with an eviction buffer larger than that machine's LLC.
-The CSV records the detected LLC and eviction-buffer sizes, median nanoseconds
-per query, and median elapsed nanoseconds for one query batch (`*_ns_per_sample`).
-Eviction itself is outside the timed interval; queries within each batch may
-still warm the data. Run multiple seeds and compare geometric means before
-selecting constants. Rows with different widths, lengths, or seeds should not
-be combined as if they were the same workload.
-
-The `simd_adapter_benchmark` executable measures bitset-to-mask construction,
-native comparison-mask copying, reduction of preconstructed comparison masks,
-and full-width SIMD loads separately. Build and run it in Release mode with
-`POPCOUNT_RANGES_SIMD=OFF` and `ON` to compare the legacy and standard SIMD
-backends. Standard SIMD range masks use the library's native mask type by
-default; range templates can explicitly select `std::bitset` when desired.
-Keep compiler, optimization level, CPU, and run conditions the same when
-comparing CSV rows.
-
-The sampling executable reports the implementation on each `popcount_ranges`
-row; descent rows also report their compiled
-`POPCOUNT_RANGES_LOWER_BOUND_THRESHOLD`. `custom_without_descent` measures
-coarse-search/SIMD-fine-search directly. `custom_with_descent` adds
-`lower_bound_descent` to pick a coarse chunk before using that same lower-bound
-search within the chunk. CMake creates `sampling_benchmark_threshold_<value>`
-targets for the with-descent variant, with values in
-`POPCOUNT_RANGES_SAMPLING_THRESHOLDS` (default:
-`1;2;4;8;12;16;20;24;28;32`). `sampling_benchmark_std_lower_bound` measures
-the standard-library `std::lower_bound` path. To compare the variants, build
-and run:
-
-```text
-cmake --build build-release --target sampling_benchmark sampling_benchmark_std_lower_bound sampling_benchmark_threshold_1 sampling_benchmark_threshold_2 sampling_benchmark_threshold_4 sampling_benchmark_threshold_8 sampling_benchmark_threshold_12 sampling_benchmark_threshold_16 sampling_benchmark_threshold_20 sampling_benchmark_threshold_24 sampling_benchmark_threshold_28 sampling_benchmark_threshold_32
-build-release/sampling_benchmark.exe > sampling-threshold-32.csv
-build-release/sampling_benchmark_std_lower_bound.exe > sampling-std-lower-bound.csv
-build-release/sampling_benchmark_threshold_1.exe > sampling-threshold-1.csv
-build-release/sampling_benchmark_threshold_2.exe > sampling-threshold-2.csv
-build-release/sampling_benchmark_threshold_4.exe > sampling-threshold-4.csv
-build-release/sampling_benchmark_threshold_8.exe > sampling-threshold-8.csv
-build-release/sampling_benchmark_threshold_12.exe > sampling-threshold-12.csv
-build-release/sampling_benchmark_threshold_16.exe > sampling-threshold-16.csv
-build-release/sampling_benchmark_threshold_20.exe > sampling-threshold-20.csv
-build-release/sampling_benchmark_threshold_24.exe > sampling-threshold-24.csv
-build-release/sampling_benchmark_threshold_28.exe > sampling-threshold-28.csv
-build-release/sampling_benchmark_threshold_32.exe > sampling-threshold-descent-32.csv
-```
+Use the same compiler, build type, backend and workloads when comparing
+variants. Set `POPCOUNT_RANGES_SIMD=ON` in a separate build to test a C++26
+`<simd>` implementation where the compiler and standard library provide it.
+Historical results in the root README used larger matrices and earlier
+benchmark implementations; they are not directly comparable to the current
+default matrix.
