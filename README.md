@@ -109,6 +109,28 @@ illustrative, not a general performance guarantee; see the
 [benchmark guide](benchmarks/README.md) for workload details, methodology,
 and results for signed and unsigned 8-, 16- and 32-bit weights and `float`.
 
+## Use with CMake
+
+Install the headers and CMake package to a prefix:
+
+```text
+cmake -S . -B build-package -DBUILD_TESTING=OFF -DPOPCOUNT_RANGES_BUILD_BENCHMARKS=OFF
+cmake --install build-package --prefix <install-prefix>
+```
+
+In your application's `CMakeLists.txt`, use the installed package:
+
+```cmake
+find_package(popcount_ranges CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE jrmwng::popcount_ranges)
+```
+
+If needed, configure your application with
+`-DCMAKE_PREFIX_PATH=<install-prefix>` so CMake can find the package.
+The library is header-only; `target_link_libraries` adds no library binary.
+It propagates the include directory, C++23 requirement, AVX2 compiler option
+and SIMD backend definition to your application.
+
 ## Build and test
 
 Requires CMake 3.20+, a C++23 compiler and an x86 CPU with AVX2. For a
