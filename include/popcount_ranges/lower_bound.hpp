@@ -58,7 +58,7 @@ namespace jrmwng
                 (void)last;
 
                 constexpr std::integral_constant<std::uint_fast16_t, 64u / sizeof(T)> SEQUENTIAL_SEARCH_PITCH{};
-                constexpr std::integral_constant<std::uint_fast16_t, 128u / sizeof(T)> BINARY_SEARCH_THRESHOLD{};
+                constexpr std::integral_constant<std::uint_fast16_t, 256u / sizeof(T)> BINARY_SEARCH_THRESHOLD{};
 
                 return std::tuple
                 (
@@ -101,7 +101,7 @@ namespace jrmwng
                         if constexpr (Ttraits::BINARY_SEARCH_ALGORITHM == binary_search_algorithm::branchless)
                         {
                             std::ptrdiff_t count = last - first;
-                            while (count > BINARY_SEARCH_THRESHOLD) [[likely]]
+                            do
                             {
                                 std::ptrdiff_t mid = count / 2;
                                 if (pred(first[mid], target))
@@ -114,11 +114,12 @@ namespace jrmwng
                                     count = mid;
                                 }
                             }
+                            while (count > BINARY_SEARCH_THRESHOLD);
                             last = first + count;
                         }
                         if constexpr (Ttraits::BINARY_SEARCH_ALGORITHM == binary_search_algorithm::branched)
                         {
-                            while (last - first > BINARY_SEARCH_THRESHOLD) [[likely]]
+                            do
                             {
                                 T * const mid = first + (last - first) / 2;
                                 if (pred(*mid, target))
@@ -126,6 +127,7 @@ namespace jrmwng
                                 else
                                     last = mid;
                             }
+                            while (last - first > BINARY_SEARCH_THRESHOLD);
                         }
                     }
                 }
