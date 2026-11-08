@@ -126,7 +126,10 @@ namespace jrmwng
             }
             constexpr std::tuple<size_t, value_type> search(size_t n_first, size_t n_last, uintmax_t target) const noexcept
             {
-                #ifdef POPCOUNT_RANGES_LOWER_BOUND_DESCENT
+                #if defined(POPCOUNT_RANGES_LOWER_BOUND_STD)
+                auto const itFound = std::lower_bound(m_row.data() + MAX_N - (n_last - 1u), m_row.data() + MAX_N - (n_first - 1u), target, std::greater<>{});
+                return {std::distance(itFound, m_row.data() + MAX_N), *itFound};
+                #elif defined(POPCOUNT_RANGES_LOWER_BOUND_DESCENT)
                 std::size_t const found = m_lower_bound_descent(MAX_N - (n_last - 1u), MAX_N - (n_first - 1u), target, std::greater<>{});
                 return {MAX_N - found, m_row[found]};
                 #else

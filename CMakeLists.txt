@@ -118,6 +118,16 @@ if(BUILD_TESTING)
     configure_popcount_target(ncr_tests)
     add_test(NAME ncr_tests COMMAND $<TARGET_FILE:ncr_tests>)
 
+    add_executable(ncr_std_lower_bound_tests tests/ncr_tests.cpp)
+    configure_popcount_target(ncr_std_lower_bound_tests)
+    target_compile_definitions(ncr_std_lower_bound_tests PRIVATE POPCOUNT_RANGES_LOWER_BOUND_STD)
+    add_test(NAME ncr_std_lower_bound_tests COMMAND $<TARGET_FILE:ncr_std_lower_bound_tests>)
+
+    add_executable(ncr_descent_tests tests/ncr_tests.cpp)
+    configure_popcount_target(ncr_descent_tests)
+    target_compile_definitions(ncr_descent_tests PRIVATE POPCOUNT_RANGES_LOWER_BOUND_DESCENT)
+    add_test(NAME ncr_descent_tests COMMAND $<TARGET_FILE:ncr_descent_tests>)
+
     add_executable(set_application_tests tests/set_application_tests.cpp)
     configure_popcount_target(set_application_tests)
     add_test(NAME set_application_tests COMMAND $<TARGET_FILE:set_application_tests>)

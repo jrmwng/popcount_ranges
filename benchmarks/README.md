@@ -18,6 +18,52 @@ Omit `--quick` for timing runs. Times depend on the CPU, compiler, standard
 library and system load. `--quick` is for correctness and smoke testing, not
 performance conclusions. Output is CSV on stdout; diagnostics go to stderr.
 
+## Reproducing the README measurements
+
+The README measurements were collected on November 8, 2026 on an AMD Ryzen 9
+5950X running Windows 11 Pro (build 26300). All builds used Ninja, CMake
+Release settings, AVX2 and the custom SIMD backend
+(`POPCOUNT_RANGES_SIMD=OFF`):
+
+* MSVC 19.51.36257 (Visual Studio 2026), MSVC STL 14.51.36231:
+  `/O2 /Ob2 /DNDEBUG`.
+* Clang 23.1.0, MSVC STL 14.51.36231: `-O3 -DNDEBUG`.
+* MSYS2 UCRT64 GCC 16.2.0, libstdc++ 16.2.0: `-O3 -DNDEBUG`.
+
+The raw, unaggregated runs are available in
+[sampling-2026-11-08.csv](results/sampling-2026-11-08.csv) and
+[subset-sum-2026-11-08.csv](results/subset-sum-2026-11-08.csv). They were
+collected at commit `873840e`; the subsequent correction to the experimental
+standard-search target does not change the default path used here.
+`toolchain` identifies the compiler and `run` identifies the process-level
+repetition.
+
+Configure separate Release directories with the desired compiler on `PATH`
+and `-DCMAKE_CXX_COMPILER=cl`, `clang++` or `g++`, respectively. On Windows,
+use a Visual Studio Developer Command Prompt for MSVC and Clang, and an MSYS2
+UCRT64 environment for GCC. Then run each executable three times:
+
+```text
+cmake --build build-release --target sampling_benchmark subset_sum_benchmark
+build-release/sampling_benchmark.exe --full > sampling-1.csv
+build-release/sampling_benchmark.exe --full > sampling-2.csv
+build-release/sampling_benchmark.exe --full > sampling-3.csv
+build-release/subset_sum_benchmark.exe > subset-sum-1.csv
+build-release/subset_sum_benchmark.exe > subset-sum-2.csv
+build-release/subset_sum_benchmark.exe > subset-sum-3.csv
+```
+
+Each full sampling run uses 100,000 samples per workload; each subset-sum run
+uses 100 searches per workload, cycling through four targets. Runs were
+sequential, without processor affinity; compiler order was rotated across
+repetitions. Each reported time is the median of three process-level times
+for that implementation and workload. Speedups are the ratio of the two
+reported median times before rounding, not the median of individual speedups.
+These are illustrative local results, not statistically controlled or portable
+performance guarantees. Sampling measures RNG, selection and population
+loads together. The standard library affects the random-distribution and
+`std::sample` implementations, so compiler and library effects are combined.
+
 ## Set operations
 
 `set_operations_benchmark` measures forward and backward traversal, sequential
@@ -47,10 +93,13 @@ the historical exhaustive sweep. Use `--quick`, `--medium` or `--full` for
 CSV rows include elapsed time, the separately measured raw `mt19937` baseline,
 engine calls per sample and a checksum. The two sampling methods do not
 produce the same random samples, so their checksums need not match. Raw
-engine-call counts depend on the implementation of the distribution.
+engine-call counts depend on the implementation of the distribution. The
+set path sums population values directly as positions are enumerated;
+`std::sample` writes a preallocated result vector, which is then summed.
 
 `subset_sum_benchmark` enumerates fixed-cardinality subsets whose weights sum
-to a target. It compares set traversal against filtering every bitmask by
+to a target, counting matches and accumulating their masks without
+materializing a list. It compares set traversal against filtering every bitmask by
 popcount, using the same weights and four targets for both. It checks match
 counts and mask checksums before and during timing. Sparse, middle and
 near-full cardinalities show how the enumeration strategy depends on the
@@ -88,6 +137,13 @@ These are excluded from the default build but remain available by name:
   from `POPCOUNT_RANGES_SAMPLING_THRESHOLDS`, which defaults to
   `1;2;4;8;12;16;20;24;28;32`.
 
+The standard-search target uses `std::lower_bound` for binomial table row
+searches with `R >= 2`; the `R = 0` and `R = 1` rows use direct formulas.
+The `custom_without_descent` label denotes the default dispatcher, which
+itself uses `std::lower_bound` for elements of four bytes or more. Versions
+before this correction labeled the standard-search target as standard search
+but did not change the search path; discard those comparison results.
+
 For example:
 
 ```text
@@ -100,6 +156,6 @@ build-release/sampling_benchmark_std_lower_bound.exe --quick
 Use the same compiler, build type, backend and workloads when comparing
 variants. Set `POPCOUNT_RANGES_SIMD=ON` in a separate build to test a C++26
 `<simd>` implementation where the compiler and standard library provide it.
-Historical results in the root README used larger matrices and earlier
-benchmark implementations; they are not directly comparable to the current
-default matrix.
+The current default sampling matrix is intentionally smaller than the
+experimental exhaustive matrix; results from the two are not directly
+comparable as overall summaries.
