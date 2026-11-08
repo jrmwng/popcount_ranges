@@ -7,47 +7,62 @@
 positions from `N` as a bitmask. Iterate the choices or use a rank to jump
 directly to one. The sizes are compile-time parameters.
 
-## Hello, combinations
+## Mark 6 lottery draw
 
-Select every two-person team from four people:
+Choose six main numbers from 49, then draw the special number uniformly from
+the 43 remaining numbers. `set<49, 6>` selects a uniformly random main draw by
+rank; the special number is selected by rank among the numbers not in that
+draw.
 
 ```cpp
 #include <popcount_ranges/set.hpp>
+#include <popcount_ranges/pdep.hpp>
 
-#include <array>
+#include <cstddef>
 #include <iostream>
-#include <string_view>
+#include <random>
 
 int main()
 {
     namespace pc = jrmwng::popcount_ranges;
-    constexpr std::array<std::string_view, 4> people{"Ada", "Bo", "Cleo", "Dan"};
 
-    for (auto team : pc::set<4, 2>{})
+    // 1. Setup the draw engine
+    std::mt19937_64 draw_engine(std::random_device{}());
+    auto const draw_balls = [&draw_engine](auto && ball_set)
     {
-        for (auto position : pc::stdx::set_bit_positions(team))
-            std::cout << people[position] << ' ';
-        std::cout << '\n';
-    }
+        return ball_set[std::uniform_int_distribution<std::size_t>(0u, ball_set.size() - 1u)(draw_engine)];
+    };
+
+    // 2. Lucky Draw (49 numbered balls)
+    auto const  normal_6_49_balls = draw_balls(pc::set<49  , 6>{}); // 6 balls out of 49 balls
+    auto const special_1_43_balls = draw_balls(pc::set<49-6, 1>{}); // 1 ball out of 43=(49-6) balls
+
+    auto const special_1_49_balls = pc::stdx::pdep(special_1_43_balls, ~normal_6_49_balls); // 1 ball out of 49 balls
+
+    // 3. Output Results
+    auto &os = std::cout;
+
+    os << "Main:";
+    for (auto const main_pos : pc::stdx::set_bit_positions(normal_6_49_balls))
+        os << ' ' << (main_pos + 1);
+    os << std::endl;
+    
+    os << "Special:";
+    for (auto const spec_pos : pc::stdx::set_bit_positions(special_1_49_balls))
+        os << ' ' << (spec_pos + 1);
+    os << std::endl;
+
+    return 0;
 }
 ```
 
-The output is:
-
-```text
-Ada Bo
-Ada Cleo
-Bo Cleo
-Ada Dan
-Bo Dan
-Cleo Dan
-```
-
-The six teams are produced in increasing bitmask order. The same technique
-applies to feature selection, fixed-size test configurations and
-fixed-cardinality subset-sum searches. For uniform sampling, draw a uniform
-integer in `[0, choices.size() - 1]` and use `choices[rank]`; unlike
-`std::sample`, the population size and sample size are compile-time constants.
+There are `C(49, 6) * 43 = 601,304,088` role-specific outcomes. The special
+number is a separate role, so using `set<49, 7>` alone would lose which of the
+seven selected numbers is special. `stdx::pdep` deposits the one-bit rank into
+the available-number mask, using BMI2 when supported and a portable fallback
+otherwise. The same fixed-cardinality selection and rank-based sampling pattern
+applies to feature selection, fixed-size test configurations and subset-sum
+searches.
 
 ## Benchmarks
 
