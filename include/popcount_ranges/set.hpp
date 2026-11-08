@@ -435,11 +435,11 @@ namespace jrmwng
             Tuint m_first{INITIAL};
             Tuint m_last{SENTINEL};
         public:
-            set() noexcept = default;
+            constexpr set() noexcept = default;
             #ifdef _DEBUG
-            set(Tuint first, Tuint last)
+            constexpr set(Tuint first, Tuint last)
             #else
-            set(Tuint first, Tuint last) noexcept
+            constexpr set(Tuint first, Tuint last) noexcept
             #endif
                 : m_first(first), m_last(last)
             {
@@ -696,17 +696,17 @@ namespace jrmwng
                 }
             };
             
-            iterator begin() const noexcept { return {m_first}; }
-            iterator end() const noexcept { return {m_last}; }
+            constexpr iterator begin() const noexcept { return {m_first}; }
+            constexpr iterator end() const noexcept { return {m_last}; }
             
-            reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
-            reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+            constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+            constexpr reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
 
-            std::size_t size() const noexcept
+            constexpr std::size_t size() const noexcept
             {
                 return distance(m_first, m_last);
             }
-            Tuint operator[] (std::size_t index) const noexcept
+            constexpr Tuint operator[] (std::size_t index) const noexcept
             {
                 return unrank(index);
             }
