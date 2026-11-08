@@ -131,6 +131,10 @@ if(BUILD_TESTING)
     add_executable(set_application_tests tests/set_application_tests.cpp)
     configure_popcount_target(set_application_tests)
     add_test(NAME set_application_tests COMMAND $<TARGET_FILE:set_application_tests>)
+
+    add_executable(pdep_tests tests/pdep_tests.cpp)
+    configure_popcount_target(pdep_tests)
+    add_test(NAME pdep_tests COMMAND $<TARGET_FILE:pdep_tests>)
 endif()
 
 if(POPCOUNT_RANGES_BUILD_BENCHMARKS)

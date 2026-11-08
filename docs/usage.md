@@ -74,3 +74,7 @@ and larger types dispatch to `std::lower_bound`.
 `data_par::simd_range_traits`, `simd_long_range` and `simd_short_range` accept
 an optional mask type and ABI. The default mask is the backend's native mask;
 `data_par::simd_bitset_mask<T>` can be supplied explicitly.
+
+`stdx::pdep(value, mask)` deposits the low bits of an unsigned value into the
+set-bit positions of a mask. On x86 it uses BMI2 when available and otherwise
+uses a portable implementation; it does not add a BMI2 CPU requirement.
