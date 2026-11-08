@@ -654,6 +654,89 @@ Result run_selected_pitch(
     return run_pitch<T, 1024>(values, queries, repetitions, run_index);
 }
 
+template <typename T, std::size_t Threshold, std::size_t Pitch>
+struct trait_threshold_override
+{
+    inline constexpr static auto BINARY_SEARCH_ALGORITHM =
+        jrmwng::popcount_ranges::lower_bound_traits<T>::BINARY_SEARCH_ALGORITHM;
+
+    template <typename U>
+    static constexpr auto lookup_params(U const*, U const*) noexcept
+    {
+        return std::pair{
+            std::integral_constant<std::size_t, Pitch>{},
+            std::integral_constant<std::size_t, Threshold>{}};
+    }
+};
+
+template <typename T, std::size_t Threshold, std::size_t Pitch>
+Result run_trait_threshold(
+    std::vector<T> const& values, std::vector<T> const& queries,
+    std::size_t repetitions, std::size_t run_index)
+{
+    using traits = trait_threshold_override<T, Threshold, Pitch>;
+    constexpr auto algorithm = traits::BINARY_SEARCH_ALGORITHM;
+    constexpr std::string_view strategy =
+        algorithm == jrmwng::popcount_ranges::binary_search_algorithm::std
+            ? "std"
+        : algorithm == jrmwng::popcount_ranges::binary_search_algorithm::branched
+            ? "branched"
+            : "branchless";
+    return measure_configuration<T, traits>(
+        values, queries, repetitions, "trait-thresholds", strategy,
+        Threshold, Pitch, run_index);
+}
+
+template <typename T, std::size_t Threshold>
+Result run_selected_trait_threshold(
+    std::vector<T> const& values, std::vector<T> const& queries,
+    std::size_t repetitions, std::size_t run_index, std::size_t pitch)
+{
+    if (pitch == 1)
+        return run_trait_threshold<T, Threshold, 1>(
+            values, queries, repetitions, run_index);
+    if (pitch == 2)
+        return run_trait_threshold<T, Threshold, 2>(
+            values, queries, repetitions, run_index);
+    if (pitch == 4)
+        return run_trait_threshold<T, Threshold, 4>(
+            values, queries, repetitions, run_index);
+    if (pitch == 8)
+        return run_trait_threshold<T, Threshold, 8>(
+            values, queries, repetitions, run_index);
+    if (pitch == 16)
+        return run_trait_threshold<T, Threshold, 16>(
+            values, queries, repetitions, run_index);
+    if (pitch == 32)
+        return run_trait_threshold<T, Threshold, 32>(
+            values, queries, repetitions, run_index);
+    if (pitch == 64)
+        return run_trait_threshold<T, Threshold, 64>(
+            values, queries, repetitions, run_index);
+    if (pitch == 128)
+        return run_trait_threshold<T, Threshold, 128>(
+            values, queries, repetitions, run_index);
+    if (pitch == 256)
+        return run_trait_threshold<T, Threshold, 256>(
+            values, queries, repetitions, run_index);
+    if (pitch == 512)
+        return run_trait_threshold<T, Threshold, 512>(
+            values, queries, repetitions, run_index);
+    return run_trait_threshold<T, Threshold, 1024>(
+        values, queries, repetitions, run_index);
+}
+
+template <typename T, typename Function>
+bool for_each_trait_threshold(Function&& function)
+{
+    return function.template operator()<64>() &&
+           function.template operator()<128>() &&
+           function.template operator()<192>() &&
+           function.template operator()<256>() &&
+           function.template operator()<384>() &&
+           function.template operator()<512>();
+}
+
 template <typename T>
 bool benchmark_type(
     std::string_view stage, bool quick, std::size_t selected_size,
@@ -735,6 +818,27 @@ bool benchmark_type(
             if (!valid(result))
                 return false;
             print_result(result);
+            continue;
+        }
+
+        if (stage == "trait-thresholds")
+        {
+            auto const [pitch, ignored_threshold] =
+                jrmwng::popcount_ranges::lower_bound_traits<T>::lookup_params(
+                    values.data(), values.data() + values.size());
+            (void)ignored_threshold;
+            auto run = [&]<std::size_t Threshold>()
+            {
+                Result const result = run_selected_trait_threshold<T, Threshold>(
+                    values, queries, repetitions, run_index++,
+                    static_cast<std::size_t>(pitch));
+                if (!valid(result))
+                    return false;
+                print_result(result);
+                return true;
+            };
+            if (!for_each_trait_threshold<T>(run))
+                return false;
             continue;
         }
 
@@ -928,10 +1032,12 @@ int main(int argc, char const* argv[])
             {
                 stage = value;
                 if (stage != "all" && stage != "pitch" &&
-                    stage != "threshold" && stage != "default")
+                    stage != "threshold" && stage != "default" &&
+                    stage != "trait-thresholds")
                 {
                     std::cerr << "invalid stage: " << value
-                              << " (expected all, pitch, threshold, or default)\n";
+                              << " (expected all, pitch, threshold, default, "
+                                 "or trait-thresholds)\n";
                     return 2;
                 }
                 continue;
@@ -999,7 +1105,7 @@ int main(int argc, char const* argv[])
         else
         {
             std::cerr << "usage: lower_bound_tuning "
-                         "[--stage all|pitch|threshold|default] "
+                         "[--stage all|pitch|threshold|default|trait-thresholds] "
                          "[--type uint8_t|uint16_t|uint32_t|uint64_t|float|double] "
                          "[--type-bits 8|16|32|64] [--size N] [--pitch N] "
                          "[--seed N] "

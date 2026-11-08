@@ -140,6 +140,11 @@ cache line of an LLC-sized buffer before each timed batch. The dirty buffer is
 shared by the custom and standard measurements; actual eviction and writeback
 remain hardware-managed.
 
+Use `--stage trait-thresholds` to compare thresholds 64, 128, 192, 256, 384,
+and 512 while retaining each type's `lower_bound_traits<T>` algorithm and
+sequential pitch. This isolates the threshold parameter from the existing
+per-type trait defaults.
+
 The pitch stage tests binary-search-disabled implementations at pitches 1, 2,
 4, 8, 16, 32, 64, 128, 256, 512, and 1,024 elements. It chooses the
 lowest-latency pitch independently for each primitive type and array length.
