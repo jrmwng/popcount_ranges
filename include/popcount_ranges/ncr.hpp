@@ -23,14 +23,14 @@ namespace jrmwng
     {
         constexpr std::tuple<uintmax_t,bool> nCr(size_t const N, size_t const R) noexcept
         {
-            if (R > N - R)
+            if (R > N - R) [[unlikely]]
                 return nCr(N, N - R);
 
-            if (R == 0 || R == N)
+            if (R == 0 || R == N) [[unlikely]]
                 return {1,false};
-            if (R == 1)
+            if (R == 1) [[unlikely]]
                 return {N,false};
-            if (R > N)
+            if (R > N) [[unlikely]]
                 return {0,false};
 
             std::vector<uintmax_t> terms(R);
@@ -41,14 +41,14 @@ namespace jrmwng
                 for (auto itNum = terms.begin(), endNum = terms.end(); itNum != endNum; )
                 {
                     uintmax_t const gcd = std::gcd(*itNum, denom);
-                    if (gcd > 1)
+                    if (gcd > 1) [[likely]]
                     {
                         *itNum /= gcd;
                         denom /= gcd;
 
-                        if (denom == 1)
+                        if (denom == 1) [[unlikely]]
                             break;
-                        if (*itNum == 1)
+                        if (*itNum == 1) [[unlikely]]
                         {
                             *itNum = terms.back();
                             terms.pop_back();
@@ -64,7 +64,7 @@ namespace jrmwng
             uintmax_t result = 1;
             for (uintmax_t num : terms)
             {
-                if (result > std::numeric_limits<uintmax_t>::max() / num)
+                if (result > std::numeric_limits<uintmax_t>::max() / num) [[unlikely]]
                 {
                     overflowed = true;
                     break;
@@ -80,7 +80,7 @@ namespace jrmwng
             for (size_t candidate = 1; candidate <= N / 2u; ++candidate)
             {
                 auto const [value, overflowed] = nCr(N, candidate);
-                if (overflowed)
+                if (overflowed) [[unlikely]]
                     break;
                 R = candidate;
             }

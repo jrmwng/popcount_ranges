@@ -44,7 +44,7 @@ namespace jrmwng::popcount_ranges::stdx
         constexpr std::bitset<N> to_bitset() const noexcept
         {
             std::bitset<N> result;
-            if (!is_sentinel)
+            if (!is_sentinel) [[likely]]
                 for (size_t i = 0; i < R; ++i)
                     if (indices[i] < N)
                         result.set(indices[i]);
@@ -57,20 +57,20 @@ namespace jrmwng::popcount_ranges::stdx
 
         constexpr bool operator==(uint_indices const& other) const noexcept
         {
-            if (is_sentinel || other.is_sentinel)
+            if (is_sentinel || other.is_sentinel) [[unlikely]]
                 return is_sentinel == other.is_sentinel;
             return indices == other.indices;
         }
 
         constexpr bool operator<(uint_indices const& other) const noexcept
         {
-            if (is_sentinel != other.is_sentinel)
+            if (is_sentinel != other.is_sentinel) [[unlikely]]
                 return !is_sentinel;
-            if (is_sentinel)
+            if (is_sentinel) [[unlikely]]
                 return false;
-            for (size_t i = R; i-- > 0;)
+            for (size_t i = R; i-- > 0;) [[likely]]
             {
-                if (indices[i] != other.indices[i])
+                if (indices[i] != other.indices[i]) [[unlikely]]
                     return indices[i] < other.indices[i];
             }
             return false;
@@ -112,7 +112,7 @@ namespace jrmwng::popcount_ranges::stdx
         constexpr std::bitset<N> to_bitset() const noexcept
         {
             std::bitset<N> result;
-            if (is_sentinel)
+            if (is_sentinel) [[unlikely]]
                 return result;
 
             result.set();
@@ -129,20 +129,20 @@ namespace jrmwng::popcount_ranges::stdx
 
         constexpr bool operator==(uint_complement_indices const& other) const noexcept
         {
-            if (is_sentinel || other.is_sentinel)
+            if (is_sentinel || other.is_sentinel) [[unlikely]]
                 return is_sentinel == other.is_sentinel;
             return indices == other.indices;
         }
 
         constexpr bool operator<(uint_complement_indices const& other) const noexcept
         {
-            if (is_sentinel != other.is_sentinel)
+            if (is_sentinel != other.is_sentinel) [[unlikely]]
                 return !is_sentinel;
-            if (is_sentinel)
+            if (is_sentinel) [[unlikely]]
                 return false;
-            for (size_t i = R; i-- > 0;)
+            for (size_t i = R; i-- > 0;) [[likely]]
             {
-                if (indices[i] != other.indices[i])
+                if (indices[i] != other.indices[i]) [[unlikely]]
                     return indices[i] > other.indices[i];
             }
             return false;
@@ -535,7 +535,7 @@ namespace jrmwng::popcount_ranges::stdx
     template <size_t N, size_t R>
     constexpr int countr_zero(uint_complement_indices<N, R> value) noexcept
     {
-        if (value.is_sentinel)
+        if (value.is_sentinel) [[unlikely]]
             return static_cast<int>(N);
 
         size_t position = 0;
@@ -664,7 +664,7 @@ namespace jrmwng::popcount_ranges::stdx
                 while (m_word < uint<N>::M && m_remaining == 0)
                 {
                     ++m_word;
-                    if (m_word < uint<N>::M)
+                    if (m_word < uint<N>::M) [[likely]]
                         m_remaining = m_value->data[m_word];
                 }
             }

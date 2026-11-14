@@ -87,11 +87,11 @@ namespace jrmwng::popcount_ranges::stdx
         requires (!std::same_as<T, bool> && sizeof(T) <= sizeof(std::uint64_t))
     constexpr T pdep(T value, T mask) noexcept
     {
-        if (std::is_constant_evaluated())
+        if (std::is_constant_evaluated()) [[unlikely]]
             return detail::pdep_software(value, mask);
 
 #if defined(_M_X64) || defined(_M_IX86) || defined(__x86_64__) || defined(__i386__)
-        if (detail::bmi2_available())
+        if (detail::bmi2_available()) [[likely]]
         {
             if constexpr (sizeof(T) <= sizeof(std::uint32_t))
                 return static_cast<T>(detail::pdep_bmi2(

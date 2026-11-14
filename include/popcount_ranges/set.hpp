@@ -102,7 +102,7 @@ namespace jrmwng
 
             constexpr static Tuint ReverseComplement(Tuint value) noexcept
             {
-                if (value == LogicalNot(complementary_set::SENTINEL))
+                if (value == LogicalNot(complementary_set::SENTINEL)) [[unlikely]]
                     return complementary_set::SENTINEL;
                 return LogicalNot(value);
             }
@@ -111,7 +111,7 @@ namespace jrmwng
             {
                 if constexpr (IS_INDEX_UINT)
                 {
-                    if (i0.is_sentinel)
+                    if (i0.is_sentinel) [[unlikely]]
                         return i0;
                     if constexpr (IS_COMPLEMENT_INDEX)
                     {
@@ -158,7 +158,7 @@ namespace jrmwng
             {
                 if constexpr (IS_INDEX_UINT)
                 {
-                    if (value.is_sentinel)
+                    if (value.is_sentinel) [[unlikely]]
                     {
                         if constexpr (IS_COMPLEMENT_INDEX)
                         {
@@ -176,7 +176,7 @@ namespace jrmwng
                         value.is_sentinel = false;
                         return value;
                     }
-                    if (value == INITIAL)
+                    if (value == INITIAL) [[unlikely]]
                     {
                         value.is_sentinel = true;
                         return value;
@@ -218,7 +218,7 @@ namespace jrmwng
                 }
                 else
                 {
-                    if (value == SENTINEL)
+                    if (value == SENTINEL) [[unlikely]]
                         return static_cast<Tuint>((~complementary_set::INITIAL) & LOGICAL_MASK);
                     auto const complement = static_cast<Tuint>((~value) & LOGICAL_MASK);
                     return static_cast<Tuint>((~complementary_set::GospersHack(complement)) & LOGICAL_MASK);
@@ -275,9 +275,9 @@ namespace jrmwng
                     N, std::integral_constant<std::size_t, (zuPOPCOUNT < N - zuPOPCOUNT
                         ? zuPOPCOUNT : N - zuPOPCOUNT)>{});
 
-                if (value == SENTINEL)
+                if (value == SENTINEL) [[unlikely]]
                     return TOTAL;
-                else if (value == INITIAL)
+                else if (value == INITIAL) [[unlikely]]
                     return 0;
                 else if constexpr (IS_INDEX_UINT)
                 {
@@ -324,7 +324,7 @@ namespace jrmwng
             }
             constexpr static std::ptrdiff_t distance(Tuint first, Tuint last) noexcept
             {
-                if (first == SENTINEL || last == SENTINEL || first == INITIAL || last == INITIAL)
+                if (first == SENTINEL || last == SENTINEL || first == INITIAL || last == INITIAL) [[unlikely]]
                     return static_cast<std::ptrdiff_t>(rank(last)) - static_cast<std::ptrdiff_t>(rank(first));
                 else if constexpr (IS_INDEX_UINT)
                 {
@@ -337,7 +337,7 @@ namespace jrmwng
                         static_cast<Tuint>((~last) & LOGICAL_MASK),
                         static_cast<Tuint>((~first) & LOGICAL_MASK)));
                 }
-                else if (first == last)
+                else if (first == last) [[unlikely]]
                     return 0;
                 else
                 {
@@ -357,9 +357,9 @@ namespace jrmwng
                     N, std::integral_constant<std::size_t, (zuPOPCOUNT < N - zuPOPCOUNT
                         ? zuPOPCOUNT : N - zuPOPCOUNT)>{});
 
-                if (rank == 0)
+                if (rank == 0) [[unlikely]]
                     return INITIAL;
-                else if (rank == TOTAL)
+                else if (rank == TOTAL) [[unlikely]]
                     return SENTINEL;
                 else if constexpr (IS_COMPLEMENT_INDEX)
                 {
@@ -444,7 +444,7 @@ namespace jrmwng
                 : m_first(first), m_last(last)
             {
                 #ifdef _DEBUG
-                if (first != SENTINEL)
+                if (first != SENTINEL) [[likely]]
                 {
                     if constexpr (!IS_INDEX_UINT)
                     {
@@ -454,18 +454,18 @@ namespace jrmwng
                     if (stdx::popcount(first) != static_cast<int>(zuPOPCOUNT))
                         throw std::invalid_argument("set: first does not have the required reduce_count");
                 }
-                if (last != SENTINEL)
+                if (last != SENTINEL) [[likely]]
                 {
                     if constexpr (!IS_INDEX_UINT)
                     {
                         if ((last & static_cast<Tuint>(~LOGICAL_MASK)) != 0)
                             throw std::invalid_argument("set: last exceeds the logical width");
                     }
-                    if (stdx::popcount(last) != static_cast<int>(zuPOPCOUNT))
+                    if (stdx::popcount(last) != static_cast<int>(zuPOPCOUNT)) [[unlikely]]
                         throw std::invalid_argument("set: last does not have the required reduce_count");
-                    if (first == SENTINEL)
+                    if (first == SENTINEL) [[unlikely]]
                         throw std::invalid_argument("set: last is not sentinel but first is");
-                    if (first > last)
+                    if (first > last) [[unlikely]]
                         throw std::invalid_argument("set: first is greater than last");
                 }
                 #endif
@@ -505,7 +505,7 @@ namespace jrmwng
                 #endif
                 {
                     #ifdef _DEBUG
-                    if (m_value == SENTINEL)
+                    if (m_value == SENTINEL) [[unlikely]]
                         throw std::out_of_range("set::iterator: incrementing past end");
                     #endif
                     m_value = GospersHack(m_value);
@@ -529,7 +529,7 @@ namespace jrmwng
                 #endif
                 {
                     #ifdef _DEBUG
-                    if (m_value == INITIAL)
+                    if (m_value == INITIAL) [[unlikely]]
                         throw std::out_of_range("set::iterator: decrementing past begin");
                     #endif
                     m_value = Previous(m_value);
@@ -562,7 +562,7 @@ namespace jrmwng
                     const     auto next_rank = this_rank + n;
 
                     #ifdef _DEBUG
-                    if (next_rank < 0 || next_rank > LAST_RANK)
+                    if (next_rank < 0 || next_rank > LAST_RANK) [[unlikely]]
                         throw std::out_of_range("set::iterator: advancing past valid range");
                     #endif
                     m_value = next_rank == LAST_RANK ? SENTINEL : unrank(next_rank);
@@ -575,11 +575,11 @@ namespace jrmwng
                 iterator& operator+=(difference_type n) noexcept
                 #endif
                 {
-                    if (n == 0)
+                    if (n == 0) [[unlikely]]
                         return *this;
-                    if (n == 1)
+                    if (n == 1) [[unlikely]]
                         return ++(*this);
-                    if (n == -1)
+                    if (n == -1) [[unlikely]]
                         return --(*this);
 
                     advance(n);
@@ -601,11 +601,11 @@ namespace jrmwng
                 iterator& operator-=(difference_type n) noexcept
                 #endif
                 {
-                    if (n == 0)
+                    if (n == 0) [[unlikely]]
                         return *this;
-                    if (n == 1)
+                    if (n == 1) [[unlikely]]
                         return --(*this);
-                    if (n == -1)
+                    if (n == -1) [[unlikely]]
                         return ++(*this);
                     
                     advance(-n);
