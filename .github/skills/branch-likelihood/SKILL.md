@@ -27,6 +27,18 @@ optimization hints, not correctness conditions.
 - Mark invalid-input and iterator-misuse checks `[[unlikely]]`, including
   conditions that lead to exceptions. The reason is that valid use is expected;
   throwing is also expensive, but need not involve a system call.
+- A frequently-taken path can be `[[likely]]` even when it performs expensive
+  work. In a hot loop, favoring a commonly taken path that does costly
+  arithmetic can help keep the instruction pipeline on the main work; base
+  this on expected or measured frequency, not cost alone.
+- When equivalent branches have comparable probabilities but one implementation
+  is more efficient, prefer `[[likely]]` on the more efficient path. This
+  expresses which implementation should receive the compiler's preferred path
+  treatment; it does not assert that runtime probabilities differ.
+- Mark a loop's one-time exit condition `[[unlikely]]` when it is taken once
+  after many ordinary iterations. Favoring the repeated path can avoid
+  penalizing the loop body on each iteration; verify the condition is actually
+  rare for the relevant inputs.
 
 ## Check actual call patterns
 
