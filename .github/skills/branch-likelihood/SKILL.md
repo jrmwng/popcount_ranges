@@ -10,40 +10,32 @@ attributes, especially in `include/popcount_ranges/*.hpp`.
 
 ## Preference
 
-Treat annotations as a way to make the ordinary path the hot path and rare
-shortcuts or exceptional cases cold. Preserve behavior; these attributes are
-optimization hints, not correctness conditions.
+Preserve behavior: `[[likely]]` and `[[unlikely]]` are optimization hints, not
+correctness conditions. Base them on expected or measured call frequency, not
+on the cost of a path. Prefer the ordinary path; use explicit `[[likely]]` only
+when it clarifies a meaningful choice, and avoid redundant or contradictory
+hints.
 
-- Mark sentinel and initial-state branches `[[unlikely]]` when they represent
-  the two endpoints among a much larger set of ordinary combinations.
-- Treat ordinary interior states as the expected path. An explicit `[[likely]]`
-  can be used when it clarifies an important branch, but avoid redundant or
-  contradictory hints.
-- A zero-distance case such as `if (first == last)` can be `[[unlikely]]` when
-  the compared positions are normally distinct.
-- In iterator `operator+=` and `operator-=`, the `0`, `1`, and `-1` shortcuts
-  can be `[[unlikely]]` when callers generally use `++`/`--` for single steps
-  and these operators mainly handle arbitrary offsets.
-- Mark invalid-input and iterator-misuse checks `[[unlikely]]`, including
-  conditions that lead to exceptions. The reason is that valid use is expected;
-  throwing is also expensive, but need not involve a system call.
-- A frequently-taken path can be `[[likely]]` even when it performs expensive
-  work. In a hot loop, favoring a commonly taken path that does costly
-  arithmetic can help keep the instruction pipeline on the main work; base
-  this on expected or measured frequency, not cost alone.
-- When equivalent branches have comparable probabilities but one implementation
-  is more efficient, prefer `[[likely]]` on the more efficient path. This
-  expresses which implementation should receive the compiler's preferred path
-  treatment; it does not assert that runtime probabilities differ.
-- Mark a loop's one-time exit condition `[[unlikely]]` when it is taken once
-  after many ordinary iterations. Favoring the repeated path can avoid
-  penalizing the loop body on each iteration; verify the condition is actually
-  rare for the relevant inputs.
+- Use `[[unlikely]]` for sentinel or initial-state branches when they are only
+  the two endpoints among many ordinary interior states, and for invalid-input
+  or iterator-misuse checks (including exception paths). Valid use is expected;
+  throwing is expensive, but need not involve a system call.
+- A zero-distance check such as `first == last` is unlikely only when positions
+  are normally distinct. In iterator `operator+=`/`operator-=`, `0`, `1`, and
+  `-1` shortcuts are unlikely only when these operators mainly handle arbitrary
+  offsets and callers use `++`/`--` for single steps.
+- A frequent path may be `[[likely]]` even if it does expensive work; in a hot
+  loop, favoring common arithmetic can keep the instruction pipeline on the
+  main work. If equivalent-probability branches differ in efficiency, prefer
+  `[[likely]]` on the more efficient implementation to guide compiler treatment,
+  not to claim different runtime probabilities.
+- A loop's one-time exit may be `[[unlikely]]` after many ordinary iterations,
+  favoring the repeated path; verify the exit is rare for the relevant inputs.
 
 ## Check actual call patterns
 
 Mathematical rarity among all possible values is useful evidence, but is not
-enough by itself. Check how APIs invoke the branch:
+enough by itself. Check how APIs invoke the branch and account for the build:
 
 - `begin()`, `end()`, `size()`, `--end()`, and reverse iteration deliberately
   touch endpoint values. A sentinel branch can therefore be hot in a particular
@@ -52,28 +44,24 @@ enough by itself. Check how APIs invoke the branch:
   necessarily rare for every caller.
 - Small `+=`/`-=` offsets may be common in generic random-access algorithms,
   even when direct `++`/`--` is available.
-- Debug-only validation and exception checks only affect builds where those
+- Debug-only validation and exception checks affect only builds where those
   checks are compiled in.
 
-Prefer the user's expected workload when known. Avoid guessing about
+Prefer the user's expected workload when known; otherwise, avoid guessing about
 input-dependent branches and loops.
 
 ## Ask about uncovered cases
 
-When a branch's situation is not covered by this skill, ask the user whether
-to leave it unannotated or use `[[likely]]` or `[[unlikely]]`. Explain the
-branch and its relevant call patterns, and wait for their decision. The user
-may also provide a new reason for the choice; incorporate applicable new
-reasoning into this skill for future cases. If an existing rule applies but
-its workload assumptions are uncertain, check representative call patterns
-or benchmarks rather than guessing.
+For an uncovered branch, explain its behavior and relevant call patterns, then
+ask whether to leave it unannotated or use `[[likely]]`/`[[unlikely]]`; wait for
+the user's decision. Incorporate any applicable new reasoning they provide into
+this skill. If a rule applies but its workload assumptions are uncertain, check
+representative call patterns or benchmarks instead of guessing.
 
 ## Review checklist
 
-1. Identify the branch's normal and shortcut/error paths.
-2. Verify whether the supposedly rare path is common in its actual API context.
-3. Use `[[unlikely]]` for a cold condition's body and `[[likely]]` only for a
-   well-supported hot body.
-4. Keep related endpoint or exception checks consistent where appropriate.
-5. Confirm annotations do not imply a workload assumption that the callers do
-   not satisfy.
+1. Identify normal and shortcut/error paths; verify their frequency in actual
+   API call patterns, including endpoints, exceptions, and build configuration.
+2. Use `[[unlikely]]` for a cold condition and `[[likely]]` only for a
+   well-supported hot path; keep related checks consistent.
+3. Confirm annotations do not assume a workload callers do not have.
