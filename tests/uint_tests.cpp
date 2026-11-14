@@ -63,6 +63,9 @@ bool check_uint_operations()
     using uint_type = wide_uint<N>;
     constexpr auto words = N / 64;
 
+    static_assert(!std::is_convertible_v<uint_type, int>);
+    static_assert(!std::is_convertible_v<uint_type, std::size_t>);
+
     uint_type zero{};
     uint_type one{1};
     if (zero != uint_type{} || one.data[0] != 1)
@@ -110,14 +113,11 @@ bool check_uint_operations()
         std::cerr << N << "-bit comparison failed\n";
         return false;
     }
-    int int_conversion = uint_type{42};
-    std::size_t size_conversion = uint_type{42};
     if (!(high_with_high_word > low_with_high_word) ||
         !(low_with_high_word <= high_with_high_word) ||
-        !(high_with_high_word >= low_with_high_word) ||
-        int_conversion != 42 || size_conversion != 42)
+        !(high_with_high_word >= low_with_high_word))
     {
-        std::cerr << N << "-bit comparison or conversion failed\n";
+        std::cerr << N << "-bit comparison failed\n";
         return false;
     }
 
@@ -295,6 +295,9 @@ bool check_index_bitset_conversions()
 {
     using IndexSet = stdx::uint_indices<130, 3>;
     using ComplementSet = stdx::uint_complement_indices<130, 3>;
+    static_assert(!std::is_convertible_v<IndexSet, std::size_t>);
+    static_assert(!std::is_convertible_v<ComplementSet, std::size_t>);
+
     std::array<IndexSet::index_type, 3> const positions{0, 64, 129};
     IndexSet indices{positions};
     ComplementSet complement{positions};

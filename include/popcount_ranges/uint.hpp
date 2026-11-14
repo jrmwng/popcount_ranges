@@ -36,11 +36,6 @@ namespace jrmwng::popcount_ranges::stdx
             : indices(positions)
         {}
 
-        constexpr operator size_t() const noexcept
-        {
-            return R;
-        }
-
         constexpr std::bitset<N> to_bitset() const noexcept
         {
             std::bitset<N> result;
@@ -103,11 +98,6 @@ namespace jrmwng::popcount_ranges::stdx
         constexpr explicit uint_complement_indices(std::array<index_type, R> positions) noexcept
             : indices(positions)
         {}
-
-        constexpr operator size_t() const noexcept
-        {
-            return N - R;
-        }
 
         constexpr std::bitset<N> to_bitset() const noexcept
         {
@@ -217,13 +207,10 @@ namespace jrmwng::popcount_ranges::stdx
             return !(*this < other);
         }
 
-        constexpr operator int() const noexcept
+        template <std::unsigned_integral Tuint>
+        constexpr bool operator<=> (Tuint const & other) const noexcept
         {
-            return static_cast<int>(data[0]);
-        }
-        constexpr operator size_t() const noexcept
-        {
-            return static_cast<size_t>(data[0]);
+            return *this <=> uint(other);
         }
 
         constexpr std::bitset<N> to_bitset() const noexcept
