@@ -173,3 +173,7 @@ that do not define `_DEBUG` run the exhaustive cases instead.
 See the [usage guide](docs/usage.md) for installation, CMake integration,
 representations and SIMD options; see the [benchmark guide](benchmarks/README.md)
 for workloads, methodology and reproduction commands.
+
+## License
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).

@@ -66,6 +66,9 @@ write_basic_package_version_file(
 
 install(TARGETS popcount_ranges EXPORT popcount_rangesTargets)
 install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(FILES LICENSE
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/${PROJECT_NAME}"
+)
 install(EXPORT popcount_rangesTargets
     FILE popcount_rangesTargets.cmake
     NAMESPACE jrmwng::
