@@ -1,9 +1,11 @@
 #pragma once
 
 #include <array>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <utility>
 
 namespace jrmwng::popcount_ranges::stdx
 {
@@ -37,6 +39,20 @@ namespace jrmwng::popcount_ranges::stdx
         constexpr operator size_t() const noexcept
         {
             return R;
+        }
+
+        constexpr std::bitset<N> to_bitset() const noexcept
+        {
+            std::bitset<N> result;
+            if (!is_sentinel)
+                for (size_t i = 0; i < R; ++i)
+                    if (indices[i] < N)
+                        result.set(indices[i]);
+            return result;
+        }
+        constexpr operator std::bitset<N>() const noexcept
+        {
+            return to_bitset();
         }
 
         constexpr bool operator==(uint_indices const& other) const noexcept
@@ -91,6 +107,24 @@ namespace jrmwng::popcount_ranges::stdx
         constexpr operator size_t() const noexcept
         {
             return N - R;
+        }
+
+        constexpr std::bitset<N> to_bitset() const noexcept
+        {
+            std::bitset<N> result;
+            if (is_sentinel)
+                return result;
+
+            result.set();
+            for (size_t i = 0; i < R; ++i)
+                if (indices[i] < N)
+                    result.reset(indices[i]);
+            return result;
+        }
+
+        constexpr operator std::bitset<N>() const noexcept
+        {
+            return to_bitset();
         }
 
         constexpr bool operator==(uint_complement_indices const& other) const noexcept
@@ -190,6 +224,40 @@ namespace jrmwng::popcount_ranges::stdx
         constexpr operator size_t() const noexcept
         {
             return static_cast<size_t>(data[0]);
+        }
+
+        constexpr std::bitset<N> to_bitset() const noexcept
+        {
+            if constexpr (N <= 4096) // 4096 was experimentally determined with modern compilers (vs2026, clang 23 and gcc 16)
+            {
+                return [this]<size_t... Is>(std::index_sequence<Is...>)
+                {
+                    return ((std::bitset<N>{data[Is]} << (B * Is)) | ...);
+                }
+                (std::make_index_sequence<N / B>{});
+            }
+            else
+            {
+                std::bitset<N> result;
+                for (std::size_t i = 0; i < M; ++i)
+                {
+                    [&]<std::size_t... Js>(std::index_sequence<Js...>)
+                    {
+                        (void)((result.set(B * i + Js, (data[i] & (bits_type(1) << Js)) != 0)), ...);
+                    }
+                    (std::make_index_sequence<B>{});
+                }
+                if constexpr (M * B < N)
+                for (std::size_t i = M * B; i < N; ++i)
+                {
+                    result[i] = (data[i / B] & (bits_type(1) << (i % B))) != 0;
+                }
+                return result;
+            }
+        }
+        constexpr operator std::bitset<N>() const noexcept
+        {
+            return to_bitset();
         }
 
         constexpr uint& operator+=(uint const & other) noexcept = delete;

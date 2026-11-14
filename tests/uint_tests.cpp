@@ -1,6 +1,8 @@
 #include <popcount_ranges/uint.hpp>
 
+#include <array>
 #include <bit>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -180,6 +182,15 @@ bool check_uint_operations()
         std::cerr << N << "-bit complement failed\n";
         return false;
     }
+    std::bitset<N> expected_bits;
+    for (std::size_t bit = 0; bit < N; ++bit)
+        if ((a.data[bit / 64] >> (bit % 64)) & 1u)
+            expected_bits.set(bit);
+    if (static_cast<std::bitset<N>>(a) != expected_bits)
+    {
+        std::cerr << N << "-bit bitset conversion failed\n";
+        return false;
+    }
 
     for (std::size_t shift : {std::size_t{0}, std::size_t{1}, std::size_t{2}, std::size_t{31},
                               std::size_t{63}, std::size_t{64}, std::size_t{65}, std::size_t{127},
@@ -280,6 +291,28 @@ bool check_wide_set_bit_positions()
     return true;
 }
 
+bool check_index_bitset_conversions()
+{
+    using IndexSet = stdx::uint_indices<130, 3>;
+    using ComplementSet = stdx::uint_complement_indices<130, 3>;
+    std::array<IndexSet::index_type, 3> const positions{0, 64, 129};
+    IndexSet indices{positions};
+    ComplementSet complement{positions};
+
+    std::bitset<130> expected;
+    expected.set(0);
+    expected.set(64);
+    expected.set(129);
+    if (static_cast<std::bitset<130>>(indices) != expected ||
+        static_cast<std::bitset<130>>(complement) != ~expected)
+        return false;
+
+    indices.is_sentinel = true;
+    complement.is_sentinel = true;
+    return static_cast<std::bitset<130>>(indices).none() &&
+        static_cast<std::bitset<130>>(complement).none();
+}
+
 }
 
 int main()
@@ -315,6 +348,11 @@ int main()
         !check_uint_operations<256>() || !check_uint_operations<320>())
     {
         std::cerr << "uint operation tests failed\n";
+        return 1;
+    }
+    if (!check_index_bitset_conversions())
+    {
+        std::cerr << "index bitset conversion tests failed\n";
         return 1;
     }
     if (!check_native_set_bit_positions<std::uint8_t>() ||
